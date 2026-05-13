@@ -16,6 +16,54 @@ export const getHistory = async (req: AuthRequest, res: Response) => {
   }
 };
 
+export const deleteHistoryItem = async (req: AuthRequest, res: Response) => {
+  const id = req.params.id as string;
+  try {
+    await prisma.duplicateJob.deleteMany({
+      where: { 
+        id,
+        userId: req.userId
+      },
+    });
+    res.json({ success: true });
+  } catch (error) {
+    res.status(500).json({ message: 'Failed to delete history item' });
+  }
+};
+
+export const cleanupHistory = async (req: AuthRequest, res: Response) => {
+  try {
+    const user = await prisma.user.findUnique({ where: { id: req.userId } });
+    if (!user || !user.accessToken) return res.status(401).json({ message: 'Unauthorized' });
+
+    const jobs = await prisma.duplicateJob.findMany({
+      where: { 
+        userId: req.userId,
+        status: 'COMPLETED',
+        targetId: { not: null }
+      },
+    });
+
+    const fbService = new FacebookService(user.accessToken);
+    let deletedCount = 0;
+
+    for (const job of jobs) {
+      if (job.targetId) {
+        const exists = await fbService.checkExistence(job.targetId);
+        if (!exists) {
+          await prisma.duplicateJob.delete({ where: { id: job.id } });
+          deletedCount++;
+        }
+      }
+    }
+
+    res.json({ success: true, deletedCount });
+  } catch (error) {
+    console.error('Cleanup History Error:', error);
+    res.status(500).json({ message: 'Failed to cleanup history' });
+  }
+};
+
 export const duplicateItems = async (req: AuthRequest, res: Response) => {
   const { items, adAccountId, options } = req.body;
   // items: Array<{ id: string, type: 'CAMPAIGN' | 'ADSET' | 'AD', name: string }>
@@ -67,10 +115,22 @@ export const duplicateItems = async (req: AuthRequest, res: Response) => {
             result = await fbService.duplicateCampaign(item.id, newName, adAccountId, customBudget);
           }
         } else if (item.type === 'ADSET') {
-          const original = await (fbService as any).client.get(`/${item.id}?fields=campaign_id`);
-          result = await fbService.duplicateAdSet(item.id, newName, original.data.campaign_id, adAccountId, customBudget);
+          console.log(`[DuplicationController] Fetching campaign_id for ad set: ${item.id}`);
+          const originalResponse = await fbService.get(`/${item.id}`, { fields: 'campaign_id,campaign{id}' });
+          const campaignId = originalResponse.data.campaign_id || originalResponse.data.campaign?.id;
+          
+          if (!campaignId) {
+            console.error(`[DuplicationController] Failed to find campaign_id for ad set: ${item.id}`, originalResponse.data);
+            throw new Error(`Could not find parent campaign for ad set ${item.id}`);
+          }
+
+          if (options.deep) {
+            result = await fbService.duplicateAdSetDeep(item.id, newName, campaignId, adAccountId, customBudget);
+          } else {
+            result = await fbService.duplicateAdSet(item.id, newName, campaignId, adAccountId, customBudget);
+          }
         } else if (item.type === 'AD') {
-          const original = await (fbService as any).client.get(`/${item.id}?fields=adset_id`);
+          const original = await fbService.get(`/${item.id}`, { fields: 'adset_id' });
           result = await fbService.duplicateAd(item.id, newName, original.data.adset_id, adAccountId);
         }
 
@@ -92,8 +152,15 @@ export const duplicateItems = async (req: AuthRequest, res: Response) => {
 
     res.json({ success: true, results });
   } catch (error: any) {
-    console.error('[DuplicationController] Bulk Duplicate Error:', error.response?.data || error.message || error);
-    res.status(500).json({ message: 'Failed to duplicate items', error: error.response?.data || error.message });
+    const errorDetail = error.response?.data || error.message || error;
+    console.error('[DuplicationController] Bulk Duplicate Error:', errorDetail);
+    if (error.stack) console.error(error.stack);
+    
+    res.status(500).json({ 
+      message: 'Failed to duplicate items', 
+      error: errorDetail,
+      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    });
   }
 };
 

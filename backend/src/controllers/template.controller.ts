@@ -64,7 +64,7 @@ export const updateTemplate = async (req: AuthRequest, res: Response) => {
 export const deleteTemplate = async (req: AuthRequest, res: Response) => {
   const id = req.params.id as string;
   try {
-    await prisma.namingTemplate.delete({
+    await prisma.namingTemplate.deleteMany({
       where: { id, userId: req.userId },
     });
     res.json({ success: true });

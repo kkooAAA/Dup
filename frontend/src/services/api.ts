@@ -27,6 +27,8 @@ export const adAccountApi = {
 
 export const duplicationApi = {
   getHistory: () => api.get('/duplicate/history'),
+  deleteHistory: (id: string) => api.delete(`/duplicate/history/${id}`),
+  cleanupHistory: () => api.post('/duplicate/sync'),
   duplicateCampaign: (data: any) => api.post('/duplicate/campaign', data),
   duplicateAdSet: (data: any) => api.post('/duplicate/adset', data),
   duplicateAd: (data: any) => api.post('/duplicate/ad', data),

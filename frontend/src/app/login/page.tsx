@@ -19,8 +19,15 @@ export default function LoginPage() {
   const [devToken, setDevToken] = useState("");
 
   const handleFacebookLogin = () => {
+    const appId = process.env.NEXT_PUBLIC_FB_APP_ID;
+    
+    if (!appId || appId === "your_facebook_app_id") {
+      toast.error("Facebook App ID is not configured. Please check your .env.local file.");
+      return;
+    }
+
     if (!window.FB) {
-      toast.error("Facebook SDK not loaded. Check your App ID or AdBlocker.");
+      toast.error("Facebook SDK not loaded. This is often caused by AdBlockers or a slow connection.");
       return;
     }
 
@@ -32,7 +39,11 @@ export default function LoginPage() {
         verifyToken(accessToken);
       } else {
         setIsLoggingIn(false);
-        toast.error("User cancelled login or did not fully authorize.");
+        if (response.status === 'not_authorized') {
+          toast.error("Please authorize the app to continue.");
+        } else {
+          toast.error("Login cancelled.");
+        }
       }
     }, { 
       scope: 'ads_management,ads_read,business_management,public_profile,email' 

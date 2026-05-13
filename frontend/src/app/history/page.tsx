@@ -10,15 +10,17 @@ import {
   TableRow 
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { CheckCircle2, XCircle, Clock, ExternalLink, Loader2 } from "lucide-react";
+import { CheckCircle2, XCircle, Clock, ExternalLink, Loader2, Trash2, ShieldCheck, RefreshCw } from "lucide-react";
 import { useEffect, useState } from "react";
 import { duplicationApi } from "@/services/api";
 import { toast } from "sonner";
 import { format } from "date-fns";
+import { Button } from "@/components/ui/button";
 
 export default function HistoryPage() {
   const [history, setHistory] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [cleaning, setCleaning] = useState(false);
 
   useEffect(() => {
     fetchHistory();
@@ -35,6 +37,29 @@ export default function HistoryPage() {
     }
   };
 
+  const handleDelete = async (id: string) => {
+    try {
+      await duplicationApi.deleteHistory(id);
+      setHistory(history.filter(item => item.id !== id));
+      toast.success("History item deleted");
+    } catch (error) {
+      toast.error("Failed to delete history item");
+    }
+  };
+
+  const handleCleanup = async () => {
+    setCleaning(true);
+    try {
+      const response = await duplicationApi.cleanupHistory();
+      toast.success(`Cleanup complete! Removed ${response.data.deletedCount} items that no longer exist on Facebook.`);
+      fetchHistory();
+    } catch (error) {
+      toast.error("Failed to cleanup history");
+    } finally {
+      setCleaning(false);
+    }
+  };
+
   return (
     <DashboardLayout>
       <div className="space-y-6">
@@ -43,12 +68,24 @@ export default function HistoryPage() {
             <h2 className="text-3xl font-bold">Duplication History</h2>
             <p className="text-gray-400 mt-1">Audit log of all duplication actions performed.</p>
           </div>
-          <button 
-            onClick={fetchHistory}
-            className="text-sm text-blue-400 hover:text-blue-300 transition-colors"
-          >
-            Refresh
-          </button>
+          <div className="flex gap-3">
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={handleCleanup} 
+              disabled={cleaning || loading || history.length === 0}
+              className="gap-2 border-gray-800 text-blue-400 hover:text-blue-300"
+            >
+              <RefreshCw className={`w-4 h-4 ${cleaning && 'animate-spin'}`} />
+              {cleaning ? 'Syncing...' : 'Sync with Facebook'}
+            </Button>
+            <button 
+              onClick={fetchHistory}
+              className="text-sm text-gray-400 hover:text-white transition-colors"
+            >
+              Refresh
+            </button>
+          </div>
         </div>
 
         <div className="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden">
@@ -69,7 +106,8 @@ export default function HistoryPage() {
                   <TableHead className="text-gray-300">Source ID</TableHead>
                   <TableHead className="text-gray-300">Target ID</TableHead>
                   <TableHead className="text-gray-300">Status</TableHead>
-                  <TableHead className="text-gray-300 text-right">Date</TableHead>
+                  <TableHead className="text-gray-300">Date</TableHead>
+                  <TableHead className="text-gray-300 text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -104,11 +142,20 @@ export default function HistoryPage() {
                         </div>
                       )}
                     </TableCell>
-                    <TableCell className="text-right text-sm text-gray-500">
-                      <div className="flex items-center justify-end gap-1.5">
+                    <TableCell className="text-sm text-gray-500">
+                      <div className="flex items-center gap-1.5">
                         <Clock className="w-3 h-3" />
                         {format(new Date(job.createdAt), "yyyy-MM-dd HH:mm")}
                       </div>
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <button 
+                        onClick={() => handleDelete(job.id)}
+                        className="p-2 text-gray-500 hover:text-red-400 transition-colors"
+                        title="Delete from history"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
                     </TableCell>
                   </TableRow>
                 ))}
