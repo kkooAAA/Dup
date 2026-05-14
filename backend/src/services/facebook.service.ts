@@ -48,30 +48,72 @@ export class FacebookService {
     const response = await this.client.get(`/${adAccountId}/campaigns`, {
       params: {
         fields: 'name,id,status,objective,bid_strategy,daily_budget,lifetime_budget,start_time,stop_time,buying_type,special_ad_categories',
-        filtering: JSON.stringify([{ field: 'effective_status', operator: 'IN', value: ['ACTIVE', 'PAUSED', 'PENDING_REVIEW', 'DISAPPROVED', 'PREAPPROVED', 'PENDING_BILLING_INFO', 'CAMPAIGN_PAUSED', 'ADSET_PAUSED', 'IN_PROCESS', 'WITH_ISSUES'] }]),
       },
     });
     return response.data.data;
   }
 
   async getAdSets(campaignId: string) {
-    const response = await this.client.get(`/${campaignId}/adsets`, {
-      params: {
-        fields: 'name,id,status,billing_event,optimization_goal,bid_amount,daily_budget,lifetime_budget,targeting,promoted_object,attribution_spec,optimization_sub_event,destination_type,bid_strategy',
-        filtering: JSON.stringify([{ field: 'effective_status', operator: 'IN', value: ['ACTIVE', 'PAUSED', 'PENDING_REVIEW', 'DISAPPROVED', 'PREAPPROVED', 'PENDING_BILLING_INFO', 'CAMPAIGN_PAUSED', 'ADSET_PAUSED', 'IN_PROCESS', 'WITH_ISSUES'] }]),
-      },
-    });
-    return response.data.data;
+    console.log(`[FacebookService] Fetching ad sets for campaign: ${campaignId}`);
+    let allAdSets: any[] = [];
+    let url: string | null = `/${campaignId}/adsets`;
+    let params: any = {
+      fields: 'name,id,status,billing_event,optimization_goal,bid_amount,daily_budget,lifetime_budget,targeting,promoted_object,attribution_spec,optimization_sub_event,destination_type,bid_strategy',
+      limit: 100
+    };
+
+    while (url) {
+      try {
+        // If url is absolute (starts with http), we use a clean axios instance to avoid baseURL/params conflict
+        const response: any = url.startsWith('http') 
+          ? await axios.get(url)
+          : await this.client.get(url, { params });
+          
+        const data = response.data;
+        if (data.data) {
+          allAdSets = [...allAdSets, ...data.data];
+        }
+        
+        url = data.paging?.next || null;
+        params = {}; // Clear params for next iteration if using this.client (though we won't be if it's absolute)
+      } catch (error: any) {
+        console.error(`[FacebookService] Failed to fetch ad sets page:`, error.response?.data || error.message);
+        break; // Stop fetching if a page fails
+      }
+    }
+    console.log(`[FacebookService] Total ad sets found: ${allAdSets.length}`);
+    return allAdSets;
   }
 
   async getAds(adSetId: string) {
-    const response = await this.client.get(`/${adSetId}/ads`, {
-      params: {
-        fields: 'name,id,status,creative,tracking_specs,recommendations',
-        filtering: JSON.stringify([{ field: 'effective_status', operator: 'IN', value: ['ACTIVE', 'PAUSED', 'PENDING_REVIEW', 'DISAPPROVED', 'PREAPPROVED', 'PENDING_BILLING_INFO', 'CAMPAIGN_PAUSED', 'ADSET_PAUSED', 'IN_PROCESS', 'WITH_ISSUES'] }]),
-      },
-    });
-    return response.data.data;
+    console.log(`[FacebookService] Fetching ads for ad set: ${adSetId}`);
+    let allAds: any[] = [];
+    let url: string | null = `/${adSetId}/ads`;
+    let params: any = {
+      fields: 'name,id,status,creative,tracking_specs,recommendations',
+      limit: 100
+    };
+
+    while (url) {
+      try {
+        const response: any = url.startsWith('http')
+          ? await axios.get(url)
+          : await this.client.get(url, { params });
+          
+        const data = response.data;
+        if (data.data) {
+          allAds = [...allAds, ...data.data];
+        }
+        
+        url = data.paging?.next || null;
+        params = {};
+      } catch (error: any) {
+        console.error(`[FacebookService] Failed to fetch ads page:`, error.response?.data || error.message);
+        break;
+      }
+    }
+    console.log(`[FacebookService] Total ads found: ${allAds.length}`);
+    return allAds;
   }
 
   async duplicateCampaign(campaignId: string, newName: string, adAccountId: string, customBudget?: string) {
@@ -292,5 +334,18 @@ export class FacebookService {
     }
 
     return newCampaign;
+  }
+
+  async updateName(id: string, newName: string) {
+    console.log(`[FacebookService] Updating Name for ${id} to: ${newName}`);
+    try {
+      const response = await this.client.post(`/${id}`, {
+        name: newName
+      });
+      return response.data;
+    } catch (error: any) {
+      console.error(`[FacebookService] Update Name Failed:`, error.response?.data || error.message);
+      throw error;
+    }
   }
 }

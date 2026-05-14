@@ -24,7 +24,7 @@ export const OBJECTIVE_DEFAULTS: Record<string, ConversionMapping> = {
   },
   'OUTCOME_LEADS': {
     objective: 'OUTCOME_LEADS',
-    optimization_goal: 'LEADS',
+    optimization_goal: 'LEAD_GENERATION',
     billing_event: 'IMPRESSIONS'
   },
   'OUTCOME_SALES': {
@@ -70,18 +70,17 @@ export class ObjectiveConversionService {
   }
 
   private async previewCampaign(campaignId: string, targetObjective: string, newName?: string) {
+    // FIX: Pass fields directly, not nested in params
     const original = await this.fbService.get(`/${campaignId}`, {
-      params: { fields: 'name,objective,bid_strategy,daily_budget,lifetime_budget,special_ad_categories' }
+      fields: 'name,objective,bid_strategy,daily_budget,lifetime_budget,special_ad_categories'
     });
 
     const campaignData = original.data;
     const transformed = this.transformCampaign(campaignData, targetObjective, newName || `${campaignData.name || 'Campaign'} - Converted`);
 
-    // Fetch all ad sets to get accurate counts
     const adSets = await this.fbService.getAdSets(campaignId);
     let totalAdsCount = 0;
     
-    // We fetch ads for all ad sets to get the true total count
     for (const adSet of adSets) {
       try {
         const ads = await this.fbService.getAds(adSet.id);
@@ -101,7 +100,7 @@ export class ObjectiveConversionService {
     if (adSets.length > 0) {
       try {
         const fullAdSetResponse = await this.fbService.get(`/${adSets[0].id}`, {
-          params: { fields: 'name,billing_event,optimization_goal,bid_amount,daily_budget,lifetime_budget,targeting,promoted_object,attribution_spec,destination_type' }
+          fields: 'name,billing_event,optimization_goal,bid_amount,daily_budget,lifetime_budget,targeting,promoted_object,attribution_spec,destination_type'
         });
         const adSetData = fullAdSetResponse.data;
         childSummary.sampleAdSet = this.transformAdSet(adSetData, targetObjective, `${adSetData.name || 'Ad Set'} - Converted`, 'NEW_CAMPAIGN_ID');
@@ -109,7 +108,7 @@ export class ObjectiveConversionService {
         const sampleAds = await this.fbService.getAds(adSets[0].id);
         if (sampleAds.length > 0) {
           const fullAdResponse = await this.fbService.get(`/${sampleAds[0].id}`, {
-            params: { fields: 'name,creative,tracking_specs' }
+            fields: 'name,creative,tracking_specs'
           });
           const adData = fullAdResponse.data;
           childSummary.sampleAd = this.transformAd(adData, targetObjective, `${adData.name || 'Ad'} - Converted`, 'NEW_ADSET_ID');
@@ -127,13 +126,12 @@ export class ObjectiveConversionService {
     };
   }
 
-
   private async previewAdSet(adSetId: string, targetObjective: string, newName?: string) {
     const original = await this.fbService.get(`/${adSetId}`, {
-      params: { fields: 'name,billing_event,optimization_goal,bid_amount,daily_budget,lifetime_budget,targeting,promoted_object,attribution_spec,destination_type' }
+      fields: 'name,billing_event,optimization_goal,bid_amount,daily_budget,lifetime_budget,targeting,promoted_object,attribution_spec,destination_type'
     });
 
-    const transformed = this.transformAdSet(original.data, targetObjective, newName || `${original.data.name} - Converted`, 'DUMMY_CAMPAIGN_ID');
+    const transformed = this.transformAdSet(original.data, targetObjective, newName || `${original.data.name || 'Ad Set'} - Converted`, 'DUMMY_CAMPAIGN_ID');
 
     return {
       original: original.data,
@@ -144,10 +142,10 @@ export class ObjectiveConversionService {
 
   private async previewAd(adId: string, targetObjective: string, newName?: string) {
     const original = await this.fbService.get(`/${adId}`, {
-      params: { fields: 'name,creative,tracking_specs' }
+      fields: 'name,creative,tracking_specs'
     });
 
-    const transformed = this.transformAd(original.data, targetObjective, newName || `${original.data.name} - Converted`, 'DUMMY_ADSET_ID');
+    const transformed = this.transformAd(original.data, targetObjective, newName || `${original.data.name || 'Ad'} - Converted`, 'DUMMY_ADSET_ID');
 
     return {
       original: original.data,
@@ -157,6 +155,7 @@ export class ObjectiveConversionService {
   }
 
   public transformCampaign(data: any, targetObjective: string, newName: string) {
+    // Detect if original was CBO
     const isCBO = !!(data.bid_strategy || (data.daily_budget && data.daily_budget !== "0" && data.daily_budget !== 0) || (data.lifetime_budget && data.lifetime_budget !== "0" && data.lifetime_budget !== 0));
     
     let payload: any = {
@@ -164,23 +163,24 @@ export class ObjectiveConversionService {
       objective: targetObjective,
       status: 'PAUSED',
       special_ad_categories: data.special_ad_categories || [],
-      is_adset_budget_sharing_enabled: isCBO
+      // We EXPLICITLY set the simplest bid strategy for maximum compatibility during conversion
+      bid_strategy: 'LOWEST_COST_WITHOUT_CAP'
     };
 
-    if (data.daily_budget) payload.daily_budget = data.daily_budget;
-    if (data.lifetime_budget) payload.lifetime_budget = data.lifetime_budget;
-    if (data.bid_strategy) payload.bid_strategy = data.bid_strategy;
+    if (isCBO) {
+      if (data.daily_budget) payload.daily_budget = data.daily_budget;
+      if (data.lifetime_budget) payload.lifetime_budget = data.lifetime_budget;
+    }
 
     return payload;
   }
 
-  public transformAdSet(data: any, targetObjective: string, newName: string, campaignId: string) {
+  public transformAdSet(data: any, targetObjective: string, newName: string, campaignId: string, pageId?: string) {
     const defaults = OBJECTIVE_DEFAULTS[targetObjective] || OBJECTIVE_DEFAULTS['OUTCOME_AWARENESS'];
     
     // Smart optimization goal mapping
     let optimization_goal = defaults.optimization_goal;
     
-    // Keep some original goals if compatible with new objective
     if (targetObjective === 'OUTCOME_ENGAGEMENT' && 
        ['POST_ENGAGEMENT', 'VIDEO_VIEWS', 'THRUPLAY', 'MESSAGES'].includes(data.optimization_goal)) {
       optimization_goal = data.optimization_goal;
@@ -200,37 +200,50 @@ export class ObjectiveConversionService {
       targeting: sanitizedTargeting
     };
 
+    // Smart Destination Mapping
+    if (targetObjective === 'OUTCOME_LEADS') {
+      // Default to ON_AD (Instant Forms) for leads if original was something else
+      payload.destination_type = (data.destination_type === 'WEBSITE' || data.destination_type === 'UNDEFINED') 
+                                 ? 'ON_AD' : data.destination_type;
+    } else if (targetObjective === 'OUTCOME_TRAFFIC') {
+      payload.destination_type = 'WEBSITE';
+    } else if (data.destination_type && data.destination_type !== 'UNDEFINED') {
+      payload.destination_type = data.destination_type;
+    }
+
+    // Budgets are carried over but will be deleted in main loop if parent is CBO
     if (data.daily_budget) payload.daily_budget = data.daily_budget;
     if (data.lifetime_budget) payload.lifetime_budget = data.lifetime_budget;
-    if (data.bid_strategy) payload.bid_strategy = data.bid_strategy;
-    if (data.bid_amount) payload.bid_amount = data.bid_amount;
 
+    // Manual bids are OMITTED for conversion safety
+    
     // Smart transformation for promoted_object
     if (targetObjective === 'OUTCOME_SALES' || targetObjective === 'OUTCOME_LEADS' || targetObjective === 'OUTCOME_APP_PROMOTION') {
       if (data.promoted_object) {
         payload.promoted_object = this.sanitizePromotedObject(data.promoted_object);
-      } else if (targetObjective === 'OUTCOME_APP_PROMOTION') {
-        // App Promotion requires a promoted_object. If missing, this will fail creation, 
-        // but we'll let Meta throw the specific error for application_id.
+      }
+      
+      // Mandatory for Leads/Engagement ON_AD: We MUST have a page_id
+      if (targetObjective === 'OUTCOME_LEADS' && payload.destination_type === 'ON_AD') {
+        if (!payload.promoted_object?.page_id && pageId) {
+          payload.promoted_object = { ...payload.promoted_object, page_id: pageId };
+          console.log(`[ObjectiveConversionService] Injected inherited page_id: ${pageId}`);
+        }
       }
     } else if (targetObjective === 'OUTCOME_ENGAGEMENT') {
-      // For engagement, we might keep the Page if it's there
       if (data.promoted_object?.page_id) {
         payload.promoted_object = { page_id: data.promoted_object.page_id };
+      } else if (pageId) {
+        payload.promoted_object = { page_id: pageId };
       }
     }
 
     if (data.attribution_spec) payload.attribution_spec = data.attribution_spec;
-    if (data.destination_type) payload.destination_type = data.destination_type;
 
     return payload;
   }
 
   public transformAd(data: any, targetObjective: string, newName: string, adSetId: string) {
-    if (!data || !data.creative) {
-      console.warn(`[ObjectiveConversionService] Ad data or creative missing for ${newName}. Using dummy creative.`);
-    }
-
     const payload: any = {
       name: newName,
       adset_id: adSetId,
@@ -248,9 +261,7 @@ export class ObjectiveConversionService {
   }
 
   private sanitizeTargeting(targeting: any) {
-    // Default safe targeting if none exists
     const defaultTargeting = { geo_locations: { countries: ['TH'] } };
-    
     if (!targeting) return defaultTargeting;
     
     try {
@@ -258,15 +269,11 @@ export class ObjectiveConversionService {
       delete sanitized.id;
       delete sanitized.targeting_automation;
       delete sanitized.contextual_targeting_options;
-      
-      // Ensure geo_locations is present as it's required for most objectives
       if (!sanitized.geo_locations || Object.keys(sanitized.geo_locations).length === 0) {
         sanitized.geo_locations = defaultTargeting.geo_locations;
       }
-      
       return sanitized;
     } catch (e) {
-      console.error(`[ObjectiveConversionService] Failed to sanitize targeting`, e);
       return defaultTargeting;
     }
   }
@@ -293,52 +300,117 @@ export class ObjectiveConversionService {
   }
 
   async convertCampaignDeep(campaignId: string, targetObjective: string, newName: string, adAccountId: string) {
-    // 1. Fetch original campaign
+    console.log(`[ObjectiveConversionService] !!! STARTING DEEP CONVERSION !!!`);
+    
+    // 1. Fetch original campaign (FIXED GET CALL)
     const originalCampaign = await this.fbService.get(`/${campaignId}`, {
-      params: { fields: 'name,objective,bid_strategy,daily_budget,lifetime_budget,special_ad_categories' }
+      fields: 'name,objective,bid_strategy,daily_budget,lifetime_budget,special_ad_categories'
     });
+    console.log(`[ObjectiveConversionService] Original Campaign Data:`, originalCampaign.data);
 
     // 2. Transform and create campaign
     const campaignPayload = this.transformCampaign(originalCampaign.data, targetObjective, newName);
-    const isNewCampaignCBO = campaignPayload.is_adset_budget_sharing_enabled;
+    const isNewCampaignCBO = !!(campaignPayload.daily_budget || campaignPayload.lifetime_budget);
+    
+    console.log(`[ObjectiveConversionService] Creating new campaign with payload:`, JSON.stringify(campaignPayload));
     const newCampaign = (await this.fbService.client.post(`/${adAccountId}/campaigns`, campaignPayload)).data;
+    console.log(`[ObjectiveConversionService] SUCCESS: Created campaign ID: ${newCampaign.id}`);
 
     // 3. Fetch Ad Sets
     const adSets = await this.fbService.getAdSets(campaignId);
+    console.log(`[ObjectiveConversionService] Found ${adSets?.length || 0} ad sets to convert`);
 
-    for (const adSet of adSets) {
-      // 4. Fetch full ad set data
-      const fullAdSet = await this.fbService.get(`/${adSet.id}`, {
-        params: { fields: 'name,billing_event,optimization_goal,bid_amount,daily_budget,lifetime_budget,targeting,promoted_object,attribution_spec,destination_type' }
-      });
-
-      // 5. Transform and create ad set
-      const adSetPayload = this.transformAdSet(fullAdSet.data, targetObjective, `${fullAdSet.data.name} - Converted`, newCampaign.id);
-      
-      // IF CBO IS ENABLED ON CAMPAIGN, WE MUST OMIT BUDGET ON AD SET
-      if (isNewCampaignCBO) {
-        delete adSetPayload.daily_budget;
-        delete adSetPayload.lifetime_budget;
-        delete adSetPayload.bid_strategy;
-        delete adSetPayload.bid_amount;
-      }
-
-      const newAdSet = (await this.fbService.client.post(`/${adAccountId}/adsets`, adSetPayload)).data;
-
-      // 6. Fetch Ads
-      const ads = await this.fbService.getAds(adSet.id);
-      for (const ad of ads) {
-        // 7. Fetch full ad data
-        const fullAd = await this.fbService.get(`/${ad.id}`, {
-          params: { fields: 'name,creative,tracking_specs' }
+    for (let i = 0; i < adSets.length; i++) {
+      const adSet = adSets[i];
+      try {
+        console.log(`[ObjectiveConversionService] --- Processing Ad Set ${i+1}/${adSets.length}: ${adSet.id} ---`);
+        
+        // 4. Fetch full ad set data
+        const fullAdSet = await this.fbService.get(`/${adSet.id}`, {
+          fields: 'name,billing_event,optimization_goal,bid_amount,daily_budget,lifetime_budget,targeting,promoted_object,attribution_spec,destination_type,bid_strategy'
         });
+        const adSetData = fullAdSet.data;
+        
+        // 4.5 Intelligence: If objective is Leads/Engagement, we MUST find a page_id.
+        let inheritedPageId = adSetData.promoted_object?.page_id;
+        
+        if (!inheritedPageId) {
+          console.log(`[ObjectiveConversionService] No page_id in ad set ${adSet.id}, deep diving into ads to find one...`);
+          const originalAds = await this.fbService.getAds(adSet.id);
+          if (originalAds.length > 0) {
+            try {
+              // 1. Get the creative ID from the first ad
+              const adResponse = await this.fbService.get(`/${originalAds[0].id}`, { fields: 'creative' });
+              const creativeId = adResponse.data.creative?.id;
+              
+              if (creativeId) {
+                // 2. Fetch creative details to find the page
+                const creativeResponse = await this.fbService.get(`/${creativeId}`, { 
+                  fields: 'object_id,actor_id,object_story_spec' 
+                });
+                const cr = creativeResponse.data;
+                
+                // 3. Extract page_id from various possible fields
+                inheritedPageId = cr.object_id || cr.actor_id || cr.object_story_spec?.page_id;
+                
+                if (inheritedPageId) {
+                  // Fetch Page Details & Permissions for verification
+                  try {
+                    const pageInfo = await this.fbService.get(`/${inheritedPageId}`, { 
+                      fields: 'name,access_token,tasks,can_post,is_published' 
+                    });
+                    const p = pageInfo.data;
+                    console.log(`[ObjectiveConversionService] PAGE VERIFIED: "${p.name}" (ID: ${inheritedPageId})`);
+                    console.log(`[ObjectiveConversionService] PAGE TASKS:`, p.tasks || 'No specific tasks found');
+                  } catch (e: any) {
+                    console.error(`[ObjectiveConversionService] PERMISSION ERROR: Could not verify Page ID ${inheritedPageId}. Token may lack permissions for this page. Error:`, e.response?.data?.error?.message || e.message);
+                  }
+                }
+              }
+            } catch (pageDiscoveryError) {
+              console.warn(`[ObjectiveConversionService] Failed to discover Page ID from ads:`, pageDiscoveryError);
+            }
+          }
+        }
 
-        // 8. Transform and create ad
-        const adPayload = this.transformAd(fullAd.data, targetObjective, `${fullAd.data.name} - Converted`, newAdSet.id);
-        await this.fbService.client.post(`/${adAccountId}/ads`, adPayload);
+        // 5. Transform and create ad set
+        const adSetPayload = this.transformAdSet(adSetData, targetObjective, `${adSetData.name || 'Ad Set'} - Converted`, newCampaign.id, inheritedPageId);
+        
+        if (isNewCampaignCBO) {
+          console.log(`[ObjectiveConversionService] Omitting budget from ad set payload due to CBO`);
+          delete adSetPayload.daily_budget;
+          delete adSetPayload.lifetime_budget;
+        }
+
+        console.log(`[ObjectiveConversionService] Creating Ad Set with payload:`, JSON.stringify(adSetPayload));
+        const newAdSet = (await this.fbService.client.post(`/${adAccountId}/adsets`, adSetPayload)).data;
+        console.log(`[ObjectiveConversionService] SUCCESS: Created ad set ID: ${newAdSet.id}`);
+
+        // 6. Fetch Ads
+        const ads = await this.fbService.getAds(adSet.id);
+        for (let j = 0; j < ads.length; j++) {
+          const ad = ads[j];
+          try {
+            console.log(`[ObjectiveConversionService] --- Processing Ad ${j+1}/${ads.length}: ${ad.id} ---`);
+            const fullAd = await this.fbService.get(`/${ad.id}`, {
+              fields: 'name,creative,tracking_specs'
+            });
+            const adData = fullAd.data;
+
+            const adPayload = this.transformAd(adData, targetObjective, `${adData.name || 'Ad'} - Converted`, newAdSet.id);
+            console.log(`[ObjectiveConversionService] Creating Ad with payload:`, JSON.stringify(adPayload));
+            const newAdResult = (await this.fbService.client.post(`/${adAccountId}/ads`, adPayload)).data;
+            console.log(`[ObjectiveConversionService] SUCCESS: Created ad ID: ${newAdResult.id}`);
+          } catch (adError: any) {
+            console.error(`[ObjectiveConversionService] ERROR: Failed to convert ad ${ad.id}:`, JSON.stringify(adError.response?.data || adError.message));
+          }
+        }
+      } catch (adSetError: any) {
+        console.error(`[ObjectiveConversionService] ERROR: Failed to convert ad set ${adSet.id}:`, JSON.stringify(adSetError.response?.data || adSetError.message));
       }
     }
 
+    console.log(`[ObjectiveConversionService] !!! DEEP CONVERSION FINISHED !!!`);
     return newCampaign;
   }
 }

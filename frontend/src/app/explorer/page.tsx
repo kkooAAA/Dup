@@ -17,12 +17,16 @@ import {
   Search,
   Filter,
   Loader2,
-  RefreshCw
+  RefreshCw,
+  Edit2,
+  Check,
+  X
 } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
 import { DuplicateModal } from "@/components/dashboard/DuplicateModal";
 import { ObjectiveConversionModal } from "@/components/dashboard/ObjectiveConversionModal";
+import { Input } from "@/components/ui/input";
 
 export default function ExplorerPage() {
   const { selectedAccount } = useAppStore();
@@ -36,6 +40,11 @@ export default function ExplorerPage() {
   const [isConversionModalOpen, setIsConversionModalOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  
+  // Editing state
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editValue, setEditValue] = useState("");
+  const [updating, setUpdating] = useState(false);
 
   const selectedItemsList = Array.from(selectedItems.values());
   const canConvertObjective = selectedItemsList.length === 1 && selectedItemsList[0].type === 'CAMPAIGN';
@@ -60,6 +69,42 @@ export default function ExplorerPage() {
       toast.error("Failed to fetch campaigns");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleUpdateName = async (id: string, type: 'CAMPAIGN' | 'ADSET' | 'AD') => {
+    if (!editValue.trim()) return;
+    setUpdating(true);
+    try {
+      await adAccountApi.updateName(id, editValue);
+      toast.success("Name updated successfully");
+      
+      // Update local state
+      if (type === 'CAMPAIGN') {
+        setCampaigns(prev => prev.map(c => c.id === id ? { ...c, name: editValue } : c));
+      } else if (type === 'ADSET') {
+        setAdSets(prev => {
+          const newState = { ...prev };
+          for (const campaignId in newState) {
+            newState[campaignId] = newState[campaignId].map(as => as.id === id ? { ...as, name: editValue } : as);
+          }
+          return newState;
+        });
+      } else if (type === 'AD') {
+        setAds(prev => {
+          const newState = { ...prev };
+          for (const adsetId in newState) {
+            newState[adsetId] = newState[adsetId].map(ad => ad.id === id ? { ...ad, name: editValue } : ad);
+          }
+          return newState;
+        });
+      }
+      
+      setEditingId(null);
+    } catch (error) {
+      toast.error("Failed to update name");
+    } finally {
+      setUpdating(false);
     }
   };
 
@@ -192,8 +237,35 @@ export default function ExplorerPage() {
                         </button>
                         <Megaphone className="w-5 h-5 text-blue-400" />
                         <div className="flex-1">
-                          <p className="font-semibold text-gray-200">{campaign.name}</p>
-                          <p className="text-xs text-gray-500">{campaign.objective}</p>
+                          {editingId === campaign.id ? (
+                            <div className="flex items-center gap-2">
+                              <Input 
+                                value={editValue} 
+                                onChange={(e) => setEditValue(e.target.value)}
+                                className="h-8 bg-gray-950 border-gray-800"
+                                autoFocus
+                              />
+                              <Button size="icon" variant="ghost" className="h-8 w-8 text-green-500" onClick={() => handleUpdateName(campaign.id, 'CAMPAIGN')} disabled={updating}>
+                                {updating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
+                              </Button>
+                              <Button size="icon" variant="ghost" className="h-8 w-8 text-red-500" onClick={() => setEditingId(null)} disabled={updating}>
+                                <X className="w-4 h-4" />
+                              </Button>
+                            </div>
+                          ) : (
+                            <div className="flex items-center gap-2">
+                              <div>
+                                <p className="font-semibold text-gray-200">{campaign.name}</p>
+                                <p className="text-xs text-gray-500">{campaign.objective}</p>
+                              </div>
+                              <button 
+                                onClick={() => { setEditingId(campaign.id); setEditValue(campaign.name); }}
+                                className="opacity-0 group-hover:opacity-100 p-1 hover:bg-gray-700 rounded transition-all"
+                              >
+                                <Edit2 className="w-3.5 h-3.5 text-gray-400" />
+                              </button>
+                            </div>
+                          )}
                         </div>
                         <div className="flex items-center gap-4">
                           <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
@@ -225,7 +297,32 @@ export default function ExplorerPage() {
                                 </button>
                                 <Layers className="w-4 h-4 text-purple-400" />
                                 <div className="flex-1">
-                                  <p className="text-sm font-medium text-gray-300">{adset.name}</p>
+                                  {editingId === adset.id ? (
+                                    <div className="flex items-center gap-2">
+                                      <Input 
+                                        value={editValue} 
+                                        onChange={(e) => setEditValue(e.target.value)}
+                                        className="h-8 bg-gray-950 border-gray-800 text-sm"
+                                        autoFocus
+                                      />
+                                      <Button size="icon" variant="ghost" className="h-8 w-8 text-green-500" onClick={() => handleUpdateName(adset.id, 'ADSET')} disabled={updating}>
+                                        {updating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
+                                      </Button>
+                                      <Button size="icon" variant="ghost" className="h-8 w-8 text-red-500" onClick={() => setEditingId(null)} disabled={updating}>
+                                        <X className="w-4 h-4" />
+                                      </Button>
+                                    </div>
+                                  ) : (
+                                    <div className="flex items-center gap-2">
+                                      <p className="text-sm font-medium text-gray-300">{adset.name}</p>
+                                      <button 
+                                        onClick={() => { setEditingId(adset.id); setEditValue(adset.name); }}
+                                        className="opacity-0 group-hover:opacity-100 p-1 hover:bg-gray-700 rounded transition-all"
+                                      >
+                                        <Edit2 className="w-3 h-3 text-gray-400" />
+                                      </button>
+                                    </div>
+                                  )}
                                 </div>
                                 <span className="text-xs text-gray-500">
                                   {adset.status}
@@ -238,14 +335,39 @@ export default function ExplorerPage() {
                                   {ads[adset.id]?.length === 0 ? (
                                     <div className="p-2 text-xs text-gray-600 italic">No ads</div>
                                   ) : ads[adset.id]?.map((ad) => (
-                                    <div key={ad.id} className="flex items-center gap-3 p-2 pl-4 hover:bg-gray-800/50 transition-colors">
+                                    <div key={ad.id} className="flex items-center gap-3 p-2 pl-4 hover:bg-gray-800/50 transition-colors group">
                                       <Checkbox 
                                         checked={selectedItems.has(ad.id)}
                                         onCheckedChange={() => handleSelection(ad.id, 'AD', ad.name)}
                                       />
                                       <ImageIcon className="w-4 h-4 text-pink-400" />
                                       <div className="flex-1">
-                                        <p className="text-sm text-gray-400">{ad.name}</p>
+                                        {editingId === ad.id ? (
+                                          <div className="flex items-center gap-2">
+                                            <Input 
+                                              value={editValue} 
+                                              onChange={(e) => setEditValue(e.target.value)}
+                                              className="h-7 bg-gray-950 border-gray-800 text-xs"
+                                              autoFocus
+                                            />
+                                            <Button size="icon" variant="ghost" className="h-7 w-7 text-green-500" onClick={() => handleUpdateName(ad.id, 'AD')} disabled={updating}>
+                                              {updating ? <Loader2 className="w-3 h-3 animate-spin" /> : <Check className="w-3 h-3" />}
+                                            </Button>
+                                            <Button size="icon" variant="ghost" className="h-7 w-7 text-red-500" onClick={() => setEditingId(null)} disabled={updating}>
+                                              <X className="w-3 h-3" />
+                                            </Button>
+                                          </div>
+                                        ) : (
+                                          <div className="flex items-center gap-2">
+                                            <p className="text-sm text-gray-400">{ad.name}</p>
+                                            <button 
+                                              onClick={() => { setEditingId(ad.id); setEditValue(ad.name); }}
+                                              className="opacity-0 group-hover:opacity-100 p-1 hover:bg-gray-700 rounded transition-all"
+                                            >
+                                              <Edit2 className="w-2.5 h-2.5 text-gray-500" />
+                                            </button>
+                                          </div>
+                                        )}
                                       </div>
                                       <span className="text-[10px] text-gray-600">
                                         {ad.status}

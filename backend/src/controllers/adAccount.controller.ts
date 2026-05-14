@@ -63,3 +63,20 @@ export const getAds = async (req: AuthRequest, res: Response) => {
     res.status(500).json({ message: 'Failed to fetch ads' });
   }
 };
+
+export const updateObjectName = async (req: AuthRequest, res: Response) => {
+  const { id, newName } = req.body;
+  try {
+    const user = await prisma.user.findUnique({ where: { id: req.userId } });
+    if (!user?.accessToken) {
+      return res.status(401).json({ message: 'No access token' });
+    }
+
+    const fbService = new FacebookService(user.accessToken);
+    const result = await fbService.updateName(id, newName);
+    
+    res.json(result);
+  } catch (error: any) {
+    res.status(500).json({ message: 'Failed to update name', error: error.response?.data });
+  }
+};
