@@ -6,7 +6,9 @@ import {
   duplicateItems,
   getHistory,
   deleteHistoryItem,
-  cleanupHistory
+  cleanupHistory,
+  previewConversion,
+  convertObjective
 } from '../controllers/duplication.controller';
 import { authMiddleware } from '../middleware/auth.middleware';
 
@@ -21,5 +23,9 @@ router.post('/campaign', duplicateCampaign);
 router.post('/adset', duplicateAdSet);
 router.post('/ad', duplicateAd);
 router.post('/bulk', duplicateItems);
+
+// Objective Conversion Routes
+router.post('/preview-conversion', previewConversion);
+router.post('/convert-objective', convertObjective);
 
 export default router;

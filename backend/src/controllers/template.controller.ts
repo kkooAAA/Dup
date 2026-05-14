@@ -1,6 +1,6 @@
 import { Response } from 'express';
 import { AuthRequest } from '../middleware/auth.middleware';
-import { prisma } from '../index';
+import { prisma } from '../prisma';
 
 export const getTemplates = async (req: AuthRequest, res: Response) => {
   try {

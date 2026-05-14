@@ -1,6 +1,6 @@
 import { Response } from 'express';
 import { AuthRequest } from '../middleware/auth.middleware';
-import { prisma } from '../index';
+import { prisma } from '../prisma';
 import { FacebookService } from '../services/facebook.service';
 
 export const getAdAccounts = async (req: AuthRequest, res: Response) => {

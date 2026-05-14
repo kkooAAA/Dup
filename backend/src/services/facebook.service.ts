@@ -129,12 +129,13 @@ export class FacebookService {
     if (isCBO === undefined) {
       try {
         const campaign = await this.client.get(`/${campaignId}`, {
-          params: { fields: 'bid_strategy,daily_budget,lifetime_budget,is_adset_budget_sharing_enabled' }
+          params: { fields: 'bid_strategy,daily_budget,lifetime_budget,is_adset_budget_sharing_enabled,buying_type' }
         });
         
         // is_adset_budget_sharing_enabled is the definitive flag for CBO
         isCBO = campaign.data.is_adset_budget_sharing_enabled === true || 
-                !!(campaign.data.daily_budget || campaign.data.lifetime_budget);
+                !!(campaign.data.daily_budget && campaign.data.daily_budget !== "0" && campaign.data.daily_budget !== 0) || 
+                !!(campaign.data.lifetime_budget && campaign.data.lifetime_budget !== "0" && campaign.data.lifetime_budget !== 0);
                 
         console.log(`[FacebookService] CBO Detection for ${campaignId}: ${isCBO}`, campaign.data);
       } catch (error) {
@@ -150,59 +151,73 @@ export class FacebookService {
     });
 
     const data = original.data;
-    let payload: any = {
-      name: newName,
-      campaign_id: campaignId,
-      status: 'PAUSED',
-      billing_event: data.billing_event,
-      optimization_goal: data.optimization_goal,
-      targeting: data.targeting
+    
+    // Helper to build payload
+    const buildPayload = (includeBudget: boolean) => {
+      let payload: any = {
+        name: newName,
+        campaign_id: campaignId,
+        status: 'PAUSED',
+        billing_event: data.billing_event,
+        optimization_goal: data.optimization_goal,
+        targeting: data.targeting
+      };
+
+      if (includeBudget) {
+        if (customBudget) {
+          payload.daily_budget = customBudget;
+        } else {
+          if (data.daily_budget) payload.daily_budget = data.daily_budget;
+          if (data.lifetime_budget) payload.lifetime_budget = data.lifetime_budget;
+        }
+        if (data.bid_strategy) payload.bid_strategy = data.bid_strategy;
+        if (data.bid_amount) payload.bid_amount = data.bid_amount;
+      }
+
+      if (data.promoted_object) {
+        // Remove read-only fields from promoted_object (like 'id')
+        const { id, ...sanitizedPromotedObject } = data.promoted_object;
+        payload.promoted_object = sanitizedPromotedObject;
+      }
+
+      if (data.targeting) {
+        // Deep clone and sanitize targeting
+        const sanitizedTargeting = JSON.parse(JSON.stringify(data.targeting));
+        delete sanitizedTargeting.id;
+        delete sanitizedTargeting.targeting_automation;
+        delete sanitizedTargeting.contextual_targeting_options;
+        payload.targeting = sanitizedTargeting;
+      }
+
+      if (data.attribution_spec) payload.attribution_spec = data.attribution_spec;
+      if (data.optimization_sub_event) payload.optimization_sub_event = data.optimization_sub_event;
+      if (data.destination_type) payload.destination_type = data.destination_type;
+
+      return payload;
     };
 
-    // Budget Handling
-    if (isCBO) {
-      // In CBO (Advantage+ Campaign Budget), ad sets MUST NOT have their own budgets
-      console.log(`[FacebookService] Skipping AdSet budget because parent campaign is CBO`);
-      delete payload.daily_budget;
-      delete payload.lifetime_budget;
-      delete payload.bid_strategy; // Bid strategy is also usually at campaign level for CBO
-    } else {
-      // Non-CBO: Apply custom budget or copy original
-      if (customBudget) {
-        payload.daily_budget = customBudget;
-      } else {
-        if (data.daily_budget) payload.daily_budget = data.daily_budget;
-        if (data.lifetime_budget) payload.lifetime_budget = data.lifetime_budget;
-      }
-      
-      if (data.bid_strategy) payload.bid_strategy = data.bid_strategy;
-    }
-
-    if (data.bid_amount) payload.bid_amount = data.bid_amount;
-    
-    if (data.promoted_object) {
-      // Remove read-only fields from promoted_object (like 'id')
-      const { id, ...sanitizedPromotedObject } = data.promoted_object;
-      payload.promoted_object = sanitizedPromotedObject;
-    }
-
-    if (data.targeting) {
-      // Deep clone and sanitize targeting
-      const sanitizedTargeting = JSON.parse(JSON.stringify(data.targeting));
-      delete sanitizedTargeting.id;
-      delete sanitizedTargeting.targeting_automation;
-      delete sanitizedTargeting.contextual_targeting_options;
-      payload.targeting = sanitizedTargeting;
-    }
-
-    if (data.attribution_spec) payload.attribution_spec = data.attribution_spec;
-    if (data.optimization_sub_event) payload.optimization_sub_event = data.optimization_sub_event;
-    if (data.destination_type) payload.destination_type = data.destination_type;
-
     try {
+      // Try with budget if not CBO
+      const payload = buildPayload(!isCBO);
       const response = await this.client.post(`/${adAccountId}/adsets`, payload);
       return response.data;
     } catch (error: any) {
+      const fbError = error.response?.data?.error;
+      
+      // Handle "Budget Conflict" error (subcode 1885621)
+      if (fbError?.error_subcode === 1885621 || (fbError?.code === 100 && fbError?.message?.includes('budget'))) {
+        console.warn(`[FacebookService] Budget conflict detected (CBO mismatch). Retrying WITHOUT budget fields...`);
+        try {
+          const retryPayload = buildPayload(false);
+          const response = await this.client.post(`/${adAccountId}/adsets`, retryPayload);
+          console.log(`[FacebookService] Retry successful! AdSet duplicated without budget.`);
+          return response.data;
+        } catch (retryError: any) {
+          console.error(`[FacebookService] Retry also failed:`, retryError.response?.data || retryError.message);
+          throw retryError;
+        }
+      }
+
       console.error(`[FacebookService] AdSet Duplication Failed:`, error.response?.data || error.message);
       throw error;
     }

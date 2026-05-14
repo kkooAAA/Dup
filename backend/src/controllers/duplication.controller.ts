@@ -1,8 +1,9 @@
 import { Response } from 'express';
 import { AuthRequest } from '../middleware/auth.middleware';
-import { prisma } from '../index';
+import { prisma } from '../prisma';
 import { FacebookService } from '../services/facebook.service';
 import { NamingEngine } from '../utils/namingEngine';
+import { ObjectiveConversionService } from '../services/objectiveConversion.service';
 
 export const getHistory = async (req: AuthRequest, res: Response) => {
   try {
@@ -61,6 +62,76 @@ export const cleanupHistory = async (req: AuthRequest, res: Response) => {
   } catch (error) {
     console.error('Cleanup History Error:', error);
     res.status(500).json({ message: 'Failed to cleanup history' });
+  }
+};
+
+export const previewConversion = async (req: AuthRequest, res: Response) => {
+  const { type, id, targetObjective, newName } = req.body;
+  console.log(`[DEBUG] previewConversion started:`, { type, id, targetObjective, newName });
+  try {
+    const user = await prisma.user.findUnique({ where: { id: req.userId } });
+    if (!user || !user.accessToken) {
+      console.error(`[DEBUG] User not found or no access token for ID: ${req.userId}`);
+      return res.status(401).json({ message: 'Unauthorized' });
+    }
+
+    const fbService = new FacebookService(user.accessToken);
+    const conversionService = new ObjectiveConversionService(fbService);
+
+    console.log(`[DEBUG] Calling conversionService.getPreview...`);
+    const preview = await conversionService.getPreview(type, id, targetObjective, newName);
+    console.log(`[DEBUG] getPreview successful. Returning data.`);
+    res.json(preview);
+  } catch (error: any) {
+    const errorData = error.response?.data || error.message;
+    console.error('[DEBUG] previewConversion Error:', errorData);
+    if (error.stack) console.error(error.stack);
+    res.status(500).json({ message: 'Failed to preview conversion', error: errorData });
+  }
+};
+
+export const convertObjective = async (req: AuthRequest, res: Response) => {
+  const { items, targetObjective, newName, adAccountId } = req.body;
+  console.log(`[DEBUG] convertObjective started (Bulk):`, { itemCount: items?.length, targetObjective, adAccountId });
+  try {
+    const user = await prisma.user.findUnique({ where: { id: req.userId } });
+    if (!user || !user.accessToken) {
+      console.error(`[DEBUG] User not found or no access token for ID: ${req.userId}`);
+      return res.status(401).json({ message: 'Unauthorized' });
+    }
+
+    const fbService = new FacebookService(user.accessToken);
+    const conversionService = new ObjectiveConversionService(fbService);
+    const results = [];
+
+    for (const item of items) {
+      if (item.type !== 'CAMPAIGN') continue;
+
+      console.log(`[DEBUG] Starting deep campaign conversion for: ${item.id}`);
+      // Use the provided newName if it's single item, otherwise use default
+      const finalName = items.length === 1 ? newName : `${item.name} - Converted`;
+      
+      const result = await conversionService.convertCampaignDeep(item.id, targetObjective, finalName, adAccountId);
+      
+      await prisma.duplicateJob.create({
+        data: {
+          userId: user.id,
+          status: 'COMPLETED',
+          type: 'CAMPAIGN',
+          sourceId: item.id,
+          targetId: result.id,
+          details: { newName: finalName, targetObjective, adAccountId, isConversion: true },
+        },
+      });
+      results.push(result);
+    }
+
+    res.json({ success: true, results });
+  } catch (error: any) {
+    const errorData = error.response?.data || error.message;
+    console.error('[DEBUG] convertObjective Error:', errorData);
+    if (error.stack) console.error(error.stack);
+    res.status(500).json({ message: 'Failed to convert objective', error: errorData });
   }
 };
 

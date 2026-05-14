@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import { prisma } from '../index';
+import { prisma } from '../prisma';
 import jwt from 'jsonwebtoken';
 import axios from 'axios';
 

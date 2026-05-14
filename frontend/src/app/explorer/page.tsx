@@ -16,11 +16,13 @@ import {
   Plus,
   Search,
   Filter,
-  Loader2
+  Loader2,
+  RefreshCw
 } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
 import { DuplicateModal } from "@/components/dashboard/DuplicateModal";
+import { ObjectiveConversionModal } from "@/components/dashboard/ObjectiveConversionModal";
 
 export default function ExplorerPage() {
   const { selectedAccount } = useAppStore();
@@ -31,8 +33,12 @@ export default function ExplorerPage() {
   const [ads, setAds] = useState<Record<string, Ad[]>>({});
   const [selectedItems, setSelectedItems] = useState<Map<string, { id: string, type: string, name: string }>>(new Map());
   const [isDuplicateModalOpen, setIsDuplicateModalOpen] = useState(false);
+  const [isConversionModalOpen, setIsConversionModalOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+
+  const selectedItemsList = Array.from(selectedItems.values());
+  const canConvertObjective = selectedItemsList.length === 1 && selectedItemsList[0].type === 'CAMPAIGN';
 
   useEffect(() => {
     if (selectedAccount) {
@@ -112,6 +118,15 @@ export default function ExplorerPage() {
             <p className="text-gray-400 mt-1">Browse and select structures to duplicate.</p>
           </div>
           <div className="flex gap-3">
+            <Button 
+              variant="outline"
+              className="gap-2 border-blue-500/50 text-blue-400 hover:bg-blue-500/10"
+              onClick={() => setIsConversionModalOpen(true)}
+              disabled={!canConvertObjective}
+            >
+              <RefreshCw className="w-4 h-4" />
+              Convert Objective
+            </Button>
             <Button 
               className="gap-2 bg-blue-600 hover:bg-blue-700"
               onClick={() => setIsDuplicateModalOpen(true)}
@@ -256,6 +271,17 @@ export default function ExplorerPage() {
         isOpen={isDuplicateModalOpen} 
         onClose={() => setIsDuplicateModalOpen(false)}
         selectedItems={Array.from(selectedItems.values())}
+        adAccountId={selectedAccount?.id || ""}
+        onSuccess={() => {
+          setSelectedItems(new Map());
+          fetchCampaigns();
+        }}
+      />
+
+      <ObjectiveConversionModal
+        isOpen={isConversionModalOpen}
+        onClose={() => setIsConversionModalOpen(false)}
+        selectedItems={selectedItemsList}
         adAccountId={selectedAccount?.id || ""}
         onSuccess={() => {
           setSelectedItems(new Map());

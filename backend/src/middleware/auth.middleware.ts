@@ -8,9 +8,15 @@ export interface AuthRequest extends Request {
 }
 
 export const authMiddleware = (req: AuthRequest, res: Response, next: NextFunction) => {
+  // Skip auth for OPTIONS requests (CORS preflight)
+  if (req.method === 'OPTIONS') {
+    return next();
+  }
+
   const token = req.headers.authorization?.split(' ')[1];
 
   if (!token) {
+    console.log(`[Auth] Missing token for: ${req.method} ${req.url}`);
     return res.status(401).json({ message: 'No token provided' });
   }
 

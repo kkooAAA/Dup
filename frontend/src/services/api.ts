@@ -37,6 +37,10 @@ export const duplicationApi = {
     adAccountId: string, 
     options: { numCopies: number, renamePattern: string, deep: boolean, customBudget?: string, context?: any } 
   }) => api.post('/duplicate/bulk', data),
+  previewConversion: (data: { type: string, id: string, targetObjective: string, newName?: string }) => 
+    api.post('/duplicate/preview-conversion', data),
+  convertObjective: (data: { type: string, id: string, targetObjective: string, newName: string, adAccountId: string }) => 
+    api.post('/duplicate/convert-objective', data),
 };
 
 export const templateApi = {

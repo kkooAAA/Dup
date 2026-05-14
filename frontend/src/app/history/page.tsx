@@ -114,9 +114,16 @@ export default function HistoryPage() {
                 {history.map((job) => (
                   <TableRow key={job.id} className="border-gray-800 hover:bg-gray-800/30 transition-colors">
                     <TableCell>
-                      <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-gray-800 text-gray-400">
-                        {job.type}
-                      </span>
+                      <div className="flex flex-col gap-1">
+                        <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-gray-800 text-gray-400 w-fit">
+                          {job.type}
+                        </span>
+                        {job.details?.isConversion && (
+                          <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-blue-900/40 text-blue-400 w-fit">
+                            CONVERSION
+                          </span>
+                        )}
+                      </div>
                     </TableCell>
                     <TableCell className="font-mono text-xs text-gray-400">{job.sourceId}</TableCell>
                     <TableCell>
