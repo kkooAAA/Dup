@@ -32,6 +32,8 @@ Build a modern full-stack web application for duplicating Facebook Ads structure
   - `GET /api/adsets/:campaignId`: List ad sets.
   - `GET /api/ads/:adsetId`: List ads.
   - `POST /api/duplicate`: Unified duplication endpoint (campaign/adset/ad).
+  - `POST /api/duplicate/preview-conversion`: Preview objective transformation. (COMPLETED)
+  - `POST /api/duplicate/convert-objective`: Execute deep objective conversion (Bulk supported). (COMPLETED)
 
 ## 3. Frontend Development (Next.js)
 - **Setup**:
@@ -43,6 +45,7 @@ Build a modern full-stack web application for duplicating Facebook Ads structure
   - `Layout`: Sidebar and Top Navbar.
   - `TreeView`: Nested expandable structure for Campaign -> Ad Set -> Ad.
   - `DuplicateModal`: Configuration for duplication (rename pattern, budget, copies).
+  - `ObjectiveConversionModal`: Wizard for objective transformation (3 steps). (COMPLETED)
   - `StatusBadge`: Visual indicator for "PAUSED" status.
 - **Pages**:
   - `/login`: Facebook Login button.

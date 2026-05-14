@@ -4,6 +4,7 @@ A modern full-stack web application for duplicating Facebook Ads structures safe
 
 ## Core Features
 
+- **Objective Conversion**: Intelligently transform and duplicate campaigns into different objectives (e.g., Sales to Awareness).
 - **Nested Explorer**: Browse campaigns, ad sets, and ads in a tree-like interface.
 - **Bulk Duplication**: Select multiple items and duplicate them at once.
 - **Deep Duplication**: Duplicate a campaign along with all its ad sets and ads.
