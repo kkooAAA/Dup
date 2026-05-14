@@ -54,65 +54,62 @@ export class FacebookService {
   }
 
   async getAdSets(campaignId: string) {
-    console.log(`[FacebookService] Fetching ad sets for campaign: ${campaignId}`);
     let allAdSets: any[] = [];
     let url: string | null = `/${campaignId}/adsets`;
-    let params: any = {
-      fields: 'name,id,status,billing_event,optimization_goal,bid_amount,daily_budget,lifetime_budget,targeting,promoted_object,attribution_spec,optimization_sub_event,destination_type,bid_strategy',
-      limit: 100
-    };
+    let isFirstPage = true;
 
     while (url) {
       try {
-        // If url is absolute (starts with http), we use a clean axios instance to avoid baseURL/params conflict
-        const response: any = url.startsWith('http') 
-          ? await axios.get(url)
-          : await this.client.get(url, { params });
-          
-        const data = response.data;
-        if (data.data) {
-          allAdSets = [...allAdSets, ...data.data];
+        let response: any;
+        if (isFirstPage) {
+          response = await this.client.get(url, {
+            params: {
+              fields: 'name,id,status,billing_event,optimization_goal,bid_amount,daily_budget,lifetime_budget,start_time,end_time,targeting,promoted_object,attribution_spec,optimization_sub_event,destination_type,bid_strategy',
+              limit: 100
+            }
+          });
+          isFirstPage = false;
+        } else {
+          response = await axios.get(url);
         }
-        
+        const data = response.data;
+        if (data.data) allAdSets = [...allAdSets, ...data.data];
         url = data.paging?.next || null;
-        params = {}; // Clear params for next iteration if using this.client (though we won't be if it's absolute)
       } catch (error: any) {
-        console.error(`[FacebookService] Failed to fetch ad sets page:`, error.response?.data || error.message);
-        break; // Stop fetching if a page fails
+        console.error(`Failed to fetch ad sets page:`, error.response?.data || error.message);
+        break;
       }
     }
-    console.log(`[FacebookService] Total ad sets found: ${allAdSets.length}`);
     return allAdSets;
   }
 
   async getAds(adSetId: string) {
-    console.log(`[FacebookService] Fetching ads for ad set: ${adSetId}`);
     let allAds: any[] = [];
     let url: string | null = `/${adSetId}/ads`;
-    let params: any = {
-      fields: 'name,id,status,creative,tracking_specs,recommendations',
-      limit: 100
-    };
+    let isFirstPage = true;
 
     while (url) {
       try {
-        const response: any = url.startsWith('http')
-          ? await axios.get(url)
-          : await this.client.get(url, { params });
-          
-        const data = response.data;
-        if (data.data) {
-          allAds = [...allAds, ...data.data];
+        let response: any;
+        if (isFirstPage) {
+          response = await this.client.get(url, {
+            params: {
+              fields: 'name,id,status,creative,tracking_specs',
+              limit: 100
+            }
+          });
+          isFirstPage = false;
+        } else {
+          response = await axios.get(url);
         }
-        
+        const data = response.data;
+        if (data.data) allAds = [...allAds, ...data.data];
         url = data.paging?.next || null;
-        params = {};
       } catch (error: any) {
-        console.error(`[FacebookService] Failed to fetch ads page:`, error.response?.data || error.message);
+        console.error(`Failed to fetch ads page:`, error.response?.data || error.message);
         break;
       }
     }
-    console.log(`[FacebookService] Total ads found: ${allAds.length}`);
     return allAds;
   }
 
