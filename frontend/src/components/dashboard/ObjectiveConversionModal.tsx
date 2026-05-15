@@ -1,9 +1,9 @@
 "use client";
 
-import { 
-  Dialog, 
-  DialogContent, 
-  DialogHeader, 
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
   DialogTitle,
   DialogFooter,
   DialogDescription
@@ -11,12 +11,12 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { 
-  AlertTriangle, 
-  Loader2, 
-  RefreshCw, 
-  ChevronRight, 
-  ChevronLeft, 
+import {
+  AlertTriangle,
+  Loader2,
+  RefreshCw,
+  ChevronRight,
+  ChevronLeft,
   CheckCircle2,
   ArrowRightLeft,
   Layers
@@ -85,17 +85,22 @@ export const ObjectiveConversionModal = ({ isOpen, onClose, selectedItems, adAcc
     }
   };
 
-  const handleConvert = async () => {
+  const handleConvert = async (mode: 'draft' | 'publish') => {
     setLoading(true);
     try {
       await duplicationApi.convertObjective({
         items: selectedItems,
         targetObjective,
         newName: isBulk ? undefined : newName,
-        adAccountId
+        adAccountId,
+        saveAsDraft: mode === 'draft'
       });
-      
-      toast.success(`Successfully converted ${selectedItems.length} items to ${targetObjective}!`);
+
+      toast.success(
+        mode === 'draft'
+          ? `Saved ${selectedItems.length} item(s) as draft. Review in Drafts before publishing.`
+          : `Successfully converted ${selectedItems.length} item(s) to ${targetObjective}!`
+      );
       onSuccess();
       onClose();
     } catch (error: any) {
@@ -121,7 +126,7 @@ export const ObjectiveConversionModal = ({ isOpen, onClose, selectedItems, adAcc
                 Objective Conversion
               </DialogTitle>
               <DialogDescription className="text-gray-400">
-                {isBulk 
+                {isBulk
                   ? `Transform ${selectedItems.length} campaigns into a different objective.`
                   : `Transform "${selectedItem.name}" into a different campaign type.`
                 }
@@ -134,9 +139,8 @@ export const ObjectiveConversionModal = ({ isOpen, onClose, selectedItems, adAcc
         <div className="flex items-center justify-between px-2 py-4 mb-4">
           {[1, 2, 3].map((s) => (
             <div key={s} className="flex items-center gap-2">
-              <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${
-                step >= s ? "bg-blue-600 text-white" : "bg-gray-800 text-gray-500"
-              }`}>
+              <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${step >= s ? "bg-blue-600 text-white" : "bg-gray-800 text-gray-500"
+                }`}>
                 {step > s ? <CheckCircle2 className="w-5 h-5" /> : s}
               </div>
               <span className={`text-sm ${step >= s ? "text-gray-200" : "text-gray-500"}`}>
@@ -154,11 +158,10 @@ export const ObjectiveConversionModal = ({ isOpen, onClose, selectedItems, adAcc
                 <button
                   key={obj.value}
                   onClick={() => setTargetObjective(obj.value)}
-                  className={`p-4 rounded-xl border-2 text-left transition-all ${
-                    targetObjective === obj.value 
-                      ? "border-blue-600 bg-blue-600/10" 
+                  className={`p-4 rounded-xl border-2 text-left transition-all ${targetObjective === obj.value
+                      ? "border-blue-600 bg-blue-600/10"
                       : "border-gray-800 bg-gray-950 hover:border-gray-700"
-                  }`}
+                    }`}
                 >
                   <div className="font-bold text-gray-100">{obj.label}</div>
                   <div className="text-xs text-gray-400 mt-1">{obj.description}</div>
@@ -172,7 +175,7 @@ export const ObjectiveConversionModal = ({ isOpen, onClose, selectedItems, adAcc
               {!isBulk && (
                 <div className="space-y-2">
                   <Label htmlFor="newName">New Campaign Name</Label>
-                  <Input 
+                  <Input
                     id="newName"
                     value={newName}
                     onChange={(e) => setNewName(e.target.value)}
@@ -233,7 +236,7 @@ export const ObjectiveConversionModal = ({ isOpen, onClose, selectedItems, adAcc
                       </div>
                     </div>
                   </div>
-                  
+
                   <div className="space-y-3">
                     <div className="text-xs text-gray-400 flex items-center gap-2">
                       <CheckCircle2 className="w-3.5 h-3.5 text-green-500" />
@@ -274,14 +277,32 @@ export const ObjectiveConversionModal = ({ isOpen, onClose, selectedItems, adAcc
               <ChevronRight className="w-4 h-4 ml-2" />
             </Button>
           ) : (
-            <Button onClick={handleConvert} disabled={loading} className="bg-blue-600 hover:bg-blue-700 min-w-[150px]">
-              {loading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Converting...</> : (
-                <>
-                  <ArrowRightLeft className="w-4 h-4 mr-2" />
-                  Confirm Conversion
-                </>
-              )}
-            </Button>
+            <div className="flex gap-2">
+              <Button
+                onClick={() => handleConvert('draft')}
+                disabled={loading}
+                className="bg-gray-700 hover:bg-gray-600 min-w-[150px]"
+              >
+                {loading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Saving...</> : (
+                  <>
+                    <Layers className="w-4 h-4 mr-2" />
+                    Save as Draft
+                  </>
+                )}
+              </Button>
+              <Button
+                onClick={() => handleConvert('publish')}
+                disabled={loading}
+                className="bg-blue-600 hover:bg-blue-700 min-w-[150px]"
+              >
+                {loading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Converting...</> : (
+                  <>
+                    <ArrowRightLeft className="w-4 h-4 mr-2" />
+                    Publish Now
+                  </>
+                )}
+              </Button>
+            </div>
           )}
         </DialogFooter>
       </DialogContent>

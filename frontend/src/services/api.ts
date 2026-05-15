@@ -40,7 +40,7 @@ export const duplicationApi = {
   }) => api.post('/duplicate/bulk', data),
   previewConversion: (data: { type: string, id: string, targetObjective: string, newName?: string }) => 
     api.post('/duplicate/preview-conversion', data),
-  convertObjective: (data: { type: string, id: string, targetObjective: string, newName: string, adAccountId: string }) => 
+  convertObjective: (data: { items: Array<{ id: string, type: string, name: string }>, targetObjective: string, newName?: string, adAccountId: string }) => 
     api.post('/duplicate/convert-objective', data),
 };
 
@@ -49,6 +49,18 @@ export const templateApi = {
   createTemplate: (data: any) => api.post('/templates', data),
   updateTemplate: (id: string, data: any) => api.put(`/templates/${id}`, data),
   deleteTemplate: (id: string) => api.delete(`/templates/${id}`),
+};
+
+export const draftApi = {
+  duplicateToDraft: (campaignId: string) => api.post('/drafts/duplicate', { campaignId }),
+  listCampaigns: () => api.get('/drafts/campaigns'),
+  getCampaign: (id: string) => api.get(`/drafts/campaigns/${id}`),
+  updateCampaign: (id: string, data: any) => api.patch(`/drafts/campaigns/${id}`, data),
+  deleteCampaign: (id: string) => api.delete(`/drafts/campaigns/${id}`),
+  updateAdSet: (id: string, data: any) => api.patch(`/drafts/adsets/${id}`, data),
+  updateAd: (id: string, data: any) => api.patch(`/drafts/ads/${id}`, data),
+  validateDraft: (id: string) => api.post(`/drafts/campaigns/${id}/validate`),
+  publishDraft: (id: string) => api.post(`/drafts/campaigns/${id}/publish`),
 };
 
 export default api;

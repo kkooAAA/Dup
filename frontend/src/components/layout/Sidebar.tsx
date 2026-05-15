@@ -15,6 +15,7 @@ import { cn } from "@/lib/utils";
 const menuItems = [
   { icon: LayoutDashboard, label: "Dashboard", href: "/dashboard" },
   { icon: FolderTree, label: "Explorer", href: "/explorer" },
+  { icon: Layers, label: "Internal Drafts", href: "/drafts" },
   { icon: History, label: "History", href: "/history" },
 ];
 

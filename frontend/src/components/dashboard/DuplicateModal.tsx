@@ -12,10 +12,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
-import { AlertTriangle, Info, Loader2, Coins, Globe, Target, Sparkles, Copy } from "lucide-react";
+import { AlertTriangle, Info, Loader2, Coins, Globe, Target, Sparkles, Copy, Layers } from "lucide-react";
 import { useState, useMemo } from "react";
 import { toast } from "sonner";
-import { duplicationApi } from "@/services/api";
+import { duplicationApi, draftApi } from "@/services/api";
 import { NamingTemplateEditor } from "./NamingTemplateEditor";
 import { NamingPreview } from "./NamingPreview";
 
@@ -35,6 +35,7 @@ export const DuplicateModal = ({ isOpen, onClose, selectedItems, adAccountId, on
   const [angle, setAngle] = useState("UGC");
   const [deep, setDeep] = useState(true);
   const [loading, setLoading] = useState(false);
+  const [draftLoading, setDraftLoading] = useState(false);
 
   const handleDuplicate = async () => {
     if (!adAccountId) {
@@ -68,6 +69,27 @@ export const DuplicateModal = ({ isOpen, onClose, selectedItems, adAccountId, on
       toast.error(message);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleSaveDraft = async () => {
+    if (selectedItems.length === 0) return;
+    if (selectedItems.some(i => i.type !== 'CAMPAIGN')) {
+      toast.error("Draft system currently only supports Campaigns");
+      return;
+    }
+
+    setDraftLoading(true);
+    try {
+      for (const item of selectedItems) {
+        await draftApi.duplicateToDraft(item.id);
+      }
+      toast.success("Saved to Internal Drafts!");
+      onClose();
+    } catch (error) {
+      toast.error("Failed to save draft");
+    } finally {
+      setDraftLoading(false);
     }
   };
 
@@ -195,14 +217,23 @@ export const DuplicateModal = ({ isOpen, onClose, selectedItems, adAccountId, on
           )}
         </div>
 
-        <DialogFooter>
-          <Button variant="ghost" onClick={onClose} disabled={loading}>
+        <DialogFooter className="flex-col sm:flex-row gap-2">
+          <Button variant="ghost" onClick={onClose} disabled={loading || draftLoading} className="w-full sm:w-auto">
             Cancel
           </Button>
           <Button 
+            variant="outline"
+            onClick={handleSaveDraft} 
+            disabled={loading || draftLoading}
+            className="border-blue-600 text-blue-400 hover:bg-blue-600/10 w-full sm:w-auto gap-2"
+          >
+            {draftLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Layers className="h-4 w-4" />}
+            Save as Internal Draft
+          </Button>
+          <Button 
             onClick={handleDuplicate} 
-            disabled={loading}
-            className="bg-blue-600 hover:bg-blue-700 text-white min-w-[150px]"
+            disabled={loading || draftLoading}
+            className="bg-blue-600 hover:bg-blue-700 text-white min-w-[150px] w-full sm:w-auto"
           >
             {loading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Duplicating...</> : `Confirm Duplication`}
           </Button>

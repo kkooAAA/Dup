@@ -4,6 +4,7 @@ import { prisma } from '../prisma';
 import { FacebookService } from '../services/facebook.service';
 import { NamingEngine } from '../utils/namingEngine';
 import { ObjectiveConversionService } from '../services/objectiveConversion.service';
+import { DraftService } from '../services/draft/DraftService';
 
 export const getHistory = async (req: AuthRequest, res: Response) => {
   try {
@@ -21,7 +22,7 @@ export const deleteHistoryItem = async (req: AuthRequest, res: Response) => {
   const id = req.params.id as string;
   try {
     await prisma.duplicateJob.deleteMany({
-      where: { 
+      where: {
         id,
         userId: req.userId
       },
@@ -38,7 +39,7 @@ export const cleanupHistory = async (req: AuthRequest, res: Response) => {
     if (!user || !user.accessToken) return res.status(401).json({ message: 'Unauthorized' });
 
     const jobs = await prisma.duplicateJob.findMany({
-      where: { 
+      where: {
         userId: req.userId,
         status: 'COMPLETED',
         targetId: { not: null }
@@ -110,20 +111,27 @@ export const convertObjective = async (req: AuthRequest, res: Response) => {
       console.log(`[DEBUG] Starting deep campaign conversion for: ${item.id}`);
       // Use the provided newName if it's single item, otherwise use default
       const finalName = items.length === 1 ? newName : `${item.name} - Converted`;
-      
-      const result = await conversionService.convertCampaignDeep(item.id, targetObjective, finalName, adAccountId);
-      
+
+      const draftCampaign = await DraftService.convertCampaignToDraft(
+        item.id,
+        targetObjective,
+        finalName,
+        adAccountId,
+        user.id,
+        user.accessToken
+      );
+
       await prisma.duplicateJob.create({
         data: {
           userId: user.id,
           status: 'COMPLETED',
           type: 'CAMPAIGN',
           sourceId: item.id,
-          targetId: result.id,
-          details: { newName: finalName, targetObjective, adAccountId, isConversion: true },
+          targetId: draftCampaign.id,
+          details: { newName: finalName, targetObjective, adAccountId, isConversion: true, savedAsDraft: true },
         },
       });
-      results.push(result);
+      results.push(draftCampaign);
     }
 
     res.json({ success: true, results });
@@ -163,19 +171,19 @@ export const duplicateItems = async (req: AuthRequest, res: Response) => {
         };
 
         const newName = NamingEngine.parse(options.renamePattern, namingContext);
-        
+
         let result;
-        
+
         // Convert custom budget to cents/satang (e.g., 20 -> 2000)
         let customBudget = undefined;
         if (options.customBudget) {
           let budgetValue = parseFloat(options.customBudget);
-          
+
           if (budgetValue > 0 && budgetValue < 40) {
             console.log(`[Backend] Budget ${budgetValue} THB is too low. Bumping to safety minimum of 40 THB.`);
             budgetValue = 40;
           }
-          
+
           customBudget = (budgetValue * 100).toString();
         }
 
@@ -189,7 +197,7 @@ export const duplicateItems = async (req: AuthRequest, res: Response) => {
           console.log(`[DuplicationController] Fetching campaign_id for ad set: ${item.id}`);
           const originalResponse = await fbService.get(`/${item.id}`, { fields: 'campaign_id,campaign{id}' });
           const campaignId = originalResponse.data.campaign_id || originalResponse.data.campaign?.id;
-          
+
           if (!campaignId) {
             console.error(`[DuplicationController] Failed to find campaign_id for ad set: ${item.id}`, originalResponse.data);
             throw new Error(`Could not find parent campaign for ad set ${item.id}`);
@@ -226,9 +234,9 @@ export const duplicateItems = async (req: AuthRequest, res: Response) => {
     const errorDetail = error.response?.data || error.message || error;
     console.error('[DuplicationController] Bulk Duplicate Error:', errorDetail);
     if (error.stack) console.error(error.stack);
-    
-    res.status(500).json({ 
-      message: 'Failed to duplicate items', 
+
+    res.status(500).json({
+      message: 'Failed to duplicate items',
       error: errorDetail,
       stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
     });
