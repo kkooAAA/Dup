@@ -136,13 +136,36 @@ describe('Field Registry Completeness', () => {
 // They use validation_only=true to validate without creating objects.
 // Skipped by default — run with: npm run test:drift
 
+async function checkTokenValid(): Promise<boolean> {
+  if (!process.env.META_ACCESS_TOKEN) return false;
+  try {
+    const url = `https://graph.facebook.com/v21.0/me?access_token=${process.env.META_ACCESS_TOKEN}`;
+    const response = await fetch(url);
+    const data = await response.json();
+    return !data.error;
+  } catch {
+    return false;
+  }
+}
+
+let tokenValid = false;
+
+beforeAll(async () => {
+  tokenValid = await checkTokenValid();
+});
+
 describe.skipIf(!process.env.META_ACCESS_TOKEN)('Live Meta API Drift', () => {
   const accessToken = process.env.META_ACCESS_TOKEN!;
   const adAccountId = process.env.META_AD_ACCOUNT_ID || '';
 
+  beforeEach((ctx) => {
+    if (!tokenValid) {
+      ctx.skip();
+    }
+  });
+
   async function validateWithMeta(endpoint: string, payload: any): Promise<{ success: boolean; error?: any }> {
     try {
-      // Meta expects validation_only as a form field, not query param
       const formData = new URLSearchParams();
       for (const [key, value] of Object.entries(payload)) {
         formData.append(key, typeof value === 'object' ? JSON.stringify(value) : String(value));
