@@ -11,7 +11,7 @@ import { Edit2, Trash2, Send, Layers, Loader2, X, Pencil } from "lucide-react";
 import Link from "next/link";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
-import { BulkEditModal } from "@/components/dashboard/BulkEditModal";
+import { BulkEditPanel } from "@/components/dashboard/BulkEditPanel";
 
 export default function DraftsPage() {
   const [drafts, setDrafts] = useState<any[]>([]);
@@ -22,7 +22,6 @@ export default function DraftsPage() {
   const [publishProgress, setPublishProgress] = useState<{ current: number; total: number } | null>(null);
   const [showPublished, setShowPublished] = useState(false);
   const [showBulkEdit, setShowBulkEdit] = useState(false);
-
   const fetchDrafts = async () => {
     try {
       setIsLoading(true);
@@ -172,6 +171,16 @@ export default function DraftsPage() {
                 <Button
                   variant="outline"
                   size="sm"
+                  className="gap-1.5 border-blue-500/30 text-blue-400 hover:bg-blue-500/10"
+                  onClick={() => setShowBulkEdit(true)}
+                  disabled={isBusy}
+                >
+                  <Pencil className="w-3.5 h-3.5" />
+                  Edit ({selectedIds.size})
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
                   className="gap-1.5 border-red-500/30 text-red-400 hover:bg-red-500/10"
                   onClick={handleBulkDelete}
                   disabled={isBusy}
@@ -179,18 +188,6 @@ export default function DraftsPage() {
                   {isBulkDeleting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <X className="w-3.5 h-3.5" />}
                   {isBulkDeleting ? "Deleting..." : `Delete (${selectedIds.size})`}
                 </Button>
-                {selectedIds.size >= 2 && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="gap-1.5 border-blue-500/30 text-blue-400 hover:bg-blue-500/10"
-                    onClick={() => setShowBulkEdit(true)}
-                    disabled={isBusy}
-                  >
-                    <Pencil className="w-3.5 h-3.5" />
-                    Edit ({selectedIds.size})
-                  </Button>
-                )}
                 <Button
                   size="sm"
                   className="gap-1.5 bg-blue-600 hover:bg-blue-700 shadow-lg shadow-blue-600/20"
@@ -291,10 +288,11 @@ export default function DraftsPage() {
         )}
       </div>
 
-      <BulkEditModal
+      <BulkEditPanel
         isOpen={showBulkEdit}
         onClose={() => setShowBulkEdit(false)}
         selectedDrafts={drafts.filter((d) => selectedIds.has(d.id))}
+        entityLevel="campaign"
         onSuccess={() => {
           setSelectedIds(new Set());
           fetchDrafts();

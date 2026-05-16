@@ -18,7 +18,11 @@ router.patch('/ads/:id', DraftController.updateAd);
 router.post('/campaigns/bulk-publish', DraftController.bulkPublishDrafts);
 router.post('/campaigns/bulk-update', DraftController.bulkUpdateCampaigns);
 router.post('/campaigns/bulk-delete', DraftController.bulkDeleteDrafts);
+router.post('/bulk-edit/schema', DraftController.bulkEditSchema);
+router.post('/bulk-edit/validate', DraftController.bulkEditValidate);
+router.post('/bulk-edit/apply', DraftController.bulkEditApply);
 router.post('/campaigns/:id/validate', DraftController.validateDraft);
 router.post('/campaigns/:id/publish', DraftController.publishDraft);
+router.post('/campaigns/:id/cleanup', DraftController.cleanupMetaObjects);
 
 export default router;

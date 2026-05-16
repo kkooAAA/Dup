@@ -84,6 +84,11 @@ export const BulkEditModal = ({
 }: BulkEditModalProps) => {
   const [saving, setSaving] = useState(false);
 
+  const hasPublishedDrafts = useMemo(
+    () => selectedDrafts.some((d) => !!d.metaId),
+    [selectedDrafts]
+  );
+
   const fields = useMemo(() => ({
     objective: computeCommonValue(selectedDrafts, (d) => d.objective),
     bid_strategy: computeCommonValue(selectedDrafts, (d) => d.data?.bid_strategy),
@@ -189,35 +194,47 @@ export const BulkEditModal = ({
     </span>
   );
 
+  const ImmutableBadge = () => (
+    <span className="flex items-center gap-1 text-[10px] text-red-400/80 bg-red-500/10 px-2 py-0.5 rounded-full shrink-0">
+      <AlertTriangle className="w-2.5 h-2.5" />
+      Locked after publish
+    </span>
+  );
+
   const renderDropdownField = (
     key: string,
     label: string,
     fieldState: FieldState,
     options: { value: string; label: string }[],
-    hint?: string
+    hint?: string,
+    immutable?: boolean
   ) => {
-    const enabled = enabledFields.has(key);
+    const locked = immutable && hasPublishedDrafts;
+    const enabled = enabledFields.has(key) && !locked;
     return (
       <div
         className={cn(
           "rounded-lg border p-3 transition-all",
+          locked ? "border-red-900/30 bg-red-950/10 opacity-60" :
           enabled ? "border-blue-500/30 bg-blue-500/5" : "border-gray-800/60 bg-gray-900/30"
         )}
       >
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <Checkbox checked={enabled} onCheckedChange={() => toggleField(key)} />
-            <Label className="text-xs font-medium text-gray-300">{label}</Label>
+            <Checkbox checked={enabled} onCheckedChange={() => !locked && toggleField(key)} disabled={locked} />
+            <Label className={cn("text-xs font-medium", locked ? "text-gray-500" : "text-gray-300")}>{label}</Label>
           </div>
-          {!enabled && (
-            fieldState.common ? (
-              <span className="text-[11px] text-gray-500 truncate max-w-[200px]">
-                {displayEnum(fieldState.value, options)}
-              </span>
-            ) : <MixedBadge />
-          )}
+          {locked ? <ImmutableBadge /> :
+            !enabled && (
+              fieldState.common ? (
+                <span className="text-[11px] text-gray-500 truncate max-w-[200px]">
+                  {displayEnum(fieldState.value, options)}
+                </span>
+              ) : <MixedBadge />
+            )
+          }
         </div>
-        {enabled && (
+        {enabled && !locked && (
           <div className="mt-2.5">
             <select
               value={editValues[key]}
@@ -386,13 +403,13 @@ export const BulkEditModal = ({
 
         <div className="space-y-2.5 py-3">
           {renderDropdownField("objective", "Objective", fields.objective, OBJECTIVES,
-            "Cannot be changed after publishing to Meta."
+            "Cannot be changed after publishing to Meta.", true
           )}
 
           {renderDropdownField("bid_strategy", "Bid Strategy", fields.bid_strategy, BID_STRATEGIES)}
 
           {renderDropdownField("buying_type", "Buying Type", fields.buying_type, BUYING_TYPES,
-            "Cannot be changed after publishing to Meta."
+            "Cannot be changed after publishing to Meta.", true
           )}
 
           <div className="pt-1 pb-0.5">

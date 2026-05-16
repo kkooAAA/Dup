@@ -1,14 +1,17 @@
 import { Router } from 'express';
-import { 
-  duplicateCampaign, 
-  duplicateAdSet, 
+import {
+  duplicateCampaign,
+  duplicateAdSet,
   duplicateAd,
   duplicateItems,
   getHistory,
   deleteHistoryItem,
   cleanupHistory,
   previewConversion,
-  convertObjective
+  convertObjective,
+  optimizeDuplicate,
+  optimizeConversion,
+  validateOptimization,
 } from '../controllers/duplication.controller';
 import { authMiddleware } from '../middleware/auth.middleware';
 
@@ -27,5 +30,10 @@ router.post('/bulk', duplicateItems);
 // Objective Conversion Routes
 router.post('/preview-conversion', previewConversion);
 router.post('/convert-objective', convertObjective);
+
+// Optimization Routes
+router.post('/optimize-duplicate', optimizeDuplicate);
+router.post('/optimize-conversion', optimizeConversion);
+router.post('/validate-optimization', validateOptimization);
 
 export default router;

@@ -4,37 +4,40 @@ import { useEffect, useState, use } from "react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { draftApi } from "@/services/api";
 import {
-  Save,
-  Send,
-  ShieldCheck,
-  AlertTriangle,
-  FileText,
-  Layers,
-  Megaphone,
-  Loader2,
-  ArrowLeft
+  Save, Send, ShieldCheck, AlertTriangle, FileText, Layers,
+  Megaphone, Loader2, ArrowLeft, Trash2,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
+import { MetaField } from "@/components/meta/MetaField";
+import {
+  OBJECTIVE_LABELS, BID_STRATEGIES,
+  VALID_OPTIMIZATION_GOALS, VALID_DESTINATION_TYPES,
+  PROMOTED_OBJECT_REQUIREMENTS, PROMOTED_OBJECT_FIELD_LABELS,
+} from "@/lib/meta-schema";
 
 export default function DraftEditorPage({ params: paramsPromise }: { params: Promise<{ id: string }> }) {
   const params = use(paramsPromise);
   const router = useRouter();
   const [draft, setDraft] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [selectedNode, setSelectedNode] = useState<{ type: 'CAMPAIGN' | 'ADSET' | 'AD', id: string } | null>(null);
+  const [selectedNode, setSelectedNode] = useState<{ type: "CAMPAIGN" | "ADSET" | "AD"; id: string } | null>(null);
   const [editData, setEditData] = useState<any>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [isValidating, setIsValidating] = useState(false);
   const [isPublishing, setIsPublishing] = useState(false);
+  const [isCleaning, setIsCleaning] = useState(false);
   const [validationResults, setValidationResults] = useState<any>(null);
+
+  const campaignObjective: string = draft?.data?.objective || draft?.objective || "";
+  const isCBO = !!(draft?.data?.daily_budget || draft?.data?.lifetime_budget);
 
   const fetchDraft = async () => {
     try {
@@ -42,54 +45,49 @@ export default function DraftEditorPage({ params: paramsPromise }: { params: Pro
       const response = await draftApi.getCampaign(params.id);
       setDraft(response.data);
       if (!selectedNode) {
-        setSelectedNode({ type: 'CAMPAIGN', id: response.data.id });
+        setSelectedNode({ type: "CAMPAIGN", id: response.data.id });
         setEditData(response.data);
+      } else {
+        const d = response.data;
+        if (selectedNode.type === "CAMPAIGN") setEditData(d);
+        else if (selectedNode.type === "ADSET") {
+          const found = d.adSets?.find((s: any) => s.id === selectedNode.id);
+          if (found) setEditData(found);
+        } else if (selectedNode.type === "AD") {
+          for (const s of d.adSets || []) {
+            const found = s.ads?.find((a: any) => a.id === selectedNode.id);
+            if (found) { setEditData(found); break; }
+          }
+        }
       }
-    } catch (error) {
-      toast.error("Failed to load draft details");
-    } finally {
-      setIsLoading(false);
-    }
+    } catch { toast.error("Failed to load draft details"); }
+    finally { setIsLoading(false); }
   };
 
-  useEffect(() => {
-    fetchDraft();
-  }, [params.id]);
+  useEffect(() => { fetchDraft(); }, [params.id]);
 
-  const handleSelectNode = (type: 'CAMPAIGN' | 'ADSET' | 'AD', item: any) => {
+  const handleSelectNode = (type: "CAMPAIGN" | "ADSET" | "AD", item: any) => {
     setSelectedNode({ type, id: item.id });
     setEditData(item);
   };
 
-  const handleUpdateField = (field: string, value: any) => {
-    setEditData({ ...editData, [field]: value });
-  };
-
-  const handleUpdateDataField = (field: string, value: any) => {
-    setEditData({
-      ...editData,
-      data: { ...editData.data, [field]: value }
-    });
+  const handleUpdateField = (field: string, value: any) => setEditData({ ...editData, [field]: value });
+  const handleUpdateDataField = (field: string, value: any) => setEditData({ ...editData, data: { ...editData.data, [field]: value } });
+  const handleUpdateNestedDataField = (parent: string, field: string, value: any) => {
+    setEditData({ ...editData, data: { ...editData.data, [parent]: { ...(editData.data?.[parent] || {}), [field]: value } } });
   };
 
   const handleSave = async () => {
     if (!selectedNode || !editData) return;
     setIsSaving(true);
     try {
-      if (selectedNode.type === 'CAMPAIGN') {
-        await draftApi.updateCampaign(selectedNode.id, editData);
-      } else if (selectedNode.type === 'ADSET') {
-        await draftApi.updateAdSet(selectedNode.id, editData);
-      } else if (selectedNode.type === 'AD') {
-        await draftApi.updateAd(selectedNode.id, editData);
-      }
+      if (selectedNode.type === "CAMPAIGN") await draftApi.updateCampaign(selectedNode.id, editData);
+      else if (selectedNode.type === "ADSET") await draftApi.updateAdSet(selectedNode.id, editData);
+      else if (selectedNode.type === "AD") await draftApi.updateAd(selectedNode.id, editData);
       toast.success("Changes saved");
       fetchDraft();
-    } catch (error) {
-      toast.error("Failed to save changes");
-    } finally {
-      setIsSaving(false);
-    }
+    } catch { toast.error("Failed to save changes"); }
+    finally { setIsSaving(false); }
   };
 
   const handleValidate = async () => {
@@ -97,61 +95,180 @@ export default function DraftEditorPage({ params: paramsPromise }: { params: Pro
     try {
       const response = await draftApi.validateDraft(params.id);
       setValidationResults(response.data);
-      if (response.data.isValid) {
-        toast.success("Validation passed!");
-      } else {
-        toast.error("Validation failed. Please fix the errors.");
-      }
+      if (response.data.isValid) toast.success("Validation passed!");
+      else toast.error("Validation failed. Please fix the errors.");
       fetchDraft();
-    } catch (error) {
-      toast.error("Validation failed");
-    } finally {
-      setIsValidating(false);
-    }
+    } catch { toast.error("Validation failed"); }
+    finally { setIsValidating(false); }
   };
 
   const handlePublish = async () => {
     if (!confirm("Publish to Meta? This will create real campaigns, ad sets, and ads (all PAUSED).")) return;
-
     setIsPublishing(true);
     try {
       await draftApi.publishDraft(params.id);
       toast.success("Published successfully!");
       router.push("/drafts");
-    } catch (error: any) {
-      console.error("Publishing failed:", error);
-      toast.error(error.response?.data?.error || "Publishing failed");
-    } finally {
-      setIsPublishing(false);
-    }
+    } catch (error: any) { toast.error(error.response?.data?.error || "Publishing failed"); }
+    finally { setIsPublishing(false); }
   };
 
+  const handleCleanup = async () => {
+    if (!confirm("This will DELETE all Meta objects created by previous publish attempts and reset this draft for a fresh publish. Continue?")) return;
+    setIsCleaning(true);
+    try {
+      const response = await draftApi.cleanupMetaObjects(params.id);
+      toast.success(`Cleaned up ${response.data.deleted.length} Meta objects. Draft reset.`);
+      fetchDraft();
+    } catch (error: any) { toast.error(error.response?.data?.error || "Cleanup failed"); }
+    finally { setIsCleaning(false); }
+  };
+
+  const hasMetaId = !!draft?.metaId || draft?.adSets?.some((s: any) => !!s.metaId);
+
   if (isLoading) {
-    return (
-      <DashboardLayout>
-        <div className="flex items-center justify-center h-64">
-          <Loader2 className="w-6 h-6 animate-spin text-blue-500" />
-        </div>
-      </DashboardLayout>
-    );
+    return <DashboardLayout><div className="flex items-center justify-center h-64"><Loader2 className="w-6 h-6 animate-spin text-blue-500" /></div></DashboardLayout>;
   }
-
   if (!draft) {
-    return (
-      <DashboardLayout>
-        <div className="text-center py-16 text-gray-500">Draft not found</div>
-      </DashboardLayout>
-    );
+    return <DashboardLayout><div className="text-center py-16 text-gray-500">Draft not found</div></DashboardLayout>;
   }
 
-  const statusColor = draft.status === 'READY' ? 'text-emerald-400 bg-emerald-500/15' :
-    draft.status === 'PUBLISHED' ? 'text-emerald-500 bg-emerald-500/10' :
-    'text-gray-400 bg-gray-800/50';
+  const statusColor =
+    draft.status === "READY" ? "text-emerald-400 bg-emerald-500/15" :
+    draft.status === "PUBLISHED" ? "text-emerald-500 bg-emerald-500/10" :
+    draft.status === "FAILED" ? "text-red-400 bg-red-500/15" :
+    "text-gray-400 bg-gray-800/50";
+
+  const goalOptions = VALID_OPTIMIZATION_GOALS[campaignObjective] || [];
+  const destOptions = VALID_DESTINATION_TYPES[campaignObjective] || [];
+  const promotedObjectFields = PROMOTED_OBJECT_REQUIREMENTS[campaignObjective] || [];
+  const needsPromotedObject = promotedObjectFields.length > 0;
+  const isAppPromotion = campaignObjective === "OUTCOME_APP_PROMOTION";
+
+  const renderCampaignForm = () => (
+    <div className="space-y-4">
+      <MetaField label="Campaign Name" value={editData.name || ""} onChange={(v) => handleUpdateField("name", v)} />
+      <MetaField label="Objective" value={campaignObjective} type="enum"
+        options={Object.entries(OBJECTIVE_LABELS).map(([v, l]) => ({ value: v, label: l }))} immutable />
+      <MetaField label="Buying Type" value={editData.data?.buying_type || "AUCTION"} type="enum"
+        options={[{ value: "AUCTION", label: "Auction" }, { value: "RESERVED", label: "Reach & Frequency" }]} immutable />
+
+      <div className="pt-2 border-t border-gray-800/40">
+        <span className="text-[10px] font-semibold text-gray-600 uppercase tracking-wider">Budget & Bidding</span>
+      </div>
+
+      <MetaField label="Bid Strategy" value={editData.data?.bid_strategy || ""} type="enum"
+        options={BID_STRATEGIES} onChange={(v) => handleUpdateDataField("bid_strategy", v)} />
+
+      {isCBO && (
+        <>
+          <MetaField label="Daily Budget (CBO)" value={editData.data?.daily_budget} type="number" isBudget
+            onChange={(v) => handleUpdateDataField("daily_budget", v)}
+            hint="Campaign-level daily budget. Mutually exclusive with Lifetime Budget." />
+          <MetaField label="Lifetime Budget (CBO)" value={editData.data?.lifetime_budget} type="number" isBudget
+            onChange={(v) => handleUpdateDataField("lifetime_budget", v)}
+            hint="Campaign-level lifetime budget. Mutually exclusive with Daily Budget." />
+        </>
+      )}
+
+      <MetaField label="Spend Cap" value={editData.data?.spend_cap} type="number" isBudget
+        onChange={(v) => handleUpdateDataField("spend_cap", v)} hint="Max total spend. Set 0 to remove." />
+    </div>
+  );
+
+  const renderAdSetForm = () => (
+    <div className="space-y-4">
+      <MetaField label="Ad Set Name" value={editData.name || ""} onChange={(v) => handleUpdateField("name", v)} />
+
+      <MetaField label="Optimization Goal" value={editData.data?.optimization_goal || ""} type="enum"
+        options={goalOptions} onChange={(v) => handleUpdateDataField("optimization_goal", v)}
+        hint={`Valid goals for ${OBJECTIVE_LABELS[campaignObjective] || campaignObjective}`} />
+
+      <MetaField label="Destination Type" value={editData.data?.destination_type || ""} type="enum"
+        options={destOptions} onChange={(v) => handleUpdateDataField("destination_type", v)} />
+
+      <MetaField label="Billing Event" value={editData.data?.billing_event || ""} type="enum"
+        options={[
+          { value: "IMPRESSIONS", label: "Impressions" }, { value: "LINK_CLICKS", label: "Link Clicks" },
+          { value: "APP_INSTALLS", label: "App Installs" }, { value: "THRUPLAY", label: "ThruPlay" },
+        ]}
+        onChange={(v) => handleUpdateDataField("billing_event", v)} />
+
+      {needsPromotedObject && (
+        <>
+          <div className="pt-2 border-t border-gray-800/40">
+            <span className="text-[10px] font-semibold text-gray-600 uppercase tracking-wider">Promoted Object</span>
+            {editData.metaId && <span className="ml-2 text-[9px] text-red-400">(immutable after publish)</span>}
+          </div>
+
+          {promotedObjectFields.map((field) => (
+            <MetaField key={field} label={PROMOTED_OBJECT_FIELD_LABELS[field] || field}
+              value={editData.data?.promoted_object?.[field] || ""}
+              onChange={(v) => handleUpdateNestedDataField("promoted_object", field, v)}
+              placeholder={`Enter ${PROMOTED_OBJECT_FIELD_LABELS[field]?.toLowerCase() || field}`}
+              disabled={!!editData.metaId} />
+          ))}
+
+          {isAppPromotion && (
+            <MetaField label="App Store URL" value={editData.data?.promoted_object?.object_store_url || ""}
+              onChange={(v) => handleUpdateNestedDataField("promoted_object", "object_store_url", v)}
+              placeholder="https://play.google.com/store/apps/details?id=..."
+              disabled={!!editData.metaId} />
+          )}
+        </>
+      )}
+
+      {!isCBO ? (
+        <>
+          <div className="pt-2 border-t border-gray-800/40">
+            <span className="text-[10px] font-semibold text-gray-600 uppercase tracking-wider">Ad Set Budget</span>
+          </div>
+          <MetaField label="Bid Strategy" value={editData.data?.bid_strategy || ""} type="enum"
+            options={BID_STRATEGIES} onChange={(v) => handleUpdateDataField("bid_strategy", v)} />
+          <MetaField label="Daily Budget" value={editData.data?.daily_budget} type="number" isBudget
+            onChange={(v) => handleUpdateDataField("daily_budget", v)} />
+          <MetaField label="Lifetime Budget" value={editData.data?.lifetime_budget} type="number" isBudget
+            onChange={(v) => handleUpdateDataField("lifetime_budget", v)} />
+          <MetaField label="Bid Amount" value={editData.data?.bid_amount} type="number" isBudget
+            onChange={(v) => handleUpdateDataField("bid_amount", v)} hint="Required for Bid Cap / Cost Cap strategies" />
+        </>
+      ) : (
+        <div className="bg-blue-500/5 border border-blue-500/20 p-3 rounded-lg">
+          <p className="text-[11px] text-blue-400">
+            This campaign uses Campaign Budget Optimization (CBO). Budget is managed at campaign level.
+          </p>
+        </div>
+      )}
+    </div>
+  );
+
+  const renderAdForm = () => (
+    <div className="space-y-4">
+      <MetaField label="Ad Name" value={editData.name || ""} onChange={(v) => handleUpdateField("name", v)} />
+
+      <div className="space-y-1.5">
+        <Label className="text-xs text-gray-400">Creative ID</Label>
+        <Input value={editData.data?.creative?.id || editData.data?.creative?.creative_id || ""}
+          className="bg-gray-950/50 border-gray-800/40 font-mono text-xs text-gray-400" disabled />
+        <p className="text-[10px] text-gray-600">
+          Creative references are copied from the source. To use a different creative, edit the ID directly in Raw JSON.
+        </p>
+      </div>
+
+      {editData.data?.tracking_specs && (
+        <div className="space-y-1.5">
+          <Label className="text-xs text-gray-400">Tracking Specs</Label>
+          <div className="bg-gray-950/50 border border-gray-800/40 rounded-md p-3 font-mono text-[10px] text-gray-500 max-h-32 overflow-y-auto">
+            {JSON.stringify(editData.data.tracking_specs, null, 2)}
+          </div>
+        </div>
+      )}
+    </div>
+  );
 
   return (
     <DashboardLayout>
       <div className="flex flex-col h-full space-y-4">
-        {/* Header */}
         <div className="flex justify-between items-center pb-4 border-b border-gray-800/40">
           <div className="flex items-center gap-3">
             <Link href="/drafts">
@@ -162,82 +279,69 @@ export default function DraftEditorPage({ params: paramsPromise }: { params: Pro
             <div>
               <h1 className="text-xl font-bold text-gray-100">{draft.name}</h1>
               <div className="flex items-center gap-2 mt-1">
-                <span className={cn("text-[10px] font-semibold px-2 py-0.5 rounded-full", statusColor)}>
-                  {draft.status}
-                </span>
-                <span className="text-xs text-gray-600">{draft.objective}</span>
+                <span className={cn("text-[10px] font-semibold px-2 py-0.5 rounded-full", statusColor)}>{draft.status}</span>
+                <span className="text-xs text-gray-600">{OBJECTIVE_LABELS[campaignObjective] || campaignObjective}</span>
+                {draft.metaId && <span className="text-[10px] text-gray-600 font-mono">Meta: {draft.metaId}</span>}
               </div>
             </div>
           </div>
           <div className="flex gap-2">
-            <Button variant="outline" size="sm" className="gap-1.5 border-gray-800 text-gray-400" onClick={handleValidate} disabled={isValidating}>
-              <ShieldCheck className={cn("w-3.5 h-3.5", isValidating && "animate-spin")} />
-              Validate
+            {(draft.status === "FAILED" || hasMetaId) && draft.status !== "PUBLISHED" && (
+              <Button variant="outline" size="sm" className="gap-1.5 border-red-800 text-red-400 hover:bg-red-500/10"
+                onClick={handleCleanup} disabled={isCleaning}>
+                {isCleaning ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
+                Cleanup Meta
+              </Button>
+            )}
+            <Button variant="outline" size="sm" className="gap-1.5 border-gray-800 text-gray-400"
+              onClick={handleValidate} disabled={isValidating}>
+              <ShieldCheck className={cn("w-3.5 h-3.5", isValidating && "animate-spin")} /> Validate
             </Button>
-            <Button
-              size="sm"
-              className="gap-1.5 bg-blue-600 hover:bg-blue-700 shadow-lg shadow-blue-600/20"
-              onClick={handlePublish}
-              disabled={isPublishing || draft.status === 'PUBLISHING' || draft.status === 'PUBLISHED'}
-            >
-              <Send className="w-3.5 h-3.5" />
-              {isPublishing ? 'Publishing...' : 'Publish to Meta'}
+            <Button size="sm" className="gap-1.5 bg-blue-600 hover:bg-blue-700 shadow-lg shadow-blue-600/20"
+              onClick={handlePublish} disabled={isPublishing || draft.status === "PUBLISHING" || draft.status === "PUBLISHED"}>
+              <Send className="w-3.5 h-3.5" /> {isPublishing ? "Publishing..." : "Publish to Meta"}
             </Button>
           </div>
         </div>
 
         <div className="flex flex-1 gap-5 overflow-hidden">
-          {/* Tree View */}
           <div className="w-72 border-r border-gray-800/40 overflow-y-auto pr-3">
             <div className="space-y-3">
-              {/* Campaign Node */}
               <button
                 className={cn(
                   "w-full p-2.5 rounded-lg flex items-center gap-2.5 transition-all text-left",
-                  selectedNode?.type === 'CAMPAIGN'
-                    ? 'bg-blue-500/10 border border-blue-500/30'
-                    : 'hover:bg-gray-800/40'
+                  selectedNode?.type === "CAMPAIGN" ? "bg-blue-500/10 border border-blue-500/30" : "hover:bg-gray-800/40"
                 )}
-                onClick={() => handleSelectNode('CAMPAIGN', draft)}
-              >
+                onClick={() => handleSelectNode("CAMPAIGN", draft)}>
                 <div className="w-7 h-7 rounded-md bg-blue-500/10 flex items-center justify-center shrink-0">
                   <Megaphone className="w-3.5 h-3.5 text-blue-400" />
                 </div>
                 <span className="text-sm font-medium truncate text-gray-200">{draft.name}</span>
               </button>
 
-              {/* Ad Set Nodes */}
               <div className="pl-5 space-y-2 border-l border-gray-800/40 ml-3.5">
                 {draft.adSets?.map((adSet: any) => (
                   <div key={adSet.id} className="space-y-1.5">
                     <button
                       className={cn(
                         "w-full p-2 rounded-lg flex items-center gap-2.5 transition-all text-left",
-                        selectedNode?.type === 'ADSET' && selectedNode.id === adSet.id
-                          ? 'bg-blue-500/10 border border-blue-500/30'
-                          : 'hover:bg-gray-800/40'
+                        selectedNode?.type === "ADSET" && selectedNode.id === adSet.id ? "bg-blue-500/10 border border-blue-500/30" : "hover:bg-gray-800/40"
                       )}
-                      onClick={() => handleSelectNode('ADSET', adSet)}
-                    >
+                      onClick={() => handleSelectNode("ADSET", adSet)}>
                       <div className="w-6 h-6 rounded-md bg-purple-500/10 flex items-center justify-center shrink-0">
                         <Layers className="w-3 h-3 text-purple-400" />
                       </div>
                       <span className="text-xs font-medium truncate text-gray-300">{adSet.name}</span>
                     </button>
 
-                    {/* Ad Nodes */}
                     <div className="pl-5 space-y-1 border-l border-gray-800/30 ml-3">
                       {adSet.ads?.map((ad: any) => (
-                        <button
-                          key={ad.id}
+                        <button key={ad.id}
                           className={cn(
                             "w-full p-1.5 rounded-lg flex items-center gap-2 transition-all text-left",
-                            selectedNode?.type === 'AD' && selectedNode.id === ad.id
-                              ? 'bg-blue-500/10 border border-blue-500/30'
-                              : 'hover:bg-gray-800/40'
+                            selectedNode?.type === "AD" && selectedNode.id === ad.id ? "bg-blue-500/10 border border-blue-500/30" : "hover:bg-gray-800/40"
                           )}
-                          onClick={() => handleSelectNode('AD', ad)}
-                        >
+                          onClick={() => handleSelectNode("AD", ad)}>
                           <div className="w-5 h-5 rounded bg-green-500/10 flex items-center justify-center shrink-0">
                             <FileText className="w-2.5 h-2.5 text-green-400" />
                           </div>
@@ -251,7 +355,6 @@ export default function DraftEditorPage({ params: paramsPromise }: { params: Pro
             </div>
           </div>
 
-          {/* Editor Area */}
           <div className="flex-1 overflow-y-auto">
             {editData ? (
               <div className="space-y-5 max-w-2xl">
@@ -260,14 +363,14 @@ export default function DraftEditorPage({ params: paramsPromise }: { params: Pro
                     <span className="text-[10px] font-semibold px-2 py-0.5 rounded-md bg-gray-800/50 text-gray-500 uppercase tracking-wide">
                       {selectedNode?.type}
                     </span>
+                    {editData.metaId && <span className="text-[10px] text-gray-600 font-mono">Meta: {editData.metaId}</span>}
                   </div>
-                  <Button size="sm" className="gap-1.5 bg-gray-800 hover:bg-gray-700 text-gray-200" onClick={handleSave} disabled={isSaving}>
-                    {isSaving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
-                    Save
+                  <Button size="sm" className="gap-1.5 bg-gray-800 hover:bg-gray-700 text-gray-200"
+                    onClick={handleSave} disabled={isSaving}>
+                    {isSaving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />} Save
                   </Button>
                 </div>
 
-                {/* Validation Errors */}
                 {editData.validationErrors && editData.validationErrors.length > 0 && (
                   <div className="bg-red-500/5 border border-red-500/20 p-3.5 rounded-lg space-y-2">
                     <div className="flex items-center gap-2 text-red-400">
@@ -290,46 +393,9 @@ export default function DraftEditorPage({ params: paramsPromise }: { params: Pro
                   </TabsList>
 
                   <TabsContent value="form" className="space-y-4 mt-4">
-                    <div className="space-y-1.5">
-                      <Label className="text-xs text-gray-400">Name</Label>
-                      <Input
-                        value={editData.name}
-                        onChange={(e) => handleUpdateField('name', e.target.value)}
-                        className="bg-gray-900/50 border-gray-800/60 focus:border-blue-500/50"
-                      />
-                    </div>
-
-                    {selectedNode?.type === 'CAMPAIGN' && (
-                      <div className="space-y-1.5">
-                        <Label className="text-xs text-gray-400">Objective</Label>
-                        <Input
-                          value={editData.objective || ''}
-                          onChange={(e) => handleUpdateField('objective', e.target.value)}
-                          className="bg-gray-900/50 border-gray-800/60 focus:border-blue-500/50"
-                        />
-                      </div>
-                    )}
-
-                    {selectedNode?.type === 'ADSET' && (
-                      <>
-                        <div className="space-y-1.5">
-                          <Label className="text-xs text-gray-400">Optimization Goal</Label>
-                          <Input
-                            value={editData.data?.optimization_goal || ''}
-                            onChange={(e) => handleUpdateDataField('optimization_goal', e.target.value)}
-                            className="bg-gray-900/50 border-gray-800/60 focus:border-blue-500/50"
-                          />
-                        </div>
-                        <div className="space-y-1.5">
-                          <Label className="text-xs text-gray-400">Billing Event</Label>
-                          <Input
-                            value={editData.data?.billing_event || ''}
-                            onChange={(e) => handleUpdateDataField('billing_event', e.target.value)}
-                            className="bg-gray-900/50 border-gray-800/60 focus:border-blue-500/50"
-                          />
-                        </div>
-                      </>
-                    )}
+                    {selectedNode?.type === "CAMPAIGN" && renderCampaignForm()}
+                    {selectedNode?.type === "ADSET" && renderAdSetForm()}
+                    {selectedNode?.type === "AD" && renderAdForm()}
                   </TabsContent>
 
                   <TabsContent value="summary" className="mt-4">
@@ -345,10 +411,10 @@ export default function DraftEditorPage({ params: paramsPromise }: { params: Pro
                             <span className="text-xs font-medium text-gray-300">{editData.name}</span>
                           </div>
                           {Object.entries(editData.data || {}).map(([key, value]: [string, any]) => {
-                            if (typeof value === 'string' || typeof value === 'number') {
+                            if (typeof value === "string" || typeof value === "number") {
                               return (
                                 <div key={key} className="flex justify-between items-center py-2 border-b border-gray-800/30">
-                                  <span className="text-xs text-gray-500 capitalize">{key.replace(/_/g, ' ')}</span>
+                                  <span className="text-xs text-gray-500 capitalize">{key.replace(/_/g, " ")}</span>
                                   <span className="text-xs font-medium truncate max-w-[280px] text-gray-300">{String(value)}</span>
                                 </div>
                               );
@@ -362,16 +428,10 @@ export default function DraftEditorPage({ params: paramsPromise }: { params: Pro
 
                   <TabsContent value="json" className="mt-4">
                     <div className="space-y-1.5">
-                      <Label className="text-xs text-gray-400">Raw Data</Label>
+                      <Label className="text-xs text-gray-400">Raw Data (read-only view of payload)</Label>
                       <textarea
                         className="w-full h-96 bg-gray-900/50 border border-gray-800/60 rounded-lg p-4 font-mono text-xs text-gray-300 focus:outline-none focus:border-blue-500/50 transition-colors"
-                        value={JSON.stringify(editData.data, null, 2)}
-                        onChange={(e) => {
-                          try {
-                            handleUpdateField('data', JSON.parse(e.target.value));
-                          } catch (err) {}
-                        }}
-                      />
+                        value={JSON.stringify(editData.data, null, 2)} readOnly />
                     </div>
                   </TabsContent>
                 </Tabs>

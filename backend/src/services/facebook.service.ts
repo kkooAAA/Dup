@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { READ_ONLY_FIELDS } from './draft/MetaFieldRegistry';
 
 const FB_API_VERSION = 'v19.0';
 const FB_BASE_URL = `https://graph.facebook.com/${FB_API_VERSION}`;
@@ -212,9 +213,10 @@ export class FacebookService {
       }
 
       if (data.promoted_object) {
-        // Remove read-only fields from promoted_object (like 'id')
-        const { id, ...sanitizedPromotedObject } = data.promoted_object;
-        payload.promoted_object = sanitizedPromotedObject;
+        const { id, smart_pse_enabled, ...sanitizedPromotedObject } = data.promoted_object;
+        if (Object.keys(sanitizedPromotedObject).length > 0) {
+          payload.promoted_object = sanitizedPromotedObject;
+        }
       }
 
       if (data.targeting) {

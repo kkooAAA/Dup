@@ -307,7 +307,8 @@ export class ObjectiveConversionService {
 
   private sanitizePromotedObject(promotedObject: any) {
     if (!promotedObject) return undefined;
-    const { id, ...sanitized } = promotedObject;
+    const { id, smart_pse_enabled, ...sanitized } = promotedObject;
+    if (Object.keys(sanitized).length === 0) return undefined;
     return sanitized;
   }
 

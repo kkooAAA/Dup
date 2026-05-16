@@ -5,6 +5,7 @@ import { DraftAdSetService } from '../services/draft/DraftAdSetService';
 import { DraftAdService } from '../services/draft/DraftAdService';
 import { DraftValidationEngine } from '../services/draft/DraftValidationEngine';
 import { DraftPublishService } from '../services/draft/DraftPublishService';
+import { BulkEditCompatibilityEngine, EntityLevel } from '../services/draft/BulkEditCompatibilityEngine';
 import { AuthRequest } from '../middleware/auth.middleware';
 import { prisma } from '../prisma';
 
@@ -206,6 +207,22 @@ export class DraftController {
     }
   }
 
+  static async cleanupMetaObjects(req: Request, res: Response) {
+    try {
+      const id = req.params.id as string;
+      const authReq = req as AuthRequest;
+
+      const result = await DraftPublishService.cleanupOrphanedMetaObjects(id, authReq.userAccessToken!);
+      res.json(result);
+    } catch (error: any) {
+      console.error(`[DraftController] Error in cleanupMetaObjects:`, error);
+      if (isFacebookAuthError(error.message)) {
+        return res.status(401).json({ error: error.message, code: 'TOKEN_EXPIRED' });
+      }
+      res.status(500).json({ error: error.message });
+    }
+  }
+
   static async bulkDeleteDrafts(req: Request, res: Response) {
     try {
       const { campaignIds } = req.body as { campaignIds: string[] };
@@ -227,6 +244,154 @@ export class DraftController {
       res.json({ deleted: deleted.count });
     } catch (error: any) {
       console.error(`[DraftController] Error in bulkDeleteDrafts:`, error);
+      res.status(500).json({ error: error.message });
+    }
+  }
+
+  static async bulkEditSchema(req: Request, res: Response) {
+    try {
+      const { draftIds, level = 'campaign' } = req.body as { draftIds: string[]; level?: EntityLevel };
+      const { userId } = req as AuthRequest;
+
+      if (!Array.isArray(draftIds) || draftIds.length === 0) {
+        return res.status(400).json({ error: 'draftIds must be a non-empty array' });
+      }
+
+      let drafts: any[];
+      if (level === 'campaign') {
+        drafts = await prisma.draftCampaign.findMany({
+          where: { id: { in: draftIds }, userId },
+        });
+      } else if (level === 'adSet') {
+        drafts = await prisma.draftAdSet.findMany({
+          where: { id: { in: draftIds } },
+          include: { campaign: { select: { objective: true, data: true } } },
+        });
+        drafts = drafts.map((d: any) => ({
+          ...d,
+          campaignObjective: d.campaign?.objective,
+          isCBO: !!(d.campaign?.data as any)?.is_adset_budget_sharing_enabled,
+        }));
+      } else {
+        drafts = await prisma.draftAd.findMany({
+          where: { id: { in: draftIds } },
+        });
+      }
+
+      if (drafts.length === 0) {
+        return res.status(404).json({ error: 'No drafts found' });
+      }
+
+      const schema = BulkEditCompatibilityEngine.computeBulkSchema(drafts, level);
+      res.json(schema);
+    } catch (error: any) {
+      console.error(`[DraftController] Error in bulkEditSchema:`, error);
+      res.status(500).json({ error: error.message });
+    }
+  }
+
+  static async bulkEditValidate(req: Request, res: Response) {
+    try {
+      const { draftIds, fieldUpdates, level = 'campaign' } = req.body as {
+        draftIds: string[];
+        fieldUpdates: Record<string, any>;
+        level?: EntityLevel;
+      };
+      const { userId } = req as AuthRequest;
+
+      if (!Array.isArray(draftIds) || draftIds.length === 0) {
+        return res.status(400).json({ error: 'draftIds must be a non-empty array' });
+      }
+
+      let drafts: any[];
+      if (level === 'campaign') {
+        drafts = await prisma.draftCampaign.findMany({
+          where: { id: { in: draftIds }, userId },
+        });
+      } else if (level === 'adSet') {
+        drafts = await prisma.draftAdSet.findMany({
+          where: { id: { in: draftIds } },
+          include: { campaign: { select: { objective: true } } },
+        });
+        drafts = drafts.map((d: any) => ({ ...d, objective: d.campaign?.objective }));
+      } else {
+        drafts = await prisma.draftAd.findMany({ where: { id: { in: draftIds } } });
+      }
+
+      const result = BulkEditCompatibilityEngine.validateBulkEdit(drafts, fieldUpdates, level);
+      res.json(result);
+    } catch (error: any) {
+      console.error(`[DraftController] Error in bulkEditValidate:`, error);
+      res.status(500).json({ error: error.message });
+    }
+  }
+
+  static async bulkEditApply(req: Request, res: Response) {
+    try {
+      const { draftIds, fieldUpdates, level = 'campaign' } = req.body as {
+        draftIds: string[];
+        fieldUpdates: Record<string, any>;
+        level?: EntityLevel;
+      };
+      const { userId } = req as AuthRequest;
+
+      if (!Array.isArray(draftIds) || draftIds.length === 0) {
+        return res.status(400).json({ error: 'draftIds must be a non-empty array' });
+      }
+
+      if (!fieldUpdates || Object.keys(fieldUpdates).length === 0) {
+        return res.status(400).json({ error: 'fieldUpdates must be a non-empty object' });
+      }
+
+      let drafts: any[];
+      if (level === 'campaign') {
+        drafts = await prisma.draftCampaign.findMany({
+          where: { id: { in: draftIds }, userId, status: { not: 'PUBLISHING' } },
+        });
+      } else if (level === 'adSet') {
+        drafts = await prisma.draftAdSet.findMany({
+          where: { id: { in: draftIds } },
+          include: { campaign: { select: { objective: true, userId: true } } },
+        });
+        drafts = drafts.filter((d: any) => d.campaign?.userId === userId);
+      } else {
+        drafts = await prisma.draftAd.findMany({
+          where: { id: { in: draftIds } },
+          include: { adSet: { include: { campaign: { select: { userId: true } } } } },
+        });
+        drafts = drafts.filter((d: any) => d.adSet?.campaign?.userId === userId);
+      }
+
+      // Validate before applying
+      const validation = BulkEditCompatibilityEngine.validateBulkEdit(drafts, fieldUpdates, level);
+      if (!validation.valid) {
+        return res.status(400).json({
+          error: 'Validation failed',
+          ...validation,
+        });
+      }
+
+      // Apply updates
+      const updates = BulkEditCompatibilityEngine.applyBulkEdit(drafts, fieldUpdates, level);
+      let updatedCount = 0;
+
+      for (const update of updates) {
+        const updatePayload: any = { data: update.updatedData, status: 'DRAFT' };
+        if (update.objective) updatePayload.objective = update.objective;
+
+        if (level === 'campaign') {
+          await prisma.draftCampaign.update({ where: { id: update.draftId }, data: updatePayload });
+        } else if (level === 'adSet') {
+          await prisma.draftAdSet.update({ where: { id: update.draftId }, data: { data: update.updatedData } });
+        } else {
+          await prisma.draftAd.update({ where: { id: update.draftId }, data: { data: update.updatedData } });
+        }
+        updatedCount++;
+      }
+
+      res.json({ updated: updatedCount, validation });
+    } catch (error: any) {
+      console.error(`[DraftController] Error in bulkEditApply:`, error);
       res.status(500).json({ error: error.message });
     }
   }

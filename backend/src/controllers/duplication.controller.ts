@@ -6,6 +6,12 @@ import { NamingEngine } from '../utils/namingEngine';
 import { ObjectiveConversionService } from '../services/objectiveConversion.service';
 import { DraftService } from '../services/draft/DraftService';
 import { DraftPublishService } from '../services/draft/DraftPublishService';
+import { FieldOptimizationEngine } from '../services/draft/FieldOptimizationEngine';
+import {
+  CAMPAIGN_FIELDS, ADSET_FIELDS, AD_FIELDS,
+  VALID_OPTIMIZATION_GOALS, VALID_DESTINATION_TYPES,
+  OPTIMIZATION_GOAL_LABELS, DESTINATION_TYPE_LABELS,
+} from '../services/draft/MetaFieldRegistry';
 
 export const getHistory = async (req: AuthRequest, res: Response) => {
   try {
@@ -281,5 +287,168 @@ export const duplicateAd = async (req: AuthRequest, res: Response) => {
     res.json(result);
   } catch (error: any) {
     res.status(500).json({ message: 'Failed to duplicate ad', error: error.response?.data });
+  }
+};
+
+// ── Optimization endpoints ──
+
+export const optimizeDuplicate = async (req: AuthRequest, res: Response) => {
+  const { type, id, overrides } = req.body;
+  try {
+    const fbService = new FacebookService(req.userAccessToken!);
+
+    if (type === 'CAMPAIGN') {
+      const resp = await fbService.get(`/${id}`, {
+        fields: 'name,objective,bid_strategy,buying_type,special_ad_categories,daily_budget,lifetime_budget,spend_cap',
+      });
+      const result = FieldOptimizationEngine.optimizeCampaignForDuplication(resp.data, overrides);
+
+      const adSets = await fbService.getAdSets(id);
+      const isCBO = !!(resp.data.daily_budget || resp.data.lifetime_budget);
+      const adSetResults = [];
+      for (const adSet of adSets.slice(0, 5)) {
+        const fullAdSet = await fbService.get(`/${adSet.id}`, {
+          fields: 'name,billing_event,optimization_goal,bid_amount,daily_budget,lifetime_budget,targeting,promoted_object,attribution_spec,destination_type,bid_strategy,start_time,end_time',
+        });
+        adSetResults.push({
+          sourceId: adSet.id,
+          sourceName: adSet.name,
+          ...FieldOptimizationEngine.optimizeAdSetForDuplication(
+            fullAdSet.data, resp.data.objective, isCBO, overrides?.adSet,
+          ),
+        });
+      }
+
+      return res.json({
+        campaign: result,
+        adSets: adSetResults,
+        totalAdSets: adSets.length,
+        schema: {
+          campaign: CAMPAIGN_FIELDS,
+          adSet: ADSET_FIELDS,
+          optimizationGoals: VALID_OPTIMIZATION_GOALS,
+          destinationTypes: VALID_DESTINATION_TYPES,
+          goalLabels: OPTIMIZATION_GOAL_LABELS,
+          destLabels: DESTINATION_TYPE_LABELS,
+        },
+      });
+    }
+
+    if (type === 'ADSET') {
+      const resp = await fbService.get(`/${id}`, {
+        fields: 'name,billing_event,optimization_goal,bid_amount,daily_budget,lifetime_budget,targeting,promoted_object,attribution_spec,destination_type,bid_strategy,start_time,end_time,campaign{id,objective,daily_budget,lifetime_budget}',
+      });
+      const data = resp.data;
+      const campaignObjective = data.campaign?.objective || '';
+      const isCBO = !!(data.campaign?.daily_budget || data.campaign?.lifetime_budget);
+      const result = FieldOptimizationEngine.optimizeAdSetForDuplication(data, campaignObjective, isCBO, overrides);
+
+      return res.json({
+        adSet: result,
+        campaignObjective,
+        isCBO,
+        schema: {
+          adSet: ADSET_FIELDS,
+          optimizationGoals: VALID_OPTIMIZATION_GOALS,
+          destinationTypes: VALID_DESTINATION_TYPES,
+          goalLabels: OPTIMIZATION_GOAL_LABELS,
+          destLabels: DESTINATION_TYPE_LABELS,
+        },
+      });
+    }
+
+    if (type === 'AD') {
+      const resp = await fbService.get(`/${id}`, { fields: 'name,creative,tracking_specs,status' });
+      const result = FieldOptimizationEngine.optimizeAdForDuplication(resp.data, overrides);
+      return res.json({ ad: result, schema: { ad: AD_FIELDS } });
+    }
+
+    return res.status(400).json({ message: 'Invalid type' });
+  } catch (error: any) {
+    console.error('[DuplicationController] optimizeDuplicate error:', error.response?.data || error.message);
+    res.status(500).json({ message: 'Failed to optimize', error: error.response?.data?.error?.message || error.message });
+  }
+};
+
+export const optimizeConversion = async (req: AuthRequest, res: Response) => {
+  const { type, id, targetObjective, newName } = req.body;
+  try {
+    const fbService = new FacebookService(req.userAccessToken!);
+
+    if (type !== 'CAMPAIGN') {
+      return res.status(400).json({ message: 'Only campaign conversion is supported' });
+    }
+
+    const resp = await fbService.get(`/${id}`, {
+      fields: 'name,objective,bid_strategy,buying_type,special_ad_categories,daily_budget,lifetime_budget,spend_cap',
+    });
+    const campaignResult = FieldOptimizationEngine.optimizeCampaignForConversion(
+      resp.data, targetObjective, newName || `${resp.data.name} - Converted`,
+    );
+
+    const isCBO = !!(campaignResult.payload.daily_budget || campaignResult.payload.lifetime_budget);
+
+    const adSets = await fbService.getAdSets(id);
+    const adSetResults = [];
+    for (const adSet of adSets.slice(0, 5)) {
+      const fullAdSet = await fbService.get(`/${adSet.id}`, {
+        fields: 'name,billing_event,optimization_goal,bid_amount,daily_budget,lifetime_budget,targeting,promoted_object,attribution_spec,destination_type,bid_strategy,start_time,end_time',
+      });
+
+      let pageId: string | undefined = fullAdSet.data.promoted_object?.page_id;
+      if (!pageId) {
+        try {
+          const ads = await fbService.getAds(adSet.id);
+          if (ads.length > 0) {
+            const adResp = await fbService.get(`/${ads[0].id}`, { fields: 'creative' });
+            const creativeId = adResp.data.creative?.id;
+            if (creativeId) {
+              const creativeResp = await fbService.get(`/${creativeId}`, {
+                fields: 'object_id,actor_id,object_story_spec',
+              });
+              const cr = creativeResp.data;
+              pageId = cr.object_id || cr.actor_id || cr.object_story_spec?.page_id;
+            }
+          }
+        } catch { /* ignore */ }
+      }
+
+      adSetResults.push({
+        sourceId: adSet.id,
+        sourceName: adSet.name,
+        ...FieldOptimizationEngine.optimizeAdSetForConversion(
+          fullAdSet.data, targetObjective, isCBO, pageId,
+        ),
+      });
+    }
+
+    return res.json({
+      campaign: campaignResult,
+      adSets: adSetResults,
+      totalAdSets: adSets.length,
+      sourceObjective: resp.data.objective,
+      targetObjective,
+      schema: {
+        campaign: CAMPAIGN_FIELDS,
+        adSet: ADSET_FIELDS,
+        optimizationGoals: VALID_OPTIMIZATION_GOALS,
+        destinationTypes: VALID_DESTINATION_TYPES,
+        goalLabels: OPTIMIZATION_GOAL_LABELS,
+        destLabels: DESTINATION_TYPE_LABELS,
+      },
+    });
+  } catch (error: any) {
+    console.error('[DuplicationController] optimizeConversion error:', error.response?.data || error.message);
+    res.status(500).json({ message: 'Failed to optimize conversion', error: error.response?.data?.error?.message || error.message });
+  }
+};
+
+export const validateOptimization = async (req: AuthRequest, res: Response) => {
+  const { entityType, payload, campaignObjective } = req.body;
+  try {
+    const result = FieldOptimizationEngine.validatePayload(entityType, payload, campaignObjective);
+    res.json(result);
+  } catch (error: any) {
+    res.status(500).json({ message: 'Validation failed', error: error.message });
   }
 };

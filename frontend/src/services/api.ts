@@ -50,10 +50,16 @@ export const duplicationApi = {
     adAccountId: string, 
     options: { numCopies: number, renamePattern: string, deep: boolean, customBudget?: string, context?: any } 
   }) => api.post('/duplicate/bulk', data),
-  previewConversion: (data: { type: string, id: string, targetObjective: string, newName?: string }) => 
+  previewConversion: (data: { type: string, id: string, targetObjective: string, newName?: string }) =>
     api.post('/duplicate/preview-conversion', data),
   convertObjective: (data: { items: Array<{ id: string, type: string, name: string }>, targetObjective: string, newName?: string, adAccountId: string, saveAsDraft?: boolean }) =>
     api.post('/duplicate/convert-objective', data),
+  optimizeDuplicate: (data: { type: string, id: string, overrides?: any }) =>
+    api.post('/duplicate/optimize-duplicate', data),
+  optimizeConversion: (data: { type: string, id: string, targetObjective: string, newName?: string }) =>
+    api.post('/duplicate/optimize-conversion', data),
+  validateOptimization: (data: { entityType: string, payload: any, campaignObjective?: string }) =>
+    api.post('/duplicate/validate-optimization', data),
 };
 
 export const templateApi = {
@@ -76,6 +82,13 @@ export const draftApi = {
   bulkPublishDrafts: (campaignIds: string[]) => api.post('/drafts/campaigns/bulk-publish', { campaignIds }),
   bulkUpdateCampaigns: (campaignIds: string[], updates: any) => api.post('/drafts/campaigns/bulk-update', { campaignIds, updates }),
   bulkDeleteDrafts: (campaignIds: string[]) => api.post('/drafts/campaigns/bulk-delete', { campaignIds }),
+  cleanupMetaObjects: (id: string) => api.post(`/drafts/campaigns/${id}/cleanup`),
+  bulkEditSchema: (draftIds: string[], level: string = 'campaign') =>
+    api.post('/drafts/bulk-edit/schema', { draftIds, level }),
+  bulkEditValidate: (draftIds: string[], fieldUpdates: Record<string, any>, level: string = 'campaign') =>
+    api.post('/drafts/bulk-edit/validate', { draftIds, fieldUpdates, level }),
+  bulkEditApply: (draftIds: string[], fieldUpdates: Record<string, any>, level: string = 'campaign') =>
+    api.post('/drafts/bulk-edit/apply', { draftIds, fieldUpdates, level }),
 };
 
 export default api;
