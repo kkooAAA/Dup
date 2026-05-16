@@ -17,6 +17,7 @@ import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
 import { MetaField } from "@/components/meta/MetaField";
+import { MetaForm } from "@/components/meta/MetaForm";
 import {
   OBJECTIVE_LABELS, BID_STRATEGIES,
   VALID_OPTIMIZATION_GOALS, VALID_DESTINATION_TYPES,
@@ -388,6 +389,7 @@ export default function DraftEditorPage({ params: paramsPromise }: { params: Pro
                 <Tabs defaultValue="form" className="w-full">
                   <TabsList className="bg-gray-900/50 border border-gray-800/60 h-9">
                     <TabsTrigger value="form" className="text-xs">Edit Form</TabsTrigger>
+                    <TabsTrigger value="schema" className="text-xs">Full Schema</TabsTrigger>
                     <TabsTrigger value="summary" className="text-xs">Summary</TabsTrigger>
                     <TabsTrigger value="json" className="text-xs">Raw JSON</TabsTrigger>
                   </TabsList>
@@ -396,6 +398,22 @@ export default function DraftEditorPage({ params: paramsPromise }: { params: Pro
                     {selectedNode?.type === "CAMPAIGN" && renderCampaignForm()}
                     {selectedNode?.type === "ADSET" && renderAdSetForm()}
                     {selectedNode?.type === "AD" && renderAdForm()}
+                  </TabsContent>
+
+                  <TabsContent value="schema" className="mt-4">
+                    <MetaForm
+                      entityType={
+                        selectedNode?.type === "CAMPAIGN" ? "campaign" :
+                        selectedNode?.type === "ADSET" ? "adSet" : "ad"
+                      }
+                      initialValues={editData.data || {}}
+                      context={{
+                        objective: campaignObjective,
+                        buyingType: editData.data?.buying_type || "AUCTION",
+                        isCBO,
+                      }}
+                      onChange={(values) => setEditData({ ...editData, data: values })}
+                    />
                   </TabsContent>
 
                   <TabsContent value="summary" className="mt-4">

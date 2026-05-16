@@ -6,6 +6,7 @@ import { DraftAdService } from '../services/draft/DraftAdService';
 import { DraftValidationEngine } from '../services/draft/DraftValidationEngine';
 import { DraftPublishService } from '../services/draft/DraftPublishService';
 import { BulkEditCompatibilityEngine, EntityLevel } from '../services/draft/BulkEditCompatibilityEngine';
+import { MetaFormSchemaEngine } from '../services/draft/MetaFormSchemaEngine';
 import { AuthRequest } from '../middleware/auth.middleware';
 import { prisma } from '../prisma';
 
@@ -392,6 +393,35 @@ export class DraftController {
       res.json({ updated: updatedCount, validation });
     } catch (error: any) {
       console.error(`[DraftController] Error in bulkEditApply:`, error);
+      res.status(500).json({ error: error.message });
+    }
+  }
+
+  static async getFormSchema(req: Request, res: Response) {
+    try {
+      const { entityType, context } = req.body as {
+        entityType: 'campaign' | 'adSet' | 'ad';
+        context?: { objective?: string; buyingType?: string; isCBO?: boolean; destinationType?: string };
+      };
+
+      let schema;
+      switch (entityType) {
+        case 'campaign':
+          schema = MetaFormSchemaEngine.getCampaignFormSchema(context);
+          break;
+        case 'adSet':
+          schema = MetaFormSchemaEngine.getAdSetFormSchema(context || { objective: 'OUTCOME_TRAFFIC' });
+          break;
+        case 'ad':
+          schema = MetaFormSchemaEngine.getAdFormSchema(context);
+          break;
+        default:
+          return res.status(400).json({ error: 'Invalid entityType' });
+      }
+
+      res.json(schema);
+    } catch (error: any) {
+      console.error(`[DraftController] Error in getFormSchema:`, error);
       res.status(500).json({ error: error.message });
     }
   }

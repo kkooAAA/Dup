@@ -4,16 +4,13 @@ import { DraftStatus } from '@prisma/client';
 import {
   BID_CAP_STRATEGIES,
   ATTRIBUTION_SPEC_OBJECTIVES,
+  VALID_DESTINATION_TYPES,
+  PROMOTED_OBJECT_REQUIREMENTS,
   stripImmutableFields,
-  stripReadOnlyFields,
+  sanitizeTargeting,
+  sanitizePromotedObject,
 } from './MetaFieldRegistry';
 import { DraftValidationEngine } from './DraftValidationEngine';
-
-const VALID_DESTINATION_TYPES = new Set([
-  'WEBSITE', 'APP', 'MESSENGER', 'APPLINKS_AUTOMATIC', 'FACEBOOK',
-  'INSTAGRAM_DIRECT', 'WHATSAPP', 'SHOP_AUTOMATIC', 'ON_AD', 'ON_POST',
-  'ON_EVENT', 'ON_VIDEO', 'ON_PAGE',
-]);
 
 export class DraftPublishService {
   static async publishCampaign(campaignId: string, accessToken: string) {
@@ -60,7 +57,7 @@ export class DraftPublishService {
       });
 
       const campaignData = campaign.data as any;
-      const isCBO = !!(campaignData.daily_budget || campaignData.lifetime_budget);
+      const isCBO = this.detectCBO(campaignData);
 
       let metaCampaignId: string;
       if (campaign.metaId) {
@@ -119,7 +116,7 @@ export class DraftPublishService {
             });
           } else {
             metaAdSetId = adSet.metaId;
-            await this.updateMetaAdSet(fbService, metaAdSetId, adSet, isCBO);
+            await this.updateMetaAdSet(fbService, metaAdSetId, adSet, campaignData, isCBO);
           }
         } else {
           metaAdSetId = await this.createMetaAdSet(
@@ -214,6 +211,19 @@ export class DraftPublishService {
     }
   }
 
+  // ─── CBO Detection ───
+  // CBO = campaign has budget AND controls budget distribution (not adset-level)
+  private static detectCBO(campaignData: any): boolean {
+    if (campaignData.is_adset_budget_sharing_enabled === true) return true;
+    if (campaignData.is_adset_budget_sharing_enabled === false) return false;
+    const hasCampaignBudget =
+      (Number(campaignData.daily_budget) > 0) ||
+      (Number(campaignData.lifetime_budget) > 0);
+    return hasCampaignBudget;
+  }
+
+  // ─── Campaign Create ───
+
   private static async createMetaCampaign(
     fbService: FacebookService,
     accountId: string,
@@ -240,7 +250,10 @@ export class DraftPublishService {
       } else if (campaignData.lifetime_budget) {
         campaignPayload.lifetime_budget = String(campaignData.lifetime_budget);
       }
-      if (campaignData.bid_strategy && !BID_CAP_STRATEGIES.has(campaignData.bid_strategy)) {
+
+      // BID FIX: Include bid_strategy as-is. If it's a cap strategy, that's the user's intent.
+      // Only default to LOWEST_COST_WITHOUT_CAP if no strategy is set.
+      if (campaignData.bid_strategy) {
         campaignPayload.bid_strategy = campaignData.bid_strategy;
       } else {
         campaignPayload.bid_strategy = 'LOWEST_COST_WITHOUT_CAP';
@@ -249,15 +262,24 @@ export class DraftPublishService {
       campaignPayload.is_adset_budget_sharing_enabled = false;
     }
 
+    if (campaignData.spend_cap && Number(campaignData.spend_cap) > 0) {
+      campaignPayload.spend_cap = String(campaignData.spend_cap);
+    }
+
     console.log(`[DraftPublishService] Creating campaign:`, JSON.stringify(campaignPayload));
     try {
       const fbCampaign = await fbService.client.post(`/${accountId}/campaigns`, campaignPayload);
       return fbCampaign.data.id;
     } catch (error: any) {
-      const errMsg = error.response?.data?.error?.message || error.message;
+      const errData = error.response?.data?.error;
+      const errMsg = errData
+        ? `${errData.message} (code ${errData.code}/${errData.error_subcode ?? '-'})${errData.error_user_msg ? ': ' + errData.error_user_msg : ''}`
+        : error.message;
       throw new Error(`Facebook API Error (Campaign): ${errMsg}`);
     }
   }
+
+  // ─── Campaign Update ───
 
   private static async updateMetaCampaign(
     fbService: FacebookService,
@@ -273,18 +295,21 @@ export class DraftPublishService {
     };
 
     if (isCBO) {
-      if (campaignData.daily_budget && campaignData.lifetime_budget) {
+      if (campaignData.daily_budget && !campaignData.lifetime_budget) {
         updatePayload.daily_budget = String(campaignData.daily_budget);
+      } else if (campaignData.lifetime_budget && !campaignData.daily_budget) {
+        updatePayload.lifetime_budget = String(campaignData.lifetime_budget);
       } else if (campaignData.daily_budget) {
         updatePayload.daily_budget = String(campaignData.daily_budget);
-      } else if (campaignData.lifetime_budget) {
-        updatePayload.lifetime_budget = String(campaignData.lifetime_budget);
       }
-      if (campaignData.bid_strategy && !BID_CAP_STRATEGIES.has(campaignData.bid_strategy)) {
+
+      if (campaignData.bid_strategy) {
         updatePayload.bid_strategy = campaignData.bid_strategy;
-      } else {
-        updatePayload.bid_strategy = 'LOWEST_COST_WITHOUT_CAP';
       }
+    }
+
+    if (campaignData.spend_cap && Number(campaignData.spend_cap) > 0) {
+      updatePayload.spend_cap = String(campaignData.spend_cap);
     }
 
     const { cleaned, stripped } = stripImmutableFields('campaign', updatePayload);
@@ -300,6 +325,8 @@ export class DraftPublishService {
     }
   }
 
+  // ─── Ad Set Create ───
+
   private static async createMetaAdSet(
     fbService: FacebookService,
     accountId: string,
@@ -311,13 +338,26 @@ export class DraftPublishService {
     const adSetData = adSet.data as any;
     const campaignObjective: string = campaignData.objective || '';
 
-    let cleanPromotedObject: any = undefined;
-    if (adSetData.promoted_object) {
-      const { smart_pse_enabled, id, ...writableFields } = adSetData.promoted_object;
-      if (Object.keys(writableFields).length > 0) {
-        cleanPromotedObject = writableFields;
+    // FIX: Use shared sanitizePromotedObject and validate required fields
+    const cleanPromotedObject = sanitizePromotedObject(adSetData.promoted_object);
+    const requiredPromotedFields = PROMOTED_OBJECT_REQUIREMENTS[campaignObjective] || [];
+    if (requiredPromotedFields.length > 0 && cleanPromotedObject) {
+      const hasRequired = requiredPromotedFields.some((f: string) => cleanPromotedObject[f]);
+      if (!hasRequired) {
+        throw new Error(
+          `promoted_object must include ${requiredPromotedFields.join(' or ')} for ${campaignObjective}`
+        );
       }
     }
+
+    // FIX: Use shared sanitizeTargeting
+    const targeting = sanitizeTargeting(adSetData.targeting);
+
+    // FIX: destination_type — validate against objective-specific valid types
+    const validDestTypes = VALID_DESTINATION_TYPES[campaignObjective] || [];
+    const destinationType = adSetData.destination_type && validDestTypes.includes(adSetData.destination_type)
+      ? adSetData.destination_type
+      : undefined;
 
     const adSetPayload: any = {
       name: adSet.name,
@@ -325,23 +365,34 @@ export class DraftPublishService {
       status: 'PAUSED',
       billing_event: adSetData.billing_event || 'IMPRESSIONS',
       optimization_goal: adSetData.optimization_goal,
-      targeting: adSetData.targeting || { geo_locations: { countries: ['TH'] } },
-      ...(cleanPromotedObject && { promoted_object: cleanPromotedObject }),
-      ...(adSetData.destination_type && VALID_DESTINATION_TYPES.has(adSetData.destination_type) && { destination_type: adSetData.destination_type }),
-      ...(adSetData.attribution_spec && ATTRIBUTION_SPEC_OBJECTIVES.has(campaignObjective) && { attribution_spec: adSetData.attribution_spec }),
+      targeting,
     };
+
+    if (cleanPromotedObject) {
+      adSetPayload.promoted_object = cleanPromotedObject;
+    }
+
+    if (destinationType) {
+      adSetPayload.destination_type = destinationType;
+    }
+
+    // Only include attribution_spec for objectives that support it
+    if (adSetData.attribution_spec && ATTRIBUTION_SPEC_OBJECTIVES.has(campaignObjective)) {
+      adSetPayload.attribution_spec = adSetData.attribution_spec;
+    }
 
     if (!isCBO) {
       const adSetBidStrategy: string | undefined = adSetData.bid_strategy;
       const adSetBidAmount: number | string | undefined = adSetData.bid_amount;
-      if (adSetBidStrategy && BID_CAP_STRATEGIES.has(adSetBidStrategy)) {
-        if (adSetBidAmount) {
+
+      if (adSetBidStrategy) {
+        if (BID_CAP_STRATEGIES.has(adSetBidStrategy) && adSetBidAmount) {
           adSetPayload.bid_strategy = adSetBidStrategy;
           adSetPayload.bid_amount = String(adSetBidAmount);
+        } else if (!BID_CAP_STRATEGIES.has(adSetBidStrategy)) {
+          adSetPayload.bid_strategy = adSetBidStrategy;
         }
-      } else {
-        if (adSetBidStrategy) adSetPayload.bid_strategy = adSetBidStrategy;
-        if (adSetBidAmount) adSetPayload.bid_amount = String(adSetBidAmount);
+        // Cap strategies without bid_amount: skip (Meta will reject)
       }
 
       const adSetDailyBudget = Number(adSetData.daily_budget) || 0;
@@ -352,6 +403,9 @@ export class DraftPublishService {
         adSetPayload.daily_budget = String(adSetDailyBudget);
       } else if (adSetLifetimeBudget > 0) {
         adSetPayload.lifetime_budget = String(adSetLifetimeBudget);
+        if (adSetData.end_time) {
+          adSetPayload.end_time = adSetData.end_time;
+        }
       }
       if (adSetData.start_time) adSetPayload.start_time = adSetData.start_time;
       if (adSetData.end_time) adSetPayload.end_time = adSetData.end_time;
@@ -365,53 +419,70 @@ export class DraftPublishService {
       const errData = error.response?.data?.error;
       console.error(`[DraftPublishService] Ad set creation failed:`, JSON.stringify(errData) || error.message);
 
-      const bidErrorSubcodes = new Set([2490487, 1815857]);
-      if (bidErrorSubcodes.has(errData?.error_subcode)) {
+      // Retry without bid fields on known CBO-conflict errors
+      const bidConflictSubcodes = new Set([2490487, 1815857, 1885621]);
+      if (bidConflictSubcodes.has(errData?.error_subcode)) {
         const bidlessPayload = { ...adSetPayload };
         delete bidlessPayload.bid_strategy;
         delete bidlessPayload.bid_amount;
         delete bidlessPayload.bid_constraints;
-        console.log(`[DraftPublishService] Retrying ad set ${adSet.id} without bid fields`);
+        delete bidlessPayload.daily_budget;
+        delete bidlessPayload.lifetime_budget;
+        console.log(`[DraftPublishService] Retrying ad set ${adSet.id} without budget/bid fields (CBO conflict)`);
         try {
           const fbAdSetRetry = await fbService.client.post(`/${accountId}/adsets`, bidlessPayload);
           return fbAdSetRetry.data.id;
         } catch (retryError: any) {
           const retryErrData = retryError.response?.data?.error;
           const retryDetail = retryErrData
-            ? `${retryErrData.message} (code ${retryErrData.code}/${retryErrData.error_subcode ?? 'no subcode'})${retryErrData.error_user_msg ? ': ' + retryErrData.error_user_msg : ''}`
+            ? `${retryErrData.message} (code ${retryErrData.code}/${retryErrData.error_subcode ?? '-'})${retryErrData.error_user_msg ? ': ' + retryErrData.error_user_msg : ''}`
             : retryError.message;
           throw new Error(`Facebook API Error (AdSet ${adSet.id}): ${retryDetail}`);
         }
       }
 
       const detail = errData
-        ? `${errData.message} (code ${errData.code}/${errData.error_subcode ?? 'no subcode'})${errData.error_user_msg ? ': ' + errData.error_user_msg : ''}`
+        ? `${errData.message} (code ${errData.code}/${errData.error_subcode ?? '-'})${errData.error_user_msg ? ': ' + errData.error_user_msg : ''}`
         : error.message;
       throw new Error(`Facebook API Error (AdSet ${adSet.id}): ${detail}`);
     }
   }
 
+  // ─── Ad Set Update ───
+
   private static async updateMetaAdSet(
     fbService: FacebookService,
     metaAdSetId: string,
     adSet: any,
+    campaignData: any,
     isCBO: boolean,
   ): Promise<void> {
     const adSetData = adSet.data as any;
+    const campaignObjective = campaignData?.objective || '';
+    const targeting = sanitizeTargeting(adSetData.targeting);
+
     const updatePayload: any = {
       name: adSet.name,
       status: 'PAUSED',
       billing_event: adSetData.billing_event || 'IMPRESSIONS',
       optimization_goal: adSetData.optimization_goal,
-      targeting: adSetData.targeting,
+      targeting,
     };
 
+    // Include attribution_spec if supported
+    if (adSetData.attribution_spec && ATTRIBUTION_SPEC_OBJECTIVES.has(campaignObjective)) {
+      updatePayload.attribution_spec = adSetData.attribution_spec;
+    }
+
     if (!isCBO) {
+      if (adSetData.bid_strategy) updatePayload.bid_strategy = adSetData.bid_strategy;
       if (adSetData.bid_amount) updatePayload.bid_amount = String(adSetData.bid_amount);
       const adSetDailyBudget = Number(adSetData.daily_budget) || 0;
       const adSetLifetimeBudget = Number(adSetData.lifetime_budget) || 0;
       if (adSetDailyBudget > 0) updatePayload.daily_budget = String(adSetDailyBudget);
       else if (adSetLifetimeBudget > 0) updatePayload.lifetime_budget = String(adSetLifetimeBudget);
+      if (adSetData.start_time) updatePayload.start_time = adSetData.start_time;
+      if (adSetData.end_time) updatePayload.end_time = adSetData.end_time;
     }
 
     const { cleaned, stripped } = stripImmutableFields('adSet', updatePayload);
@@ -427,6 +498,8 @@ export class DraftPublishService {
     }
   }
 
+  // ─── Ad Create ───
+
   private static async createMetaAd(
     fbService: FacebookService,
     accountId: string,
@@ -434,27 +507,37 @@ export class DraftPublishService {
     metaAdSetId: string,
   ): Promise<string> {
     const adData = ad.data as any;
+
+    const creativeId = adData.creative?.creative_id || adData.creative?.id;
+    if (!creativeId) {
+      throw new Error(`Ad "${ad.name}" is missing creative_id — cannot publish without a creative`);
+    }
+
     const adPayload: any = {
       name: ad.name,
       adset_id: metaAdSetId,
       status: 'PAUSED',
-      ...(adData.creative?.id
-        ? { creative: { creative_id: String(adData.creative.id) } }
-        : adData.creative?.creative_id
-          ? { creative: { creative_id: String(adData.creative.creative_id) } }
-          : {}),
-      ...(adData.tracking_specs && { tracking_specs: adData.tracking_specs }),
+      creative: { creative_id: String(creativeId) },
     };
+
+    if (adData.tracking_specs) {
+      adPayload.tracking_specs = adData.tracking_specs;
+    }
 
     console.log(`[DraftPublishService] Creating ad ${ad.id}:`, JSON.stringify(adPayload));
     try {
       const fbAd = await fbService.client.post(`/${accountId}/ads`, adPayload);
       return fbAd.data.id;
     } catch (error: any) {
-      const errMsg = error.response?.data?.error?.message || error.message;
+      const errData = error.response?.data?.error;
+      const errMsg = errData
+        ? `${errData.message} (code ${errData.code}/${errData.error_subcode ?? '-'})${errData.error_user_msg ? ': ' + errData.error_user_msg : ''}`
+        : error.message;
       throw new Error(`Facebook API Error (Ad ${ad.id}): ${errMsg}`);
     }
   }
+
+  // ─── Cleanup ───
 
   static async cleanupOrphanedMetaObjects(campaignId: string, accessToken: string): Promise<{ deleted: string[] }> {
     const fbService = new FacebookService(accessToken);

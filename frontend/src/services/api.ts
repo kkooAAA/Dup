@@ -89,6 +89,8 @@ export const draftApi = {
     api.post('/drafts/bulk-edit/validate', { draftIds, fieldUpdates, level }),
   bulkEditApply: (draftIds: string[], fieldUpdates: Record<string, any>, level: string = 'campaign') =>
     api.post('/drafts/bulk-edit/apply', { draftIds, fieldUpdates, level }),
+  getFormSchema: (entityType: string, context?: any) =>
+    api.post('/drafts/form-schema', { entityType, context }),
 };
 
 export default api;

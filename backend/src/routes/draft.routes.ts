@@ -21,6 +21,7 @@ router.post('/campaigns/bulk-delete', DraftController.bulkDeleteDrafts);
 router.post('/bulk-edit/schema', DraftController.bulkEditSchema);
 router.post('/bulk-edit/validate', DraftController.bulkEditValidate);
 router.post('/bulk-edit/apply', DraftController.bulkEditApply);
+router.post('/form-schema', DraftController.getFormSchema);
 router.post('/campaigns/:id/validate', DraftController.validateDraft);
 router.post('/campaigns/:id/publish', DraftController.publishDraft);
 router.post('/campaigns/:id/cleanup', DraftController.cleanupMetaObjects);
