@@ -1,77 +1,114 @@
 # Implementation Plan - Facebook Ads Duplicator
 
-Build a modern full-stack web application for duplicating Facebook Ads structures using the Meta Marketing API, following a safety-first approach.
+## Status: Core Complete
 
-## 1. Project Initialization
-- Create root directory structure:
-  - `backend/`: Express.js server
-  - `frontend/`: Next.js application
+All core features are implemented and tested. The system handles duplication, objective conversion, bulk editing, and dynamic form rendering with 760+ automated tests.
 
-## 2. Backend Development (Node.js/Express)
-- **Setup**:
-  - Initialize `npm` and install dependencies (`express`, `prisma`, `axios`, `jsonwebtoken`, `passport-facebook`, `dotenv`, `cors`, `zod`).
-  - Configure Prisma with PostgreSQL.
-- **Database Schema (`prisma/schema.prisma`)**:
-  - `User`: Store user info and FB ID.
-  - `Account`: Store Meta Ad Accounts.
-  - `Session`: Store OAuth tokens safely.
-  - `DuplicateJob`: Track duplication status and history.
-- **Meta API Integration (`services/facebook.service.ts`)**:
-  - Implement functions to fetch ad accounts, campaigns, ad sets, and ads.
-  - Implement duplication logic:
-    - Read original object.
-    - Extract configuration.
-    - Create new object with `status: "PAUSED"`.
-    - Reuse `creative_id` for ads.
-- **Authentication**:
-  - Facebook OAuth 2.0 flow using Passport.js or manual Axios implementation.
-  - JWT for session management between frontend and backend.
-- **API Routes**:
-  - `GET /api/adaccounts`: List ad accounts.
-  - `GET /api/campaigns`: List campaigns for an account.
-  - `GET /api/adsets/:campaignId`: List ad sets.
-  - `GET /api/ads/:adsetId`: List ads.
-  - `POST /api/duplicate`: Unified duplication endpoint (campaign/adset/ad).
-  - `POST /api/duplicate/preview-conversion`: Preview objective transformation. (COMPLETED)
-  - `POST /api/duplicate/convert-objective`: Execute deep objective conversion (Bulk supported). (COMPLETED)
+---
 
-## 3. Frontend Development (Next.js)
-- **Setup**:
-  - Initialize Next.js with TypeScript, Tailwind CSS, and App Router.
-  - Install `shadcn/ui` components (button, card, dialog, table, checkbox, etc.).
-  - Setup `zustand` for state management (auth, selected account, etc.).
-  - Setup `framer-motion` for animations.
-- **Components**:
-  - `Layout`: Sidebar and Top Navbar.
-  - `TreeView`: Nested expandable structure for Campaign -> Ad Set -> Ad.
-  - `DuplicateModal`: Configuration for duplication (rename pattern, budget, copies).
-  - `ObjectiveConversionModal`: Wizard for objective transformation (3 steps). (COMPLETED)
-  - `StatusBadge`: Visual indicator for "PAUSED" status.
-- **Pages**:
-  - `/login`: Facebook Login button.
-  - `/dashboard`: Main ad account selection and overview.
-  - `/explorer`: The main tree-view interface for browsing and selecting items.
-  - `/history`: Log of duplication jobs.
+## Completed
 
-## 4. Safety & Security
-- **Safety**:
-  - Hardcode `status: "PAUSED"` in all creation requests.
-  - Confirmation dialogs before any write operation.
-  - Clear visual warnings about potential ad spend.
-- **Security**:
-  - Store `access_token` securely (not in local storage if possible, use HTTP-only cookies or encrypted DB).
-  - Validate all inputs using `zod`.
+### 1. Project Foundation
+- [x] Backend: Express.js + TypeScript + Prisma + PostgreSQL
+- [x] Frontend: Next.js (App Router) + Tailwind + shadcn/ui + Zustand
+- [x] Facebook OAuth 2.0 authentication
+- [x] Meta Marketing API v21.0 integration
 
-## 5. Verification Plan
-- **Unit Tests**:
-  - Test Meta API payload generation.
-  - Test rename pattern logic.
-- **Manual Verification**:
-  - Log in with Facebook.
-  - Fetch and display nested structure.
-  - Perform a test duplication (verify `PAUSED` status in Meta Ads Manager).
-  - Check `creative_id` reuse.
+### 2. Core Duplication Engine
+- [x] Campaign/AdSet/Ad duplication with `status: PAUSED`
+- [x] Deep duplication (campaign → all child adsets → all child ads)
+- [x] Bulk duplication (multiple items at once)
+- [x] Creative ID reuse for social proof preservation
+- [x] Naming pattern templates
 
-## 6. Documentation
-- `README.md` with setup instructions.
-- `.env.example` with required Meta App credentials.
+### 3. Objective Conversion System
+- [x] Full N×N objective conversion (all 30 pairs across 6 objectives)
+- [x] Field optimization engine (strips incompatible fields, migrates goals/destinations)
+- [x] Promoted object handling per objective requirements
+- [x] Attribution spec support (SALES, LEADS, APP_PROMOTION only)
+- [x] Budget conflict resolution (CBO vs adset-level)
+- [x] Bid strategy dependency validation
+
+### 4. Meta Field Registry (`MetaFieldRegistry.ts`)
+- [x] Complete field definitions (campaign, adset, ad) with types, labels, mutability
+- [x] Valid optimization goals per objective
+- [x] Valid destination types per objective
+- [x] Objective defaults (goal, billing_event, destination_type)
+- [x] Promoted object requirements map
+- [x] Migration functions (goal, destination_type)
+- [x] Read-only field stripping
+- [x] Targeting/promoted_object sanitization
+
+### 5. Dynamic Form Schema System
+- [x] `MetaFormSchemaEngine` — recursive schema generator (campaign/adset/ad)
+- [x] `SchemaField.tsx` — recursive renderer (string, number, enum, object, array, etc.)
+- [x] `MetaForm.tsx` — stateful form with dependency resolution + cascade invalidation
+- [x] Full targeting sub-schema (geo, age, gender, platforms, placements, audiences)
+- [x] Context-aware options (optimization goals adapt to selected objective)
+- [x] `POST /api/drafts/form-schema` endpoint
+
+### 6. Bulk Edit System
+- [x] `BulkEditCompatibilityEngine` — fingerprinting + shared field computation
+- [x] Compatibility detection across heterogeneous selections
+- [x] Schema generation for editable common fields
+- [x] Validation + apply logic
+
+### 7. Automated Testing (760+ tests)
+- [x] **Unit**: Field matrix, conversion matrix, form schema, bulk edit
+- [x] **Contracts**: Meta API payload shape validation
+- [x] **Integration**: Full optimize → validate → contract pipeline (72 combinations)
+- [x] **Snapshots**: Payload stability detection
+- [x] **Drift**: Registry consistency + live Meta API `validation_only=true`
+- [x] Auto-generation from registry definitions
+- [x] Coverage: FieldOptimizationEngine 94%, BulkEditCompatibilityEngine 95%
+
+### 8. Frontend UI
+- [x] Explorer page with tree-view (campaign → adset → ad)
+- [x] Duplicate modal with options
+- [x] Objective conversion modal (3-step wizard)
+- [x] Bulk edit modal
+- [x] Draft editor with tabs (Edit Form, Full Schema, Summary, Raw JSON)
+- [x] Drafts list page
+
+---
+
+## API Endpoints
+
+| Method | Path | Purpose |
+|--------|------|---------|
+| GET | `/api/adaccounts` | List ad accounts |
+| GET | `/api/campaigns` | List campaigns |
+| GET | `/api/adsets/:campaignId` | List ad sets |
+| GET | `/api/ads/:adsetId` | List ads |
+| POST | `/api/duplicate` | Duplicate items |
+| POST | `/api/duplicate/preview-conversion` | Preview objective conversion |
+| POST | `/api/duplicate/convert-objective` | Execute conversion (bulk) |
+| POST | `/api/drafts/form-schema` | Get dynamic form schema |
+| GET | `/api/drafts` | List drafts |
+| GET | `/api/drafts/:id` | Get draft |
+| PUT | `/api/drafts/:id` | Update draft |
+| POST | `/api/drafts/:id/publish` | Publish draft to Meta |
+
+---
+
+## Maintenance Guide
+
+### Adding a New Objective
+1. Add to `VALID_OPTIMIZATION_GOALS` in `MetaFieldRegistry.ts`
+2. Add to `VALID_DESTINATION_TYPES`
+3. Add to `OBJECTIVE_DEFAULTS`
+4. Add to `PROMOTED_OBJECT_REQUIREMENTS`
+5. Add fixture in `tests/fixtures/meta-entities.ts`
+6. Run `npm test` — new tests auto-generate
+
+### Detecting Meta API Changes
+```bash
+npm run test:drift
+```
+If a test fails, Meta has changed their validation. Update the registry accordingly.
+
+### Adding a New Field
+1. Add to `CAMPAIGN_FIELDS`, `ADSET_FIELDS`, or `AD_FIELDS` in registry
+2. If editable in UI: add to `MetaFormSchemaEngine` schema generator
+3. If affects optimization: add handling in `FieldOptimizationEngine`
+4. Run `npm test` — contract tests will catch shape violations

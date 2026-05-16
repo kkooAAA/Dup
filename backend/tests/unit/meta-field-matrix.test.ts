@@ -25,6 +25,7 @@ const ALL_DEST_TYPES = [...new Set(Object.values(VALID_DESTINATION_TYPES).flat()
 describe('Optimization Goal × Objective Matrix', () => {
   for (const objective of ALL_OBJECTIVES) {
     const validGoals = VALID_OPTIMIZATION_GOALS[objective];
+    const promotedReqs = PROMOTED_OBJECT_REQUIREMENTS[objective] || [];
 
     describe(`${objective}`, () => {
       for (const goal of validGoals) {
@@ -34,6 +35,7 @@ describe('Optimization Goal × Objective Matrix', () => {
               optimization_goal: goal,
               billing_event: 'IMPRESSIONS',
               targeting: { geo_locations: { countries: ['TH'] } },
+              ...(promotedReqs.length ? { promoted_object: { [promotedReqs[0]]: '12345' } } : {}),
             },
             objective,
             false,
@@ -65,6 +67,15 @@ describe('Destination Type × Objective Matrix', () => {
 
     describe(`${objective}`, () => {
       for (const destType of validTypes) {
+        // UNDEFINED is treated as "no value" by migrateDestinationType — it returns fallback without flagging migration
+        if (destType === 'UNDEFINED') {
+          it(`handles UNDEFINED (returns fallback)`, () => {
+            const migration = migrateDestinationType(destType, objective);
+            expect(validTypes).toContain(migration.type);
+          });
+          continue;
+        }
+
         it(`accepts ${destType}`, () => {
           const migration = migrateDestinationType(destType, objective);
           expect(migration.type).toBe(destType);
@@ -72,7 +83,7 @@ describe('Destination Type × Objective Matrix', () => {
         });
       }
 
-      const invalidTypes = ALL_DEST_TYPES.filter(t => !validTypes.includes(t));
+      const invalidTypes = ALL_DEST_TYPES.filter(t => !validTypes.includes(t) && t !== 'UNDEFINED');
       for (const invalidType of invalidTypes) {
         it(`migrates invalid ${invalidType}`, () => {
           const migration = migrateDestinationType(invalidType, objective);

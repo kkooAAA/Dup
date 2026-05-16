@@ -1,0 +1,1910 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`Ad Duplication Snapshots > ad with URL tags 1`] = `
+{
+  "creative": {
+    "creative_id": "120210000000302",
+  },
+  "name": "Ad with URL Tags",
+  "status": "PAUSED",
+}
+`;
+
+exports[`Ad Duplication Snapshots > standard ad payload 1`] = `
+{
+  "creative": {
+    "creative_id": "120210000000301",
+  },
+  "name": "Standard Ad",
+  "status": "PAUSED",
+  "tracking_specs": [
+    {
+      "action_type": [
+        "offsite_conversion",
+      ],
+      "fb_pixel": [
+        "200000000000001",
+      ],
+    },
+  ],
+}
+`;
+
+exports[`Ad Set Conversion Snapshots > OUTCOME_APP_PROMOTION adset → OUTCOME_AWARENESS objective 1`] = `
+{
+  "billing_event": "IMPRESSIONS",
+  "destination_type": "UNDEFINED",
+  "name": "App Install AdSet",
+  "optimization_goal": "REACH",
+  "promoted_object": {
+    "application_id": "300000000000001",
+    "object_store_url": "https://play.google.com/store/apps/details?id=com.example.app",
+  },
+  "targeting": {
+    "age_max": 35,
+    "age_min": 18,
+    "geo_locations": {
+      "countries": [
+        "TH",
+      ],
+    },
+    "user_os": [
+      "Android",
+    ],
+  },
+}
+`;
+
+exports[`Ad Set Conversion Snapshots > OUTCOME_APP_PROMOTION adset → OUTCOME_ENGAGEMENT objective 1`] = `
+{
+  "billing_event": "IMPRESSIONS",
+  "destination_type": "WEBSITE",
+  "name": "App Install AdSet",
+  "optimization_goal": "POST_ENGAGEMENT",
+  "promoted_object": {
+    "application_id": "300000000000001",
+    "object_store_url": "https://play.google.com/store/apps/details?id=com.example.app",
+  },
+  "targeting": {
+    "age_max": 35,
+    "age_min": 18,
+    "geo_locations": {
+      "countries": [
+        "TH",
+      ],
+    },
+    "user_os": [
+      "Android",
+    ],
+  },
+}
+`;
+
+exports[`Ad Set Conversion Snapshots > OUTCOME_APP_PROMOTION adset → OUTCOME_LEADS objective 1`] = `
+{
+  "billing_event": "IMPRESSIONS",
+  "destination_type": "WEBSITE",
+  "name": "App Install AdSet",
+  "optimization_goal": "LEAD_GENERATION",
+  "promoted_object": {
+    "application_id": "300000000000001",
+    "object_store_url": "https://play.google.com/store/apps/details?id=com.example.app",
+  },
+  "targeting": {
+    "age_max": 35,
+    "age_min": 18,
+    "geo_locations": {
+      "countries": [
+        "TH",
+      ],
+    },
+    "user_os": [
+      "Android",
+    ],
+  },
+}
+`;
+
+exports[`Ad Set Conversion Snapshots > OUTCOME_APP_PROMOTION adset → OUTCOME_SALES objective 1`] = `
+{
+  "billing_event": "IMPRESSIONS",
+  "destination_type": "APP",
+  "name": "App Install AdSet",
+  "optimization_goal": "OFFSITE_CONVERSIONS",
+  "promoted_object": {
+    "application_id": "300000000000001",
+    "object_store_url": "https://play.google.com/store/apps/details?id=com.example.app",
+  },
+  "targeting": {
+    "age_max": 35,
+    "age_min": 18,
+    "geo_locations": {
+      "countries": [
+        "TH",
+      ],
+    },
+    "user_os": [
+      "Android",
+    ],
+  },
+}
+`;
+
+exports[`Ad Set Conversion Snapshots > OUTCOME_APP_PROMOTION adset → OUTCOME_TRAFFIC objective 1`] = `
+{
+  "billing_event": "IMPRESSIONS",
+  "destination_type": "APP",
+  "name": "App Install AdSet",
+  "optimization_goal": "LINK_CLICKS",
+  "promoted_object": {
+    "application_id": "300000000000001",
+    "object_store_url": "https://play.google.com/store/apps/details?id=com.example.app",
+  },
+  "targeting": {
+    "age_max": 35,
+    "age_min": 18,
+    "geo_locations": {
+      "countries": [
+        "TH",
+      ],
+    },
+    "user_os": [
+      "Android",
+    ],
+  },
+}
+`;
+
+exports[`Ad Set Conversion Snapshots > OUTCOME_AWARENESS adset → OUTCOME_APP_PROMOTION objective 1`] = `
+{
+  "billing_event": "IMPRESSIONS",
+  "destination_type": "APP",
+  "name": "Awareness AdSet",
+  "optimization_goal": "APP_INSTALLS",
+  "targeting": {
+    "age_max": 65,
+    "age_min": 18,
+    "geo_locations": {
+      "countries": [
+        "TH",
+      ],
+      "regions": [
+        {
+          "key": "3455",
+        },
+      ],
+    },
+  },
+}
+`;
+
+exports[`Ad Set Conversion Snapshots > OUTCOME_AWARENESS adset → OUTCOME_ENGAGEMENT objective 1`] = `
+{
+  "billing_event": "IMPRESSIONS",
+  "destination_type": "WEBSITE",
+  "name": "Awareness AdSet",
+  "optimization_goal": "REACH",
+  "targeting": {
+    "age_max": 65,
+    "age_min": 18,
+    "geo_locations": {
+      "countries": [
+        "TH",
+      ],
+      "regions": [
+        {
+          "key": "3455",
+        },
+      ],
+    },
+  },
+}
+`;
+
+exports[`Ad Set Conversion Snapshots > OUTCOME_AWARENESS adset → OUTCOME_LEADS objective 1`] = `
+{
+  "billing_event": "IMPRESSIONS",
+  "destination_type": "WEBSITE",
+  "name": "Awareness AdSet",
+  "optimization_goal": "LEAD_GENERATION",
+  "targeting": {
+    "age_max": 65,
+    "age_min": 18,
+    "geo_locations": {
+      "countries": [
+        "TH",
+      ],
+      "regions": [
+        {
+          "key": "3455",
+        },
+      ],
+    },
+  },
+}
+`;
+
+exports[`Ad Set Conversion Snapshots > OUTCOME_AWARENESS adset → OUTCOME_SALES objective 1`] = `
+{
+  "billing_event": "IMPRESSIONS",
+  "destination_type": "WEBSITE",
+  "name": "Awareness AdSet",
+  "optimization_goal": "OFFSITE_CONVERSIONS",
+  "targeting": {
+    "age_max": 65,
+    "age_min": 18,
+    "geo_locations": {
+      "countries": [
+        "TH",
+      ],
+      "regions": [
+        {
+          "key": "3455",
+        },
+      ],
+    },
+  },
+}
+`;
+
+exports[`Ad Set Conversion Snapshots > OUTCOME_AWARENESS adset → OUTCOME_TRAFFIC objective 1`] = `
+{
+  "billing_event": "IMPRESSIONS",
+  "destination_type": "WEBSITE",
+  "name": "Awareness AdSet",
+  "optimization_goal": "REACH",
+  "targeting": {
+    "age_max": 65,
+    "age_min": 18,
+    "geo_locations": {
+      "countries": [
+        "TH",
+      ],
+      "regions": [
+        {
+          "key": "3455",
+        },
+      ],
+    },
+  },
+}
+`;
+
+exports[`Ad Set Conversion Snapshots > OUTCOME_ENGAGEMENT adset → OUTCOME_APP_PROMOTION objective 1`] = `
+{
+  "billing_event": "IMPRESSIONS",
+  "destination_type": "APP",
+  "name": "Engagement AdSet",
+  "optimization_goal": "APP_INSTALLS",
+  "promoted_object": {
+    "page_id": "100000000000001",
+  },
+  "targeting": {
+    "age_max": 55,
+    "age_min": 18,
+    "geo_locations": {
+      "countries": [
+        "TH",
+      ],
+    },
+  },
+}
+`;
+
+exports[`Ad Set Conversion Snapshots > OUTCOME_ENGAGEMENT adset → OUTCOME_AWARENESS objective 1`] = `
+{
+  "billing_event": "IMPRESSIONS",
+  "destination_type": "UNDEFINED",
+  "name": "Engagement AdSet",
+  "optimization_goal": "REACH",
+  "promoted_object": {
+    "page_id": "100000000000001",
+  },
+  "targeting": {
+    "age_max": 55,
+    "age_min": 18,
+    "geo_locations": {
+      "countries": [
+        "TH",
+      ],
+    },
+  },
+}
+`;
+
+exports[`Ad Set Conversion Snapshots > OUTCOME_ENGAGEMENT adset → OUTCOME_LEADS objective 1`] = `
+{
+  "billing_event": "IMPRESSIONS",
+  "destination_type": "WEBSITE",
+  "name": "Engagement AdSet",
+  "optimization_goal": "LEAD_GENERATION",
+  "promoted_object": {
+    "page_id": "100000000000001",
+  },
+  "targeting": {
+    "age_max": 55,
+    "age_min": 18,
+    "geo_locations": {
+      "countries": [
+        "TH",
+      ],
+    },
+  },
+}
+`;
+
+exports[`Ad Set Conversion Snapshots > OUTCOME_ENGAGEMENT adset → OUTCOME_SALES objective 1`] = `
+{
+  "billing_event": "IMPRESSIONS",
+  "destination_type": "WEBSITE",
+  "name": "Engagement AdSet",
+  "optimization_goal": "OFFSITE_CONVERSIONS",
+  "promoted_object": {
+    "page_id": "100000000000001",
+  },
+  "targeting": {
+    "age_max": 55,
+    "age_min": 18,
+    "geo_locations": {
+      "countries": [
+        "TH",
+      ],
+    },
+  },
+}
+`;
+
+exports[`Ad Set Conversion Snapshots > OUTCOME_ENGAGEMENT adset → OUTCOME_TRAFFIC objective 1`] = `
+{
+  "billing_event": "IMPRESSIONS",
+  "destination_type": "WEBSITE",
+  "name": "Engagement AdSet",
+  "optimization_goal": "LINK_CLICKS",
+  "promoted_object": {
+    "page_id": "100000000000001",
+  },
+  "targeting": {
+    "age_max": 55,
+    "age_min": 18,
+    "geo_locations": {
+      "countries": [
+        "TH",
+      ],
+    },
+  },
+}
+`;
+
+exports[`Ad Set Conversion Snapshots > OUTCOME_LEADS adset → OUTCOME_APP_PROMOTION objective 1`] = `
+{
+  "billing_event": "IMPRESSIONS",
+  "destination_type": "APP",
+  "name": "Lead Gen AdSet",
+  "optimization_goal": "APP_INSTALLS",
+  "promoted_object": {
+    "page_id": "100000000000001",
+  },
+  "targeting": {
+    "age_max": 45,
+    "age_min": 25,
+    "flexible_spec": [
+      {
+        "interests": [
+          {
+            "id": "6003139266461",
+            "name": "Shopping",
+          },
+        ],
+      },
+    ],
+    "geo_locations": {
+      "countries": [
+        "TH",
+      ],
+    },
+  },
+}
+`;
+
+exports[`Ad Set Conversion Snapshots > OUTCOME_LEADS adset → OUTCOME_AWARENESS objective 1`] = `
+{
+  "billing_event": "IMPRESSIONS",
+  "destination_type": "UNDEFINED",
+  "name": "Lead Gen AdSet",
+  "optimization_goal": "REACH",
+  "promoted_object": {
+    "page_id": "100000000000001",
+  },
+  "targeting": {
+    "age_max": 45,
+    "age_min": 25,
+    "flexible_spec": [
+      {
+        "interests": [
+          {
+            "id": "6003139266461",
+            "name": "Shopping",
+          },
+        ],
+      },
+    ],
+    "geo_locations": {
+      "countries": [
+        "TH",
+      ],
+    },
+  },
+}
+`;
+
+exports[`Ad Set Conversion Snapshots > OUTCOME_LEADS adset → OUTCOME_ENGAGEMENT objective 1`] = `
+{
+  "billing_event": "IMPRESSIONS",
+  "destination_type": "WEBSITE",
+  "name": "Lead Gen AdSet",
+  "optimization_goal": "POST_ENGAGEMENT",
+  "promoted_object": {
+    "page_id": "100000000000001",
+  },
+  "targeting": {
+    "age_max": 45,
+    "age_min": 25,
+    "flexible_spec": [
+      {
+        "interests": [
+          {
+            "id": "6003139266461",
+            "name": "Shopping",
+          },
+        ],
+      },
+    ],
+    "geo_locations": {
+      "countries": [
+        "TH",
+      ],
+    },
+  },
+}
+`;
+
+exports[`Ad Set Conversion Snapshots > OUTCOME_LEADS adset → OUTCOME_SALES objective 1`] = `
+{
+  "billing_event": "IMPRESSIONS",
+  "destination_type": "WEBSITE",
+  "name": "Lead Gen AdSet",
+  "optimization_goal": "OFFSITE_CONVERSIONS",
+  "promoted_object": {
+    "page_id": "100000000000001",
+  },
+  "targeting": {
+    "age_max": 45,
+    "age_min": 25,
+    "flexible_spec": [
+      {
+        "interests": [
+          {
+            "id": "6003139266461",
+            "name": "Shopping",
+          },
+        ],
+      },
+    ],
+    "geo_locations": {
+      "countries": [
+        "TH",
+      ],
+    },
+  },
+}
+`;
+
+exports[`Ad Set Conversion Snapshots > OUTCOME_LEADS adset → OUTCOME_TRAFFIC objective 1`] = `
+{
+  "billing_event": "IMPRESSIONS",
+  "destination_type": "WEBSITE",
+  "name": "Lead Gen AdSet",
+  "optimization_goal": "LINK_CLICKS",
+  "promoted_object": {
+    "page_id": "100000000000001",
+  },
+  "targeting": {
+    "age_max": 45,
+    "age_min": 25,
+    "flexible_spec": [
+      {
+        "interests": [
+          {
+            "id": "6003139266461",
+            "name": "Shopping",
+          },
+        ],
+      },
+    ],
+    "geo_locations": {
+      "countries": [
+        "TH",
+      ],
+    },
+  },
+}
+`;
+
+exports[`Ad Set Conversion Snapshots > OUTCOME_SALES adset → OUTCOME_APP_PROMOTION objective 1`] = `
+{
+  "bid_amount": "2000",
+  "bid_strategy": "COST_CAP",
+  "billing_event": "IMPRESSIONS",
+  "daily_budget": "5000",
+  "destination_type": "APP",
+  "name": "Sales AdSet",
+  "optimization_goal": "OFFSITE_CONVERSIONS",
+  "promoted_object": {
+    "custom_event_type": "PURCHASE",
+    "pixel_id": "200000000000001",
+  },
+  "targeting": {
+    "age_max": 65,
+    "age_min": 18,
+    "custom_audiences": [
+      {
+        "id": "23851234567890",
+        "name": "Website Visitors 30d",
+      },
+    ],
+    "geo_locations": {
+      "countries": [
+        "TH",
+      ],
+    },
+  },
+}
+`;
+
+exports[`Ad Set Conversion Snapshots > OUTCOME_SALES adset → OUTCOME_AWARENESS objective 1`] = `
+{
+  "bid_amount": "2000",
+  "bid_strategy": "COST_CAP",
+  "billing_event": "IMPRESSIONS",
+  "daily_budget": "5000",
+  "destination_type": "UNDEFINED",
+  "name": "Sales AdSet",
+  "optimization_goal": "REACH",
+  "promoted_object": {
+    "custom_event_type": "PURCHASE",
+    "pixel_id": "200000000000001",
+  },
+  "targeting": {
+    "age_max": 65,
+    "age_min": 18,
+    "custom_audiences": [
+      {
+        "id": "23851234567890",
+        "name": "Website Visitors 30d",
+      },
+    ],
+    "geo_locations": {
+      "countries": [
+        "TH",
+      ],
+    },
+  },
+}
+`;
+
+exports[`Ad Set Conversion Snapshots > OUTCOME_SALES adset → OUTCOME_ENGAGEMENT objective 1`] = `
+{
+  "bid_amount": "2000",
+  "bid_strategy": "COST_CAP",
+  "billing_event": "IMPRESSIONS",
+  "daily_budget": "5000",
+  "destination_type": "WEBSITE",
+  "name": "Sales AdSet",
+  "optimization_goal": "POST_ENGAGEMENT",
+  "promoted_object": {
+    "custom_event_type": "PURCHASE",
+    "pixel_id": "200000000000001",
+  },
+  "targeting": {
+    "age_max": 65,
+    "age_min": 18,
+    "custom_audiences": [
+      {
+        "id": "23851234567890",
+        "name": "Website Visitors 30d",
+      },
+    ],
+    "geo_locations": {
+      "countries": [
+        "TH",
+      ],
+    },
+  },
+}
+`;
+
+exports[`Ad Set Conversion Snapshots > OUTCOME_SALES adset → OUTCOME_LEADS objective 1`] = `
+{
+  "attribution_spec": [
+    {
+      "event_type": "CLICK_THROUGH",
+      "window_days": 7,
+    },
+  ],
+  "bid_amount": "2000",
+  "bid_strategy": "COST_CAP",
+  "billing_event": "IMPRESSIONS",
+  "daily_budget": "5000",
+  "destination_type": "WEBSITE",
+  "name": "Sales AdSet",
+  "optimization_goal": "OFFSITE_CONVERSIONS",
+  "promoted_object": {
+    "custom_event_type": "PURCHASE",
+    "pixel_id": "200000000000001",
+  },
+  "targeting": {
+    "age_max": 65,
+    "age_min": 18,
+    "custom_audiences": [
+      {
+        "id": "23851234567890",
+        "name": "Website Visitors 30d",
+      },
+    ],
+    "geo_locations": {
+      "countries": [
+        "TH",
+      ],
+    },
+  },
+}
+`;
+
+exports[`Ad Set Conversion Snapshots > OUTCOME_SALES adset → OUTCOME_TRAFFIC objective 1`] = `
+{
+  "attribution_spec": [
+    {
+      "event_type": "CLICK_THROUGH",
+      "window_days": 7,
+    },
+  ],
+  "bid_amount": "2000",
+  "bid_strategy": "COST_CAP",
+  "billing_event": "IMPRESSIONS",
+  "daily_budget": "5000",
+  "destination_type": "WEBSITE",
+  "name": "Sales AdSet",
+  "optimization_goal": "OFFSITE_CONVERSIONS",
+  "promoted_object": {
+    "custom_event_type": "PURCHASE",
+    "pixel_id": "200000000000001",
+  },
+  "targeting": {
+    "age_max": 65,
+    "age_min": 18,
+    "custom_audiences": [
+      {
+        "id": "23851234567890",
+        "name": "Website Visitors 30d",
+      },
+    ],
+    "geo_locations": {
+      "countries": [
+        "TH",
+      ],
+    },
+  },
+}
+`;
+
+exports[`Ad Set Conversion Snapshots > OUTCOME_TRAFFIC adset → OUTCOME_APP_PROMOTION objective 1`] = `
+{
+  "billing_event": "IMPRESSIONS",
+  "destination_type": "APP",
+  "name": "Traffic AdSet - TH",
+  "optimization_goal": "LINK_CLICKS",
+  "start_time": "2024-01-15T10:00:00+0000",
+  "targeting": {
+    "age_max": 55,
+    "age_min": 18,
+    "facebook_positions": [
+      "feed",
+      "story",
+    ],
+    "genders": [
+      0,
+    ],
+    "geo_locations": {
+      "countries": [
+        "TH",
+      ],
+    },
+    "instagram_positions": [
+      "stream",
+      "story",
+    ],
+    "publisher_platforms": [
+      "facebook",
+      "instagram",
+    ],
+  },
+}
+`;
+
+exports[`Ad Set Conversion Snapshots > OUTCOME_TRAFFIC adset → OUTCOME_AWARENESS objective 1`] = `
+{
+  "billing_event": "IMPRESSIONS",
+  "destination_type": "UNDEFINED",
+  "name": "Traffic AdSet - TH",
+  "optimization_goal": "REACH",
+  "start_time": "2024-01-15T10:00:00+0000",
+  "targeting": {
+    "age_max": 55,
+    "age_min": 18,
+    "facebook_positions": [
+      "feed",
+      "story",
+    ],
+    "genders": [
+      0,
+    ],
+    "geo_locations": {
+      "countries": [
+        "TH",
+      ],
+    },
+    "instagram_positions": [
+      "stream",
+      "story",
+    ],
+    "publisher_platforms": [
+      "facebook",
+      "instagram",
+    ],
+  },
+}
+`;
+
+exports[`Ad Set Conversion Snapshots > OUTCOME_TRAFFIC adset → OUTCOME_ENGAGEMENT objective 1`] = `
+{
+  "billing_event": "IMPRESSIONS",
+  "destination_type": "WEBSITE",
+  "name": "Traffic AdSet - TH",
+  "optimization_goal": "POST_ENGAGEMENT",
+  "start_time": "2024-01-15T10:00:00+0000",
+  "targeting": {
+    "age_max": 55,
+    "age_min": 18,
+    "facebook_positions": [
+      "feed",
+      "story",
+    ],
+    "genders": [
+      0,
+    ],
+    "geo_locations": {
+      "countries": [
+        "TH",
+      ],
+    },
+    "instagram_positions": [
+      "stream",
+      "story",
+    ],
+    "publisher_platforms": [
+      "facebook",
+      "instagram",
+    ],
+  },
+}
+`;
+
+exports[`Ad Set Conversion Snapshots > OUTCOME_TRAFFIC adset → OUTCOME_LEADS objective 1`] = `
+{
+  "billing_event": "IMPRESSIONS",
+  "destination_type": "WEBSITE",
+  "name": "Traffic AdSet - TH",
+  "optimization_goal": "LINK_CLICKS",
+  "start_time": "2024-01-15T10:00:00+0000",
+  "targeting": {
+    "age_max": 55,
+    "age_min": 18,
+    "facebook_positions": [
+      "feed",
+      "story",
+    ],
+    "genders": [
+      0,
+    ],
+    "geo_locations": {
+      "countries": [
+        "TH",
+      ],
+    },
+    "instagram_positions": [
+      "stream",
+      "story",
+    ],
+    "publisher_platforms": [
+      "facebook",
+      "instagram",
+    ],
+  },
+}
+`;
+
+exports[`Ad Set Conversion Snapshots > OUTCOME_TRAFFIC adset → OUTCOME_SALES objective 1`] = `
+{
+  "billing_event": "IMPRESSIONS",
+  "destination_type": "WEBSITE",
+  "name": "Traffic AdSet - TH",
+  "optimization_goal": "LINK_CLICKS",
+  "start_time": "2024-01-15T10:00:00+0000",
+  "targeting": {
+    "age_max": 55,
+    "age_min": 18,
+    "facebook_positions": [
+      "feed",
+      "story",
+    ],
+    "genders": [
+      0,
+    ],
+    "geo_locations": {
+      "countries": [
+        "TH",
+      ],
+    },
+    "instagram_positions": [
+      "stream",
+      "story",
+    ],
+    "publisher_platforms": [
+      "facebook",
+      "instagram",
+    ],
+  },
+}
+`;
+
+exports[`Ad Set Duplication Snapshots > Bid strategy variations > OUTCOME_TRAFFIC with COST_CAP 1`] = `
+{
+  "bid_amount": "2000",
+  "bid_strategy": "COST_CAP",
+  "billing_event": "IMPRESSIONS",
+  "destination_type": "WEBSITE",
+  "name": "Traffic AdSet - TH",
+  "optimization_goal": "LINK_CLICKS",
+  "start_time": "2024-01-15T10:00:00+0000",
+  "targeting": {
+    "age_max": 55,
+    "age_min": 18,
+    "facebook_positions": [
+      "feed",
+      "story",
+    ],
+    "genders": [
+      0,
+    ],
+    "geo_locations": {
+      "countries": [
+        "TH",
+      ],
+    },
+    "instagram_positions": [
+      "stream",
+      "story",
+    ],
+    "publisher_platforms": [
+      "facebook",
+      "instagram",
+    ],
+  },
+}
+`;
+
+exports[`Ad Set Duplication Snapshots > Bid strategy variations > OUTCOME_TRAFFIC with COST_CAP 2`] = `[]`;
+
+exports[`Ad Set Duplication Snapshots > Bid strategy variations > OUTCOME_TRAFFIC with LOWEST_COST_WITH_BID_CAP 1`] = `
+{
+  "bid_amount": "1500",
+  "bid_strategy": "LOWEST_COST_WITH_BID_CAP",
+  "billing_event": "IMPRESSIONS",
+  "destination_type": "WEBSITE",
+  "name": "Traffic AdSet - TH",
+  "optimization_goal": "LINK_CLICKS",
+  "start_time": "2024-01-15T10:00:00+0000",
+  "targeting": {
+    "age_max": 55,
+    "age_min": 18,
+    "facebook_positions": [
+      "feed",
+      "story",
+    ],
+    "genders": [
+      0,
+    ],
+    "geo_locations": {
+      "countries": [
+        "TH",
+      ],
+    },
+    "instagram_positions": [
+      "stream",
+      "story",
+    ],
+    "publisher_platforms": [
+      "facebook",
+      "instagram",
+    ],
+  },
+}
+`;
+
+exports[`Ad Set Duplication Snapshots > Bid strategy variations > OUTCOME_TRAFFIC with LOWEST_COST_WITH_BID_CAP 2`] = `[]`;
+
+exports[`Ad Set Duplication Snapshots > Bid strategy variations > OUTCOME_TRAFFIC with LOWEST_COST_WITH_MIN_ROAS 1`] = `
+{
+  "bid_amount": "300",
+  "bid_strategy": "LOWEST_COST_WITH_MIN_ROAS",
+  "billing_event": "IMPRESSIONS",
+  "destination_type": "WEBSITE",
+  "name": "Traffic AdSet - TH",
+  "optimization_goal": "LINK_CLICKS",
+  "start_time": "2024-01-15T10:00:00+0000",
+  "targeting": {
+    "age_max": 55,
+    "age_min": 18,
+    "facebook_positions": [
+      "feed",
+      "story",
+    ],
+    "genders": [
+      0,
+    ],
+    "geo_locations": {
+      "countries": [
+        "TH",
+      ],
+    },
+    "instagram_positions": [
+      "stream",
+      "story",
+    ],
+    "publisher_platforms": [
+      "facebook",
+      "instagram",
+    ],
+  },
+}
+`;
+
+exports[`Ad Set Duplication Snapshots > Bid strategy variations > OUTCOME_TRAFFIC with LOWEST_COST_WITH_MIN_ROAS 2`] = `[]`;
+
+exports[`Ad Set Duplication Snapshots > Bid strategy variations > OUTCOME_TRAFFIC with LOWEST_COST_WITHOUT_CAP 1`] = `
+{
+  "bid_strategy": "LOWEST_COST_WITHOUT_CAP",
+  "billing_event": "IMPRESSIONS",
+  "destination_type": "WEBSITE",
+  "name": "Traffic AdSet - TH",
+  "optimization_goal": "LINK_CLICKS",
+  "start_time": "2024-01-15T10:00:00+0000",
+  "targeting": {
+    "age_max": 55,
+    "age_min": 18,
+    "facebook_positions": [
+      "feed",
+      "story",
+    ],
+    "genders": [
+      0,
+    ],
+    "geo_locations": {
+      "countries": [
+        "TH",
+      ],
+    },
+    "instagram_positions": [
+      "stream",
+      "story",
+    ],
+    "publisher_platforms": [
+      "facebook",
+      "instagram",
+    ],
+  },
+}
+`;
+
+exports[`Ad Set Duplication Snapshots > Bid strategy variations > OUTCOME_TRAFFIC with LOWEST_COST_WITHOUT_CAP 2`] = `[]`;
+
+exports[`Ad Set Duplication Snapshots > OUTCOME_APP_PROMOTION > CBO payload (strips budgets) 1`] = `
+{
+  "billing_event": "IMPRESSIONS",
+  "destination_type": "APP",
+  "name": "App Install AdSet",
+  "optimization_goal": "APP_INSTALLS",
+  "promoted_object": {
+    "application_id": "300000000000001",
+    "object_store_url": "https://play.google.com/store/apps/details?id=com.example.app",
+  },
+  "targeting": {
+    "age_max": 35,
+    "age_min": 18,
+    "geo_locations": {
+      "countries": [
+        "TH",
+      ],
+    },
+    "user_os": [
+      "Android",
+    ],
+  },
+}
+`;
+
+exports[`Ad Set Duplication Snapshots > OUTCOME_APP_PROMOTION > non-CBO payload 1`] = `
+{
+  "billing_event": "IMPRESSIONS",
+  "destination_type": "APP",
+  "name": "App Install AdSet",
+  "optimization_goal": "APP_INSTALLS",
+  "promoted_object": {
+    "application_id": "300000000000001",
+    "object_store_url": "https://play.google.com/store/apps/details?id=com.example.app",
+  },
+  "targeting": {
+    "age_max": 35,
+    "age_min": 18,
+    "geo_locations": {
+      "countries": [
+        "TH",
+      ],
+    },
+    "user_os": [
+      "Android",
+    ],
+  },
+}
+`;
+
+exports[`Ad Set Duplication Snapshots > OUTCOME_APP_PROMOTION > non-CBO payload 2`] = `[]`;
+
+exports[`Ad Set Duplication Snapshots > OUTCOME_APP_PROMOTION > non-CBO payload 3`] = `[]`;
+
+exports[`Ad Set Duplication Snapshots > OUTCOME_AWARENESS > CBO payload (strips budgets) 1`] = `
+{
+  "billing_event": "IMPRESSIONS",
+  "destination_type": "UNDEFINED",
+  "name": "Awareness AdSet",
+  "optimization_goal": "REACH",
+  "targeting": {
+    "age_max": 65,
+    "age_min": 18,
+    "geo_locations": {
+      "countries": [
+        "TH",
+      ],
+      "regions": [
+        {
+          "key": "3455",
+        },
+      ],
+    },
+  },
+}
+`;
+
+exports[`Ad Set Duplication Snapshots > OUTCOME_AWARENESS > non-CBO payload 1`] = `
+{
+  "billing_event": "IMPRESSIONS",
+  "destination_type": "UNDEFINED",
+  "name": "Awareness AdSet",
+  "optimization_goal": "REACH",
+  "targeting": {
+    "age_max": 65,
+    "age_min": 18,
+    "geo_locations": {
+      "countries": [
+        "TH",
+      ],
+      "regions": [
+        {
+          "key": "3455",
+        },
+      ],
+    },
+  },
+}
+`;
+
+exports[`Ad Set Duplication Snapshots > OUTCOME_AWARENESS > non-CBO payload 2`] = `[]`;
+
+exports[`Ad Set Duplication Snapshots > OUTCOME_AWARENESS > non-CBO payload 3`] = `[]`;
+
+exports[`Ad Set Duplication Snapshots > OUTCOME_ENGAGEMENT > CBO payload (strips budgets) 1`] = `
+{
+  "billing_event": "IMPRESSIONS",
+  "destination_type": "ON_POST",
+  "name": "Engagement AdSet",
+  "optimization_goal": "POST_ENGAGEMENT",
+  "promoted_object": {
+    "page_id": "100000000000001",
+  },
+  "targeting": {
+    "age_max": 55,
+    "age_min": 18,
+    "geo_locations": {
+      "countries": [
+        "TH",
+      ],
+    },
+  },
+}
+`;
+
+exports[`Ad Set Duplication Snapshots > OUTCOME_ENGAGEMENT > non-CBO payload 1`] = `
+{
+  "billing_event": "IMPRESSIONS",
+  "destination_type": "ON_POST",
+  "name": "Engagement AdSet",
+  "optimization_goal": "POST_ENGAGEMENT",
+  "promoted_object": {
+    "page_id": "100000000000001",
+  },
+  "targeting": {
+    "age_max": 55,
+    "age_min": 18,
+    "geo_locations": {
+      "countries": [
+        "TH",
+      ],
+    },
+  },
+}
+`;
+
+exports[`Ad Set Duplication Snapshots > OUTCOME_ENGAGEMENT > non-CBO payload 2`] = `[]`;
+
+exports[`Ad Set Duplication Snapshots > OUTCOME_ENGAGEMENT > non-CBO payload 3`] = `[]`;
+
+exports[`Ad Set Duplication Snapshots > OUTCOME_LEADS > CBO payload (strips budgets) 1`] = `
+{
+  "billing_event": "IMPRESSIONS",
+  "destination_type": "ON_AD",
+  "name": "Lead Gen AdSet",
+  "optimization_goal": "LEAD_GENERATION",
+  "promoted_object": {
+    "page_id": "100000000000001",
+  },
+  "targeting": {
+    "age_max": 45,
+    "age_min": 25,
+    "flexible_spec": [
+      {
+        "interests": [
+          {
+            "id": "6003139266461",
+            "name": "Shopping",
+          },
+        ],
+      },
+    ],
+    "geo_locations": {
+      "countries": [
+        "TH",
+      ],
+    },
+  },
+}
+`;
+
+exports[`Ad Set Duplication Snapshots > OUTCOME_LEADS > non-CBO payload 1`] = `
+{
+  "billing_event": "IMPRESSIONS",
+  "destination_type": "ON_AD",
+  "name": "Lead Gen AdSet",
+  "optimization_goal": "LEAD_GENERATION",
+  "promoted_object": {
+    "page_id": "100000000000001",
+  },
+  "targeting": {
+    "age_max": 45,
+    "age_min": 25,
+    "flexible_spec": [
+      {
+        "interests": [
+          {
+            "id": "6003139266461",
+            "name": "Shopping",
+          },
+        ],
+      },
+    ],
+    "geo_locations": {
+      "countries": [
+        "TH",
+      ],
+    },
+  },
+}
+`;
+
+exports[`Ad Set Duplication Snapshots > OUTCOME_LEADS > non-CBO payload 2`] = `[]`;
+
+exports[`Ad Set Duplication Snapshots > OUTCOME_LEADS > non-CBO payload 3`] = `[]`;
+
+exports[`Ad Set Duplication Snapshots > OUTCOME_SALES > CBO payload (strips budgets) 1`] = `
+{
+  "attribution_spec": [
+    {
+      "event_type": "CLICK_THROUGH",
+      "window_days": 7,
+    },
+  ],
+  "billing_event": "IMPRESSIONS",
+  "destination_type": "WEBSITE",
+  "name": "Sales AdSet",
+  "optimization_goal": "OFFSITE_CONVERSIONS",
+  "promoted_object": {
+    "custom_event_type": "PURCHASE",
+    "pixel_id": "200000000000001",
+  },
+  "targeting": {
+    "age_max": 65,
+    "age_min": 18,
+    "custom_audiences": [
+      {
+        "id": "23851234567890",
+        "name": "Website Visitors 30d",
+      },
+    ],
+    "geo_locations": {
+      "countries": [
+        "TH",
+      ],
+    },
+  },
+}
+`;
+
+exports[`Ad Set Duplication Snapshots > OUTCOME_SALES > non-CBO payload 1`] = `
+{
+  "attribution_spec": [
+    {
+      "event_type": "CLICK_THROUGH",
+      "window_days": 7,
+    },
+  ],
+  "bid_amount": "2000",
+  "bid_strategy": "COST_CAP",
+  "billing_event": "IMPRESSIONS",
+  "daily_budget": "5000",
+  "destination_type": "WEBSITE",
+  "name": "Sales AdSet",
+  "optimization_goal": "OFFSITE_CONVERSIONS",
+  "promoted_object": {
+    "custom_event_type": "PURCHASE",
+    "pixel_id": "200000000000001",
+  },
+  "targeting": {
+    "age_max": 65,
+    "age_min": 18,
+    "custom_audiences": [
+      {
+        "id": "23851234567890",
+        "name": "Website Visitors 30d",
+      },
+    ],
+    "geo_locations": {
+      "countries": [
+        "TH",
+      ],
+    },
+  },
+}
+`;
+
+exports[`Ad Set Duplication Snapshots > OUTCOME_SALES > non-CBO payload 2`] = `[]`;
+
+exports[`Ad Set Duplication Snapshots > OUTCOME_SALES > non-CBO payload 3`] = `[]`;
+
+exports[`Ad Set Duplication Snapshots > OUTCOME_TRAFFIC > CBO payload (strips budgets) 1`] = `
+{
+  "billing_event": "IMPRESSIONS",
+  "destination_type": "WEBSITE",
+  "name": "Traffic AdSet - TH",
+  "optimization_goal": "LINK_CLICKS",
+  "start_time": "2024-01-15T10:00:00+0000",
+  "targeting": {
+    "age_max": 55,
+    "age_min": 18,
+    "facebook_positions": [
+      "feed",
+      "story",
+    ],
+    "genders": [
+      0,
+    ],
+    "geo_locations": {
+      "countries": [
+        "TH",
+      ],
+    },
+    "instagram_positions": [
+      "stream",
+      "story",
+    ],
+    "publisher_platforms": [
+      "facebook",
+      "instagram",
+    ],
+  },
+}
+`;
+
+exports[`Ad Set Duplication Snapshots > OUTCOME_TRAFFIC > non-CBO payload 1`] = `
+{
+  "billing_event": "IMPRESSIONS",
+  "destination_type": "WEBSITE",
+  "name": "Traffic AdSet - TH",
+  "optimization_goal": "LINK_CLICKS",
+  "start_time": "2024-01-15T10:00:00+0000",
+  "targeting": {
+    "age_max": 55,
+    "age_min": 18,
+    "facebook_positions": [
+      "feed",
+      "story",
+    ],
+    "genders": [
+      0,
+    ],
+    "geo_locations": {
+      "countries": [
+        "TH",
+      ],
+    },
+    "instagram_positions": [
+      "stream",
+      "story",
+    ],
+    "publisher_platforms": [
+      "facebook",
+      "instagram",
+    ],
+  },
+}
+`;
+
+exports[`Ad Set Duplication Snapshots > OUTCOME_TRAFFIC > non-CBO payload 2`] = `[]`;
+
+exports[`Ad Set Duplication Snapshots > OUTCOME_TRAFFIC > non-CBO payload 3`] = `[]`;
+
+exports[`Campaign Duplication Snapshots > OUTCOME_APP_PROMOTION campaign payload 1`] = `
+{
+  "bid_strategy": "LOWEST_COST_WITH_BID_CAP",
+  "buying_type": "AUCTION",
+  "daily_budget": "15000",
+  "name": "App Install Campaign",
+  "objective": "OUTCOME_APP_PROMOTION",
+  "special_ad_categories": [
+    "NONE",
+  ],
+  "status": "PAUSED",
+}
+`;
+
+exports[`Campaign Duplication Snapshots > OUTCOME_APP_PROMOTION campaign payload 2`] = `[]`;
+
+exports[`Campaign Duplication Snapshots > OUTCOME_APP_PROMOTION campaign payload 3`] = `[]`;
+
+exports[`Campaign Duplication Snapshots > OUTCOME_AWARENESS campaign payload 1`] = `
+{
+  "bid_strategy": "LOWEST_COST_WITHOUT_CAP",
+  "buying_type": "AUCTION",
+  "daily_budget": "3000",
+  "name": "Brand Awareness Campaign",
+  "objective": "OUTCOME_AWARENESS",
+  "special_ad_categories": [
+    "NONE",
+  ],
+  "status": "PAUSED",
+}
+`;
+
+exports[`Campaign Duplication Snapshots > OUTCOME_AWARENESS campaign payload 2`] = `[]`;
+
+exports[`Campaign Duplication Snapshots > OUTCOME_AWARENESS campaign payload 3`] = `[]`;
+
+exports[`Campaign Duplication Snapshots > OUTCOME_ENGAGEMENT campaign payload 1`] = `
+{
+  "bid_strategy": "LOWEST_COST_WITHOUT_CAP",
+  "buying_type": "AUCTION",
+  "daily_budget": "8000",
+  "name": "Engagement Campaign",
+  "objective": "OUTCOME_ENGAGEMENT",
+  "special_ad_categories": [
+    "NONE",
+  ],
+  "status": "PAUSED",
+}
+`;
+
+exports[`Campaign Duplication Snapshots > OUTCOME_ENGAGEMENT campaign payload 2`] = `[]`;
+
+exports[`Campaign Duplication Snapshots > OUTCOME_ENGAGEMENT campaign payload 3`] = `[]`;
+
+exports[`Campaign Duplication Snapshots > OUTCOME_LEADS campaign payload 1`] = `
+{
+  "bid_strategy": "COST_CAP",
+  "buying_type": "AUCTION",
+  "daily_budget": "10000",
+  "name": "Lead Gen Campaign",
+  "objective": "OUTCOME_LEADS",
+  "special_ad_categories": [
+    "NONE",
+  ],
+  "status": "PAUSED",
+}
+`;
+
+exports[`Campaign Duplication Snapshots > OUTCOME_LEADS campaign payload 2`] = `[]`;
+
+exports[`Campaign Duplication Snapshots > OUTCOME_LEADS campaign payload 3`] = `[]`;
+
+exports[`Campaign Duplication Snapshots > OUTCOME_SALES campaign payload 1`] = `
+{
+  "bid_strategy": "LOWEST_COST_WITHOUT_CAP",
+  "buying_type": "AUCTION",
+  "lifetime_budget": "200000",
+  "name": "Conversion Campaign",
+  "objective": "OUTCOME_SALES",
+  "special_ad_categories": [
+    "NONE",
+  ],
+  "status": "PAUSED",
+}
+`;
+
+exports[`Campaign Duplication Snapshots > OUTCOME_SALES campaign payload 2`] = `[]`;
+
+exports[`Campaign Duplication Snapshots > OUTCOME_SALES campaign payload 3`] = `[]`;
+
+exports[`Campaign Duplication Snapshots > OUTCOME_TRAFFIC campaign payload 1`] = `
+{
+  "bid_strategy": "LOWEST_COST_WITHOUT_CAP",
+  "buying_type": "AUCTION",
+  "daily_budget": "5000",
+  "name": "Traffic Campaign - TH",
+  "objective": "OUTCOME_TRAFFIC",
+  "special_ad_categories": [
+    "NONE",
+  ],
+  "status": "PAUSED",
+}
+`;
+
+exports[`Campaign Duplication Snapshots > OUTCOME_TRAFFIC campaign payload 2`] = `[]`;
+
+exports[`Campaign Duplication Snapshots > OUTCOME_TRAFFIC campaign payload 3`] = `[]`;
+
+exports[`Objective Conversion Snapshots > OUTCOME_APP_PROMOTION → OUTCOME_AWARENESS campaign conversion 1`] = `
+{
+  "bid_strategy": "LOWEST_COST_WITHOUT_CAP",
+  "buying_type": "AUCTION",
+  "daily_budget": "15000",
+  "name": "Converted OUTCOME_APP_PROMOTION to OUTCOME_AWARENESS",
+  "objective": "OUTCOME_AWARENESS",
+  "special_ad_categories": [
+    "NONE",
+  ],
+  "status": "PAUSED",
+}
+`;
+
+exports[`Objective Conversion Snapshots > OUTCOME_APP_PROMOTION → OUTCOME_ENGAGEMENT campaign conversion 1`] = `
+{
+  "bid_strategy": "LOWEST_COST_WITHOUT_CAP",
+  "buying_type": "AUCTION",
+  "daily_budget": "15000",
+  "name": "Converted OUTCOME_APP_PROMOTION to OUTCOME_ENGAGEMENT",
+  "objective": "OUTCOME_ENGAGEMENT",
+  "special_ad_categories": [
+    "NONE",
+  ],
+  "status": "PAUSED",
+}
+`;
+
+exports[`Objective Conversion Snapshots > OUTCOME_APP_PROMOTION → OUTCOME_LEADS campaign conversion 1`] = `
+{
+  "bid_strategy": "LOWEST_COST_WITHOUT_CAP",
+  "buying_type": "AUCTION",
+  "daily_budget": "15000",
+  "name": "Converted OUTCOME_APP_PROMOTION to OUTCOME_LEADS",
+  "objective": "OUTCOME_LEADS",
+  "special_ad_categories": [
+    "NONE",
+  ],
+  "status": "PAUSED",
+}
+`;
+
+exports[`Objective Conversion Snapshots > OUTCOME_APP_PROMOTION → OUTCOME_SALES campaign conversion 1`] = `
+{
+  "bid_strategy": "LOWEST_COST_WITHOUT_CAP",
+  "buying_type": "AUCTION",
+  "daily_budget": "15000",
+  "name": "Converted OUTCOME_APP_PROMOTION to OUTCOME_SALES",
+  "objective": "OUTCOME_SALES",
+  "special_ad_categories": [
+    "NONE",
+  ],
+  "status": "PAUSED",
+}
+`;
+
+exports[`Objective Conversion Snapshots > OUTCOME_APP_PROMOTION → OUTCOME_TRAFFIC campaign conversion 1`] = `
+{
+  "bid_strategy": "LOWEST_COST_WITHOUT_CAP",
+  "buying_type": "AUCTION",
+  "daily_budget": "15000",
+  "name": "Converted OUTCOME_APP_PROMOTION to OUTCOME_TRAFFIC",
+  "objective": "OUTCOME_TRAFFIC",
+  "special_ad_categories": [
+    "NONE",
+  ],
+  "status": "PAUSED",
+}
+`;
+
+exports[`Objective Conversion Snapshots > OUTCOME_AWARENESS → OUTCOME_APP_PROMOTION campaign conversion 1`] = `
+{
+  "bid_strategy": "LOWEST_COST_WITHOUT_CAP",
+  "buying_type": "AUCTION",
+  "daily_budget": "3000",
+  "name": "Converted OUTCOME_AWARENESS to OUTCOME_APP_PROMOTION",
+  "objective": "OUTCOME_APP_PROMOTION",
+  "special_ad_categories": [
+    "NONE",
+  ],
+  "status": "PAUSED",
+}
+`;
+
+exports[`Objective Conversion Snapshots > OUTCOME_AWARENESS → OUTCOME_ENGAGEMENT campaign conversion 1`] = `
+{
+  "bid_strategy": "LOWEST_COST_WITHOUT_CAP",
+  "buying_type": "AUCTION",
+  "daily_budget": "3000",
+  "name": "Converted OUTCOME_AWARENESS to OUTCOME_ENGAGEMENT",
+  "objective": "OUTCOME_ENGAGEMENT",
+  "special_ad_categories": [
+    "NONE",
+  ],
+  "status": "PAUSED",
+}
+`;
+
+exports[`Objective Conversion Snapshots > OUTCOME_AWARENESS → OUTCOME_LEADS campaign conversion 1`] = `
+{
+  "bid_strategy": "LOWEST_COST_WITHOUT_CAP",
+  "buying_type": "AUCTION",
+  "daily_budget": "3000",
+  "name": "Converted OUTCOME_AWARENESS to OUTCOME_LEADS",
+  "objective": "OUTCOME_LEADS",
+  "special_ad_categories": [
+    "NONE",
+  ],
+  "status": "PAUSED",
+}
+`;
+
+exports[`Objective Conversion Snapshots > OUTCOME_AWARENESS → OUTCOME_SALES campaign conversion 1`] = `
+{
+  "bid_strategy": "LOWEST_COST_WITHOUT_CAP",
+  "buying_type": "AUCTION",
+  "daily_budget": "3000",
+  "name": "Converted OUTCOME_AWARENESS to OUTCOME_SALES",
+  "objective": "OUTCOME_SALES",
+  "special_ad_categories": [
+    "NONE",
+  ],
+  "status": "PAUSED",
+}
+`;
+
+exports[`Objective Conversion Snapshots > OUTCOME_AWARENESS → OUTCOME_TRAFFIC campaign conversion 1`] = `
+{
+  "bid_strategy": "LOWEST_COST_WITHOUT_CAP",
+  "buying_type": "AUCTION",
+  "daily_budget": "3000",
+  "name": "Converted OUTCOME_AWARENESS to OUTCOME_TRAFFIC",
+  "objective": "OUTCOME_TRAFFIC",
+  "special_ad_categories": [
+    "NONE",
+  ],
+  "status": "PAUSED",
+}
+`;
+
+exports[`Objective Conversion Snapshots > OUTCOME_ENGAGEMENT → OUTCOME_APP_PROMOTION campaign conversion 1`] = `
+{
+  "bid_strategy": "LOWEST_COST_WITHOUT_CAP",
+  "buying_type": "AUCTION",
+  "daily_budget": "8000",
+  "name": "Converted OUTCOME_ENGAGEMENT to OUTCOME_APP_PROMOTION",
+  "objective": "OUTCOME_APP_PROMOTION",
+  "special_ad_categories": [
+    "NONE",
+  ],
+  "status": "PAUSED",
+}
+`;
+
+exports[`Objective Conversion Snapshots > OUTCOME_ENGAGEMENT → OUTCOME_AWARENESS campaign conversion 1`] = `
+{
+  "bid_strategy": "LOWEST_COST_WITHOUT_CAP",
+  "buying_type": "AUCTION",
+  "daily_budget": "8000",
+  "name": "Converted OUTCOME_ENGAGEMENT to OUTCOME_AWARENESS",
+  "objective": "OUTCOME_AWARENESS",
+  "special_ad_categories": [
+    "NONE",
+  ],
+  "status": "PAUSED",
+}
+`;
+
+exports[`Objective Conversion Snapshots > OUTCOME_ENGAGEMENT → OUTCOME_LEADS campaign conversion 1`] = `
+{
+  "bid_strategy": "LOWEST_COST_WITHOUT_CAP",
+  "buying_type": "AUCTION",
+  "daily_budget": "8000",
+  "name": "Converted OUTCOME_ENGAGEMENT to OUTCOME_LEADS",
+  "objective": "OUTCOME_LEADS",
+  "special_ad_categories": [
+    "NONE",
+  ],
+  "status": "PAUSED",
+}
+`;
+
+exports[`Objective Conversion Snapshots > OUTCOME_ENGAGEMENT → OUTCOME_SALES campaign conversion 1`] = `
+{
+  "bid_strategy": "LOWEST_COST_WITHOUT_CAP",
+  "buying_type": "AUCTION",
+  "daily_budget": "8000",
+  "name": "Converted OUTCOME_ENGAGEMENT to OUTCOME_SALES",
+  "objective": "OUTCOME_SALES",
+  "special_ad_categories": [
+    "NONE",
+  ],
+  "status": "PAUSED",
+}
+`;
+
+exports[`Objective Conversion Snapshots > OUTCOME_ENGAGEMENT → OUTCOME_TRAFFIC campaign conversion 1`] = `
+{
+  "bid_strategy": "LOWEST_COST_WITHOUT_CAP",
+  "buying_type": "AUCTION",
+  "daily_budget": "8000",
+  "name": "Converted OUTCOME_ENGAGEMENT to OUTCOME_TRAFFIC",
+  "objective": "OUTCOME_TRAFFIC",
+  "special_ad_categories": [
+    "NONE",
+  ],
+  "status": "PAUSED",
+}
+`;
+
+exports[`Objective Conversion Snapshots > OUTCOME_LEADS → OUTCOME_APP_PROMOTION campaign conversion 1`] = `
+{
+  "bid_strategy": "LOWEST_COST_WITHOUT_CAP",
+  "buying_type": "AUCTION",
+  "daily_budget": "10000",
+  "name": "Converted OUTCOME_LEADS to OUTCOME_APP_PROMOTION",
+  "objective": "OUTCOME_APP_PROMOTION",
+  "special_ad_categories": [
+    "NONE",
+  ],
+  "status": "PAUSED",
+}
+`;
+
+exports[`Objective Conversion Snapshots > OUTCOME_LEADS → OUTCOME_AWARENESS campaign conversion 1`] = `
+{
+  "bid_strategy": "LOWEST_COST_WITHOUT_CAP",
+  "buying_type": "AUCTION",
+  "daily_budget": "10000",
+  "name": "Converted OUTCOME_LEADS to OUTCOME_AWARENESS",
+  "objective": "OUTCOME_AWARENESS",
+  "special_ad_categories": [
+    "NONE",
+  ],
+  "status": "PAUSED",
+}
+`;
+
+exports[`Objective Conversion Snapshots > OUTCOME_LEADS → OUTCOME_ENGAGEMENT campaign conversion 1`] = `
+{
+  "bid_strategy": "LOWEST_COST_WITHOUT_CAP",
+  "buying_type": "AUCTION",
+  "daily_budget": "10000",
+  "name": "Converted OUTCOME_LEADS to OUTCOME_ENGAGEMENT",
+  "objective": "OUTCOME_ENGAGEMENT",
+  "special_ad_categories": [
+    "NONE",
+  ],
+  "status": "PAUSED",
+}
+`;
+
+exports[`Objective Conversion Snapshots > OUTCOME_LEADS → OUTCOME_SALES campaign conversion 1`] = `
+{
+  "bid_strategy": "LOWEST_COST_WITHOUT_CAP",
+  "buying_type": "AUCTION",
+  "daily_budget": "10000",
+  "name": "Converted OUTCOME_LEADS to OUTCOME_SALES",
+  "objective": "OUTCOME_SALES",
+  "special_ad_categories": [
+    "NONE",
+  ],
+  "status": "PAUSED",
+}
+`;
+
+exports[`Objective Conversion Snapshots > OUTCOME_LEADS → OUTCOME_TRAFFIC campaign conversion 1`] = `
+{
+  "bid_strategy": "LOWEST_COST_WITHOUT_CAP",
+  "buying_type": "AUCTION",
+  "daily_budget": "10000",
+  "name": "Converted OUTCOME_LEADS to OUTCOME_TRAFFIC",
+  "objective": "OUTCOME_TRAFFIC",
+  "special_ad_categories": [
+    "NONE",
+  ],
+  "status": "PAUSED",
+}
+`;
+
+exports[`Objective Conversion Snapshots > OUTCOME_SALES → OUTCOME_APP_PROMOTION campaign conversion 1`] = `
+{
+  "bid_strategy": "LOWEST_COST_WITHOUT_CAP",
+  "buying_type": "AUCTION",
+  "lifetime_budget": "200000",
+  "name": "Converted OUTCOME_SALES to OUTCOME_APP_PROMOTION",
+  "objective": "OUTCOME_APP_PROMOTION",
+  "special_ad_categories": [
+    "NONE",
+  ],
+  "status": "PAUSED",
+}
+`;
+
+exports[`Objective Conversion Snapshots > OUTCOME_SALES → OUTCOME_AWARENESS campaign conversion 1`] = `
+{
+  "bid_strategy": "LOWEST_COST_WITHOUT_CAP",
+  "buying_type": "AUCTION",
+  "lifetime_budget": "200000",
+  "name": "Converted OUTCOME_SALES to OUTCOME_AWARENESS",
+  "objective": "OUTCOME_AWARENESS",
+  "special_ad_categories": [
+    "NONE",
+  ],
+  "status": "PAUSED",
+}
+`;
+
+exports[`Objective Conversion Snapshots > OUTCOME_SALES → OUTCOME_ENGAGEMENT campaign conversion 1`] = `
+{
+  "bid_strategy": "LOWEST_COST_WITHOUT_CAP",
+  "buying_type": "AUCTION",
+  "lifetime_budget": "200000",
+  "name": "Converted OUTCOME_SALES to OUTCOME_ENGAGEMENT",
+  "objective": "OUTCOME_ENGAGEMENT",
+  "special_ad_categories": [
+    "NONE",
+  ],
+  "status": "PAUSED",
+}
+`;
+
+exports[`Objective Conversion Snapshots > OUTCOME_SALES → OUTCOME_LEADS campaign conversion 1`] = `
+{
+  "bid_strategy": "LOWEST_COST_WITHOUT_CAP",
+  "buying_type": "AUCTION",
+  "lifetime_budget": "200000",
+  "name": "Converted OUTCOME_SALES to OUTCOME_LEADS",
+  "objective": "OUTCOME_LEADS",
+  "special_ad_categories": [
+    "NONE",
+  ],
+  "status": "PAUSED",
+}
+`;
+
+exports[`Objective Conversion Snapshots > OUTCOME_SALES → OUTCOME_TRAFFIC campaign conversion 1`] = `
+{
+  "bid_strategy": "LOWEST_COST_WITHOUT_CAP",
+  "buying_type": "AUCTION",
+  "lifetime_budget": "200000",
+  "name": "Converted OUTCOME_SALES to OUTCOME_TRAFFIC",
+  "objective": "OUTCOME_TRAFFIC",
+  "special_ad_categories": [
+    "NONE",
+  ],
+  "status": "PAUSED",
+}
+`;
+
+exports[`Objective Conversion Snapshots > OUTCOME_TRAFFIC → OUTCOME_APP_PROMOTION campaign conversion 1`] = `
+{
+  "bid_strategy": "LOWEST_COST_WITHOUT_CAP",
+  "buying_type": "AUCTION",
+  "daily_budget": "5000",
+  "name": "Converted OUTCOME_TRAFFIC to OUTCOME_APP_PROMOTION",
+  "objective": "OUTCOME_APP_PROMOTION",
+  "special_ad_categories": [
+    "NONE",
+  ],
+  "status": "PAUSED",
+}
+`;
+
+exports[`Objective Conversion Snapshots > OUTCOME_TRAFFIC → OUTCOME_AWARENESS campaign conversion 1`] = `
+{
+  "bid_strategy": "LOWEST_COST_WITHOUT_CAP",
+  "buying_type": "AUCTION",
+  "daily_budget": "5000",
+  "name": "Converted OUTCOME_TRAFFIC to OUTCOME_AWARENESS",
+  "objective": "OUTCOME_AWARENESS",
+  "special_ad_categories": [
+    "NONE",
+  ],
+  "status": "PAUSED",
+}
+`;
+
+exports[`Objective Conversion Snapshots > OUTCOME_TRAFFIC → OUTCOME_ENGAGEMENT campaign conversion 1`] = `
+{
+  "bid_strategy": "LOWEST_COST_WITHOUT_CAP",
+  "buying_type": "AUCTION",
+  "daily_budget": "5000",
+  "name": "Converted OUTCOME_TRAFFIC to OUTCOME_ENGAGEMENT",
+  "objective": "OUTCOME_ENGAGEMENT",
+  "special_ad_categories": [
+    "NONE",
+  ],
+  "status": "PAUSED",
+}
+`;
+
+exports[`Objective Conversion Snapshots > OUTCOME_TRAFFIC → OUTCOME_LEADS campaign conversion 1`] = `
+{
+  "bid_strategy": "LOWEST_COST_WITHOUT_CAP",
+  "buying_type": "AUCTION",
+  "daily_budget": "5000",
+  "name": "Converted OUTCOME_TRAFFIC to OUTCOME_LEADS",
+  "objective": "OUTCOME_LEADS",
+  "special_ad_categories": [
+    "NONE",
+  ],
+  "status": "PAUSED",
+}
+`;
+
+exports[`Objective Conversion Snapshots > OUTCOME_TRAFFIC → OUTCOME_SALES campaign conversion 1`] = `
+{
+  "bid_strategy": "LOWEST_COST_WITHOUT_CAP",
+  "buying_type": "AUCTION",
+  "daily_budget": "5000",
+  "name": "Converted OUTCOME_TRAFFIC to OUTCOME_SALES",
+  "objective": "OUTCOME_SALES",
+  "special_ad_categories": [
+    "NONE",
+  ],
+  "status": "PAUSED",
+}
+`;

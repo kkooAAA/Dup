@@ -8,10 +8,13 @@ A modern full-stack web application for duplicating Facebook Ads structures safe
 - **Nested Explorer**: Browse campaigns, ad sets, and ads in a tree-like interface.
 - **Bulk Duplication**: Select multiple items and duplicate them at once.
 - **Deep Duplication**: Duplicate a campaign along with all its ad sets and ads.
+- **Bulk Edit**: Edit shared fields across heterogeneous selections with compatibility detection.
+- **Dynamic Form Schema**: Recursive Meta-compatible form system that adapts per objective/context.
 - **Safety First**: Every new object is created with status **PAUSED** to prevent accidental ad spend.
 - **Creative Reuse**: Reuses original `creative_id` to preserve social proof (likes, comments, shares).
 - **Naming Patterns**: Customize the name of duplicated objects using templates.
 - **Audit Log**: Keep track of all duplication jobs and their status.
+- **Automated Testing**: 760+ auto-generated tests with Meta API drift detection.
 
 ## Tech Stack
 
@@ -24,19 +27,35 @@ A modern full-stack web application for duplicating Facebook Ads structures safe
 ## Project Structure
 
 ```
-├── backend/            # Express.js server
-│   ├── prisma/         # Database schema and migrations
+├── backend/
+│   ├── prisma/              # Database schema and migrations
 │   ├── src/
-│   │   ├── controllers/ # Request handlers
-│   │   ├── services/    # Business logic (Meta API integration)
-│   │   ├── routes/      # API endpoints
-│   │   └── middleware/  # Auth and validation
-└── frontend/           # Next.js application
+│   │   ├── controllers/     # Request handlers
+│   │   ├── services/
+│   │   │   ├── draft/       # Core duplication/optimization engines
+│   │   │   │   ├── MetaFieldRegistry.ts       # Field definitions & valid enums
+│   │   │   │   ├── FieldOptimizationEngine.ts # Payload transformation
+│   │   │   │   ├── MetaFormSchemaEngine.ts    # Dynamic form schema generator
+│   │   │   │   ├── DraftValidationEngine.ts   # Pre-publish validation
+│   │   │   │   └── BulkEditCompatibilityEngine.ts
+│   │   │   └── facebook.service.ts
+│   │   ├── routes/
+│   │   └── middleware/
+│   └── tests/
+│       ├── unit/            # Field matrix, conversion matrix, form schema
+│       ├── contracts/       # Meta API payload shape contracts
+│       ├── integration/     # Full pipeline tests (72 combinations)
+│       ├── snapshots/       # Payload stability
+│       ├── drift/           # Live Meta API drift detection
+│       └── fixtures/        # Shared test data
+└── frontend/
     ├── src/
-    │   ├── app/        # Pages and layouts
-    │   ├── components/ # UI components
-    │   ├── services/   # API client
-    │   └── store/      # State management (Zustand)
+    │   ├── app/             # Pages and layouts
+    │   ├── components/
+    │   │   ├── dashboard/   # Modals (Duplicate, BulkEdit, Conversion)
+    │   │   └── meta/        # Dynamic form system (SchemaField, MetaForm)
+    │   ├── services/        # API client
+    │   └── store/           # State management (Zustand)
 ```
 
 ## Getting Started
@@ -61,6 +80,24 @@ A modern full-stack web application for duplicating Facebook Ads structures safe
 2. Install dependencies: `npm install`
 3. Copy `.env.example` to `.env.local` and fill in your Meta App ID.
 4. Start the development server: `npm run dev`
+
+## Testing
+
+```bash
+cd backend
+npm test              # Run all tests (~760 tests, ~400ms)
+npm run test:watch    # Watch mode for development
+npm run test:coverage # With v8 coverage report
+npm run test:drift    # Live Meta API drift detection (needs META_ACCESS_TOKEN)
+```
+
+Tests auto-generate from `MetaFieldRegistry` — adding a new objective or field automatically creates corresponding test cases covering:
+- Optimization goal × objective compatibility (full matrix)
+- N×N objective conversion (all 30 pairs)
+- Budget × bid strategy × objective combinations (72 combos)
+- Payload contract validation against Meta API shapes
+- Snapshot stability for all transformation outputs
+- Live drift detection via Meta `validation_only=true`
 
 ## Safety Requirements
 
