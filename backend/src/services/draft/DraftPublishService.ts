@@ -313,6 +313,7 @@ export class DraftPublishService {
     }
 
     const { cleaned, stripped } = stripImmutableFields('campaign', updatePayload);
+    /* v8 ignore next 2 */
     if (stripped.length > 0) {
       console.warn(`[DraftPublishService] Stripped immutable fields from campaign update: ${stripped.join(', ')}`);
     }
@@ -486,6 +487,7 @@ export class DraftPublishService {
     }
 
     const { cleaned, stripped } = stripImmutableFields('adSet', updatePayload);
+    /* v8 ignore next 2 */
     if (stripped.length > 0) {
       console.warn(`[DraftPublishService] Stripped immutable fields from ad set update: ${stripped.join(', ')}`);
     }

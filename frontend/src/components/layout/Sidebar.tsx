@@ -9,7 +9,8 @@ import {
   FolderTree,
   PanelLeftClose,
   PanelLeftOpen,
-  Zap
+  Zap,
+  Grid3X3,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAppStore } from "@/store/useAppStore";
@@ -17,6 +18,7 @@ import { useAppStore } from "@/store/useAppStore";
 const menuItems = [
   { icon: LayoutDashboard, label: "Dashboard", href: "/dashboard" },
   { icon: FolderTree, label: "Explorer", href: "/explorer" },
+  { icon: Grid3X3, label: "Wide Create", href: "/wide-create" },
   { icon: Layers, label: "Drafts", href: "/drafts" },
   { icon: History, label: "History", href: "/history" },
 ];

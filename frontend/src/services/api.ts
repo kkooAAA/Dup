@@ -69,6 +69,14 @@ export const templateApi = {
   deleteTemplate: (id: string) => api.delete(`/templates/${id}`),
 };
 
+export const wideCreationApi = {
+  validate: (template: any) => api.post('/wide-creation/validate', template),
+  generate: (template: any) => api.post('/wide-creation/generate', template),
+  bulkApply: (data: { entityIds: string[]; entityType: string; fieldUpdates: any; cascadeToChildren?: boolean }) =>
+    api.post('/wide-creation/bulk-apply', data),
+  getTree: (campaignIds: string[]) => api.post('/wide-creation/tree', { campaignIds }),
+};
+
 export const draftApi = {
   duplicateToDraft: (campaignId: string) => api.post('/drafts/duplicate', { campaignId }),
   listCampaigns: () => api.get('/drafts/campaigns'),

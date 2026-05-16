@@ -49,12 +49,14 @@ import adAccountRoutes from './routes/adAccount.routes';
 import duplicationRoutes from './routes/duplication.routes';
 import templateRoutes from './routes/template.routes';
 import draftRoutes from './routes/draft.routes';
+import wideCreationRoutes from './routes/wideCreation.routes';
 
 app.use('/api/auth', authRoutes);
 app.use('/api/adaccounts', adAccountRoutes);
 app.use('/api/duplicate', duplicationRoutes);
 app.use('/api/templates', templateRoutes);
 app.use('/api/drafts', draftRoutes);
+app.use('/api/wide-creation', wideCreationRoutes);
 
 // Catch-all for 404s
 app.use((req, res) => {

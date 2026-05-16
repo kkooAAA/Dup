@@ -69,6 +69,19 @@ All core features are implemented and tested. The system handles duplication, ob
 - [x] Bulk edit modal
 - [x] Draft editor with tabs (Edit Form, Full Schema, Summary, Raw JSON)
 - [x] Drafts list page
+- [x] Wide Creation page with structure wizard + tree configurator
+
+### 9. Wide Creation System
+- [x] `WideCreationService` — template validation + draft generation with inheritance
+- [x] Template → Drafts pipeline (campaigns × adSets × ads)
+- [x] 3-level inheritance resolution (template defaults → campaign → adSet)
+- [x] Naming pattern system with variables ({index}, {objective}, {parent}, etc.)
+- [x] Bulk field application with cascade-to-children option
+- [x] Full Meta constraint validation (goals, destinations, promoted_object, budgets, bid)
+- [x] Generated drafts are standard — compatible with all existing workflows
+- [x] 161 auto-generated tests (unit + integration + contract validation)
+- [x] Frontend: Quick structure generator, manual campaign config, tree configurator
+- [x] Frontend: Inline editing, bulk selection, expand/collapse, bulk field application
 
 ---
 
@@ -88,6 +101,10 @@ All core features are implemented and tested. The system handles duplication, ob
 | GET | `/api/drafts/:id` | Get draft |
 | PUT | `/api/drafts/:id` | Update draft |
 | POST | `/api/drafts/:id/publish` | Publish draft to Meta |
+| POST | `/api/wide-creation/validate` | Validate template structure |
+| POST | `/api/wide-creation/generate` | Generate drafts from template |
+| POST | `/api/wide-creation/bulk-apply` | Bulk update fields with cascade |
+| POST | `/api/wide-creation/tree` | Get tree structure for campaigns |
 
 ---
 

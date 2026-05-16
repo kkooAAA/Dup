@@ -18,6 +18,7 @@ Full-stack Meta Ads duplication/conversion tool.
 | `DraftPublishService.ts` | Publishes draft entities to Meta API |
 | `BulkEditCompatibilityEngine.ts` | Computes shared editable fields across heterogeneous selections |
 | `DraftCampaignService.ts` | Campaign CRUD + conversion logic |
+| `WideCreationService.ts` | Bulk structure generation (template → drafts), inheritance resolution, tree validation |
 
 ## Meta API Constraints
 
@@ -34,7 +35,7 @@ Full-stack Meta Ads duplication/conversion tool.
 Run tests:
 ```bash
 cd backend
-npm test              # All tests (760+ auto-generated, ~400ms)
+npm test              # All tests (900+ auto-generated, ~800ms)
 npm run test:watch    # Watch mode
 npm run test:coverage # With v8 coverage
 npm run test:drift    # Live Meta API validation (requires META_ACCESS_TOKEN in .env)
@@ -62,6 +63,15 @@ OUTCOME_AWARENESS, OUTCOME_ENGAGEMENT, OUTCOME_TRAFFIC, OUTCOME_LEADS, OUTCOME_S
 - `frontend/src/components/meta/SchemaField.tsx` — Recursive renderer
 - `frontend/src/components/meta/MetaForm.tsx` — Stateful form wrapper
 - Backend endpoint: `POST /api/drafts/form-schema` (returns recursive schema)
+
+## Wide Creation System
+
+- `backend/src/services/draft/WideCreationService.ts` — Template validation + draft generation
+- `frontend/src/app/wide-create/page.tsx` — Wizard + tree configurator page
+- `frontend/src/store/useWideCreationStore.ts` — Zustand store for structure state
+- `frontend/src/components/wide-create/` — StructureWizard + TreeConfigurator
+- Backend endpoints: `POST /api/wide-creation/{validate,generate,bulk-apply,tree}`
+- Generates standard drafts — compatible with existing publish/convert/duplicate/bulk-edit workflows
 
 ## Environment Variables (backend/.env)
 

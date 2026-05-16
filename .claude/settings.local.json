@@ -23,7 +23,12 @@
       "WebFetch(domain:thedigitalachievers.com)",
       "WebFetch(domain:www.heltar.com)",
       "WebFetch(domain:www.adamigo.ai)",
-      "WebFetch(domain:web.swipeinsight.app)"
+      "WebFetch(domain:web.swipeinsight.app)",
+      "Bash(npm run *)",
+      "Bash(npx vitest *)",
+      "Bash(grep -E \"\\\\|.*\\\\d+\\\\s*$\")",
+      "Bash(npm test *)",
+      "Bash(grep -E \"\\\\|.*\\\\d+\\\\s*$|=====\")"
     ]
   }
 }
