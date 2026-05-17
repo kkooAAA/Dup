@@ -157,6 +157,31 @@ beforeAll(async () => {
 describe.skipIf(!process.env.META_ACCESS_TOKEN)('Live Meta API Drift', () => {
   const accessToken = process.env.META_ACCESS_TOKEN!;
   const adAccountId = process.env.META_AD_ACCOUNT_ID || '';
+  const createdCampaignIds: string[] = [];
+
+  beforeAll(async () => {
+    // Clean up leftover drift campaigns from previous runs
+    try {
+      const resp = await fetch(
+        `https://graph.facebook.com/v21.0/act_${adAccountId}/campaigns?fields=id,name&limit=50&access_token=${accessToken}`
+      );
+      const data = await resp.json();
+      for (const c of data.data || []) {
+        if (c.name?.startsWith('drift-')) {
+          await fetch(`https://graph.facebook.com/v21.0/${c.id}?access_token=${accessToken}`, { method: 'DELETE' });
+        }
+      }
+    } catch {}
+  });
+
+  afterAll(async () => {
+    // Clean up campaigns created in this run
+    for (const id of createdCampaignIds) {
+      try {
+        await fetch(`https://graph.facebook.com/v21.0/${id}?access_token=${accessToken}`, { method: 'DELETE' });
+      } catch {}
+    }
+  });
 
   beforeEach((ctx) => {
     if (!tokenValid) {
@@ -170,7 +195,6 @@ describe.skipIf(!process.env.META_ACCESS_TOKEN)('Live Meta API Drift', () => {
       for (const [key, value] of Object.entries(payload)) {
         formData.append(key, typeof value === 'object' ? JSON.stringify(value) : String(value));
       }
-      formData.append('validation_only', 'true');
       formData.append('access_token', accessToken);
 
       const url = `https://graph.facebook.com/v21.0/${endpoint}`;
@@ -182,6 +206,10 @@ describe.skipIf(!process.env.META_ACCESS_TOKEN)('Live Meta API Drift', () => {
       const data = await response.json();
       if (data.error) {
         return { success: false, error: data.error };
+      }
+      // Track created objects for cleanup
+      if (data.id) {
+        createdCampaignIds.push(data.id);
       }
       return { success: true };
     } catch (error) {

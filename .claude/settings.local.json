@@ -43,7 +43,9 @@
       "WebFetch(domain:www.adstellar.ai)",
       "Bash(npx ts-node *)",
       "Bash(echo \"exit: $?\")",
-      "Bash(node *)"
+      "Bash(node *)",
+      "Bash(python3 -m json.tool)",
+      "Bash(python3 -c ' *)"
     ]
   }
 }
