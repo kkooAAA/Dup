@@ -191,7 +191,7 @@ export class DraftPublishService {
               metaAdId = ad.metaId;
             }
           } else {
-            metaAdId = await this.createMetaAd(fbService, adAccountId, ad, metaAdSetId);
+            metaAdId = await this.createMetaAd(fbService, adAccountId, ad, metaAdSetId, adSet);
             await prisma.draftAd.update({
               where: { id: ad.id },
               data: { metaId: metaAdId },

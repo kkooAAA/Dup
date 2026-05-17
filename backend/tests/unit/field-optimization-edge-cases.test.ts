@@ -415,4 +415,36 @@ describe('FieldOptimizationEngine.validatePayload', () => {
     );
     expect(baseResult.errors).toHaveLength(0);
   });
+
+  it('marks optimization_goal as auto_mapped when migrated for duplication', () => {
+    const result = FieldOptimizationEngine.optimizeAdSetForDuplication(
+      {
+        name: 'Test AdSet',
+        billing_event: 'IMPRESSIONS',
+        optimization_goal: 'APP_INSTALLS',
+        daily_budget: '5000',
+        targeting: { geo_locations: { countries: ['TH'] } },
+      },
+      'OUTCOME_AWARENESS',
+      false
+    );
+    const goalField = result.fields.find(f => f.field === 'optimization_goal');
+    expect(goalField?.action).toBe('auto_mapped');
+  });
+
+  it('marks optimization_goal as kept when already valid for duplication', () => {
+    const result = FieldOptimizationEngine.optimizeAdSetForDuplication(
+      {
+        name: 'Test AdSet',
+        billing_event: 'IMPRESSIONS',
+        optimization_goal: 'LINK_CLICKS',
+        daily_budget: '5000',
+        targeting: { geo_locations: { countries: ['TH'] } },
+      },
+      'OUTCOME_TRAFFIC',
+      false
+    );
+    const goalField = result.fields.find(f => f.field === 'optimization_goal');
+    expect(goalField?.action).toBe('kept');
+  });
 });

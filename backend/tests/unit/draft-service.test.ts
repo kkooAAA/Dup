@@ -388,4 +388,60 @@ describe('DraftService.convertCampaignToDraft', () => {
       'PENDING_ADSET_ID'
     );
   });
+
+  it('finds pixel_id from source ad sets when getPixelId returns null for SALES', async () => {
+    mockFbGet
+      .mockResolvedValueOnce({ data: { name: 'Camp', objective: 'OUTCOME_TRAFFIC', account_id: '123' } });
+    mockFbGetPixelId.mockResolvedValue(null);
+    mockFbGetAdSets.mockResolvedValue([
+      { id: 'adset-1', name: 'AS1', promoted_object: { pixel_id: 'pixel-from-adset' } },
+    ]);
+    mockFbGetAds.mockResolvedValue([{ id: 'ad-1', name: 'Ad', creative: { creative_id: 'cr-1' } }]);
+
+    mockTransformCampaign.mockReturnValue({ name: 'Conv', objective: 'OUTCOME_SALES' });
+    mockTransformAdSet.mockReturnValue({ name: 'AS Conv' });
+    mockTransformAd.mockReturnValue({ name: 'Ad Conv' });
+
+    mockPrisma.draftCampaign.create.mockResolvedValue({ id: 'conv-camp' });
+    mockPrisma.draftAdSet.create.mockResolvedValue({ id: 'conv-adset' });
+    mockPrisma.draftAd.create.mockResolvedValue({ id: 'conv-ad' });
+
+    await DraftService.convertCampaignToDraft(
+      'camp-1', 'OUTCOME_SALES', 'New', 'act_123', 'user-1', 'token'
+    );
+    expect(mockTransformAdSet).toHaveBeenCalledWith(
+      expect.objectContaining({
+        promoted_object: { pixel_id: 'pixel-from-adset', custom_event_type: 'PURCHASE' },
+      }),
+      'OUTCOME_SALES',
+      expect.any(String),
+      'PENDING_CAMPAIGN_ID',
+      undefined
+    );
+  });
+
+  it('warns when no pixel_id found anywhere for SALES conversion', async () => {
+    const consoleSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    mockFbGet
+      .mockResolvedValueOnce({ data: { name: 'Camp', objective: 'OUTCOME_TRAFFIC', account_id: '123' } });
+    mockFbGetPixelId.mockResolvedValue(null);
+    mockFbGetAdSets.mockResolvedValue([
+      { id: 'adset-1', name: 'AS1' },
+    ]);
+    mockFbGetAds.mockResolvedValue([{ id: 'ad-1', name: 'Ad', creative: { creative_id: 'cr-1' } }]);
+
+    mockTransformCampaign.mockReturnValue({ name: 'Conv', objective: 'OUTCOME_SALES' });
+    mockTransformAdSet.mockReturnValue({ name: 'AS Conv' });
+    mockTransformAd.mockReturnValue({ name: 'Ad Conv' });
+
+    mockPrisma.draftCampaign.create.mockResolvedValue({ id: 'conv-camp' });
+    mockPrisma.draftAdSet.create.mockResolvedValue({ id: 'conv-adset' });
+    mockPrisma.draftAd.create.mockResolvedValue({ id: 'conv-ad' });
+
+    await DraftService.convertCampaignToDraft(
+      'camp-1', 'OUTCOME_SALES', 'New', 'act_123', 'user-1', 'token'
+    );
+    expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('No pixel_id found'));
+    consoleSpy.mockRestore();
+  });
 });

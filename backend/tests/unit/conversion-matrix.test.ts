@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { FieldOptimizationEngine } from '../../src/services/draft/FieldOptimizationEngine';
 import { VALID_OPTIMIZATION_GOALS, VALID_DESTINATION_TYPES, OBJECTIVE_DEFAULTS, PROMOTED_OBJECT_REQUIREMENTS } from '../../src/services/draft/MetaFieldRegistry';
+import { ObjectiveConversionService } from '../../src/services/objectiveConversion.service';
 import { CAMPAIGN_FIXTURES, ADSET_FIXTURES } from '../fixtures/meta-entities';
 
 const ALL_OBJECTIVES = Object.keys(VALID_OPTIMIZATION_GOALS);
@@ -182,5 +183,49 @@ describe('Conversion Edge Cases', () => {
     );
     const validGoals = VALID_OPTIMIZATION_GOALS['OUTCOME_LEADS'];
     expect(validGoals).toContain(result.payload.optimization_goal);
+  });
+});
+
+describe('ObjectiveConversionService.transformAd', () => {
+  const service = new ObjectiveConversionService({} as any);
+
+  it('uses creative.id when present', () => {
+    const result = service.transformAd(
+      { creative: { id: 'cr-123' } },
+      'OUTCOME_TRAFFIC', 'Ad Name', 'adset-1'
+    );
+    expect(result.creative).toEqual({ creative_id: 'cr-123' });
+  });
+
+  it('uses creative.creative_id as fallback', () => {
+    const result = service.transformAd(
+      { creative: { creative_id: 'cr-456' } },
+      'OUTCOME_TRAFFIC', 'Ad Name', 'adset-1'
+    );
+    expect(result.creative).toEqual({ creative_id: 'cr-456' });
+  });
+
+  it('omits creative field when no valid creative found', () => {
+    const result = service.transformAd(
+      { creative: {} },
+      'OUTCOME_TRAFFIC', 'Ad Name', 'adset-1'
+    );
+    expect(result.creative).toBeUndefined();
+  });
+
+  it('omits creative field when data has no creative', () => {
+    const result = service.transformAd(
+      {},
+      'OUTCOME_TRAFFIC', 'Ad Name', 'adset-1'
+    );
+    expect(result.creative).toBeUndefined();
+  });
+
+  it('includes tracking_specs when present', () => {
+    const result = service.transformAd(
+      { creative: { id: 'cr-1' }, tracking_specs: [{ action: 'offsite_conversion' }] },
+      'OUTCOME_SALES', 'Ad Name', 'adset-1'
+    );
+    expect(result.tracking_specs).toEqual([{ action: 'offsite_conversion' }]);
   });
 });

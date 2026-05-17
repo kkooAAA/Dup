@@ -22,12 +22,18 @@ vi.mock('../../src/prisma', () => ({
 }));
 
 let mockFbPost: ReturnType<typeof vi.fn>;
+let mockFbGet: ReturnType<typeof vi.fn>;
+let mockFbDelete: ReturnType<typeof vi.fn>;
 let mockCheckExistence: ReturnType<typeof vi.fn>;
 
 vi.mock('../../src/services/facebook.service', () => ({
   FacebookService: vi.fn().mockImplementation(function () {
     return {
-      client: { post: (...args: any[]) => mockFbPost(...args) },
+      client: {
+        post: (...args: any[]) => mockFbPost(...args),
+        get: (...args: any[]) => mockFbGet(...args),
+        delete: (...args: any[]) => mockFbDelete(...args),
+      },
       checkExistence: (...args: any[]) => mockCheckExistence(...args),
     };
   }),
@@ -84,6 +90,8 @@ function makeDraftCampaign(overrides: any = {}) {
 beforeEach(() => {
   vi.clearAllMocks();
   mockFbPost = vi.fn();
+  mockFbGet = vi.fn().mockResolvedValue({ data: {} });
+  mockFbDelete = vi.fn().mockResolvedValue({});
   mockCheckExistence = vi.fn().mockResolvedValue(true);
   mockValidateFullDraft = vi.fn().mockResolvedValue({
     isValid: true,
@@ -500,6 +508,270 @@ describe('DraftPublishService.publishCampaign', () => {
     await DraftPublishService.publishCampaign('camp-1', 'token');
     const adSetCall = mockFbPost.mock.calls[1];
     expect(adSetCall[1]).toHaveProperty('destination_type', 'WEBSITE');
+  });
+
+  it('omits destination_type for AWARENESS (UNDEFINED not sent)', async () => {
+    const campaign = makeDraftCampaign();
+    campaign.data = { objective: 'OUTCOME_AWARENESS', special_ad_categories: ['NONE'] };
+    campaign.objective = 'OUTCOME_AWARENESS';
+    campaign.adSets[0].data.optimization_goal = 'REACH';
+    campaign.adSets[0].data.destination_type = 'UNDEFINED';
+    mockPrisma.draftCampaign.findUnique.mockResolvedValue(campaign);
+    mockPrisma.draftCampaign.update.mockResolvedValue({});
+    mockPrisma.draftAdSet.update.mockResolvedValue({});
+    mockPrisma.draftAd.update.mockResolvedValue({});
+
+    mockFbPost
+      .mockResolvedValueOnce({ data: { id: 'meta_camp_1' } })
+      .mockResolvedValueOnce({ data: { id: 'meta_adset_1' } })
+      .mockResolvedValueOnce({ data: { id: 'meta_ad_1' } });
+
+    await DraftPublishService.publishCampaign('camp-1', 'token');
+    const adSetCall = mockFbPost.mock.calls[1];
+    expect(adSetCall[1]).not.toHaveProperty('destination_type');
+  });
+
+  it('infers destination_type from optimization_goal for ENGAGEMENT', async () => {
+    const campaign = makeDraftCampaign();
+    campaign.data = { objective: 'OUTCOME_ENGAGEMENT', special_ad_categories: ['NONE'] };
+    campaign.objective = 'OUTCOME_ENGAGEMENT';
+    campaign.adSets[0].data.optimization_goal = 'POST_ENGAGEMENT';
+    campaign.adSets[0].data.destination_type = 'WEBSITE';
+    mockPrisma.draftCampaign.findUnique.mockResolvedValue(campaign);
+    mockPrisma.draftCampaign.update.mockResolvedValue({});
+    mockPrisma.draftAdSet.update.mockResolvedValue({});
+    mockPrisma.draftAd.update.mockResolvedValue({});
+
+    mockFbPost
+      .mockResolvedValueOnce({ data: { id: 'meta_camp_1' } })
+      .mockResolvedValueOnce({ data: { id: 'meta_adset_1' } })
+      .mockResolvedValueOnce({ data: { id: 'meta_ad_1' } });
+
+    await DraftPublishService.publishCampaign('camp-1', 'token');
+    const adSetCall = mockFbPost.mock.calls[1];
+    expect(adSetCall[1]).toHaveProperty('destination_type', 'ON_POST');
+  });
+
+  it('infers ON_VIDEO destination_type for ENGAGEMENT with VIDEO_VIEWS goal', async () => {
+    const campaign = makeDraftCampaign();
+    campaign.data = { objective: 'OUTCOME_ENGAGEMENT', special_ad_categories: ['NONE'] };
+    campaign.objective = 'OUTCOME_ENGAGEMENT';
+    campaign.adSets[0].data.optimization_goal = 'VIDEO_VIEWS';
+    mockPrisma.draftCampaign.findUnique.mockResolvedValue(campaign);
+    mockPrisma.draftCampaign.update.mockResolvedValue({});
+    mockPrisma.draftAdSet.update.mockResolvedValue({});
+    mockPrisma.draftAd.update.mockResolvedValue({});
+
+    mockFbPost
+      .mockResolvedValueOnce({ data: { id: 'meta_camp_1' } })
+      .mockResolvedValueOnce({ data: { id: 'meta_adset_1' } })
+      .mockResolvedValueOnce({ data: { id: 'meta_ad_1' } });
+
+    await DraftPublishService.publishCampaign('camp-1', 'token');
+    const adSetCall = mockFbPost.mock.calls[1];
+    expect(adSetCall[1]).toHaveProperty('destination_type', 'ON_VIDEO');
+  });
+
+  it('infers FACEBOOK destination_type for ENGAGEMENT with MESSAGES goal', async () => {
+    const campaign = makeDraftCampaign();
+    campaign.data = { objective: 'OUTCOME_ENGAGEMENT', special_ad_categories: ['NONE'] };
+    campaign.objective = 'OUTCOME_ENGAGEMENT';
+    campaign.adSets[0].data.optimization_goal = 'MESSAGES';
+    mockPrisma.draftCampaign.findUnique.mockResolvedValue(campaign);
+    mockPrisma.draftCampaign.update.mockResolvedValue({});
+    mockPrisma.draftAdSet.update.mockResolvedValue({});
+    mockPrisma.draftAd.update.mockResolvedValue({});
+
+    mockFbPost
+      .mockResolvedValueOnce({ data: { id: 'meta_camp_1' } })
+      .mockResolvedValueOnce({ data: { id: 'meta_adset_1' } })
+      .mockResolvedValueOnce({ data: { id: 'meta_ad_1' } });
+
+    await DraftPublishService.publishCampaign('camp-1', 'token');
+    const adSetCall = mockFbPost.mock.calls[1];
+    expect(adSetCall[1]).toHaveProperty('destination_type', 'FACEBOOK');
+  });
+
+  it('infers WEBSITE destination_type for ENGAGEMENT with LINK_CLICKS goal', async () => {
+    const campaign = makeDraftCampaign();
+    campaign.data = { objective: 'OUTCOME_ENGAGEMENT', special_ad_categories: ['NONE'] };
+    campaign.objective = 'OUTCOME_ENGAGEMENT';
+    campaign.adSets[0].data.optimization_goal = 'LINK_CLICKS';
+    mockPrisma.draftCampaign.findUnique.mockResolvedValue(campaign);
+    mockPrisma.draftCampaign.update.mockResolvedValue({});
+    mockPrisma.draftAdSet.update.mockResolvedValue({});
+    mockPrisma.draftAd.update.mockResolvedValue({});
+
+    mockFbPost
+      .mockResolvedValueOnce({ data: { id: 'meta_camp_1' } })
+      .mockResolvedValueOnce({ data: { id: 'meta_adset_1' } })
+      .mockResolvedValueOnce({ data: { id: 'meta_ad_1' } });
+
+    await DraftPublishService.publishCampaign('camp-1', 'token');
+    const adSetCall = mockFbPost.mock.calls[1];
+    expect(adSetCall[1]).toHaveProperty('destination_type', 'WEBSITE');
+  });
+
+  it('handles checkObjectiveMismatch GET failure gracefully', async () => {
+    const campaign = makeDraftCampaign({ metaId: 'existing_camp' });
+    mockPrisma.draftCampaign.findUnique.mockResolvedValue(campaign);
+    mockPrisma.draftCampaign.update.mockResolvedValue({});
+    mockPrisma.draftAdSet.update.mockResolvedValue({});
+    mockPrisma.draftAd.update.mockResolvedValue({});
+    mockCheckExistence.mockResolvedValue(true);
+    mockFbGet.mockRejectedValueOnce(new Error('Network failure'));
+
+    mockFbPost
+      .mockResolvedValueOnce({}) // campaign update (existing)
+      .mockResolvedValueOnce({ data: { id: 'meta_adset_1' } })
+      .mockResolvedValueOnce({ data: { id: 'meta_ad_1' } });
+
+    await DraftPublishService.publishCampaign('camp-1', 'token');
+    expect(mockFbDelete).not.toHaveBeenCalled();
+  });
+
+  it('includes bid_amount for CBO campaign with COST_CAP strategy', async () => {
+    const campaign = makeDraftCampaign();
+    campaign.data = {
+      objective: 'OUTCOME_TRAFFIC',
+      special_ad_categories: ['NONE'],
+      daily_budget: '10000',
+      bid_strategy: 'COST_CAP',
+      bid_amount: '500',
+      is_adset_budget_sharing_enabled: true,
+    };
+    mockPrisma.draftCampaign.findUnique.mockResolvedValue(campaign);
+    mockPrisma.draftCampaign.update.mockResolvedValue({});
+    mockPrisma.draftAdSet.update.mockResolvedValue({});
+    mockPrisma.draftAd.update.mockResolvedValue({});
+
+    mockFbPost
+      .mockResolvedValueOnce({ data: { id: 'meta_camp_1' } })
+      .mockResolvedValueOnce({ data: { id: 'meta_adset_1' } })
+      .mockResolvedValueOnce({ data: { id: 'meta_ad_1' } });
+
+    await DraftPublishService.publishCampaign('camp-1', 'token');
+    const campaignCall = mockFbPost.mock.calls[0];
+    expect(campaignCall[1]).toHaveProperty('bid_strategy', 'COST_CAP');
+    expect(campaignCall[1]).toHaveProperty('bid_amount', '500');
+  });
+
+  it('adds custom_event_type for SALES when only pixel_id provided', async () => {
+    const campaign = makeDraftCampaign();
+    campaign.data = { objective: 'OUTCOME_SALES', special_ad_categories: ['NONE'] };
+    campaign.objective = 'OUTCOME_SALES';
+    campaign.adSets[0].data.optimization_goal = 'OFFSITE_CONVERSIONS';
+    campaign.adSets[0].data.promoted_object = { pixel_id: '12345' };
+    mockPrisma.draftCampaign.findUnique.mockResolvedValue(campaign);
+    mockPrisma.draftCampaign.update.mockResolvedValue({});
+    mockPrisma.draftAdSet.update.mockResolvedValue({});
+    mockPrisma.draftAd.update.mockResolvedValue({});
+
+    mockFbPost
+      .mockResolvedValueOnce({ data: { id: 'meta_camp_1' } })
+      .mockResolvedValueOnce({ data: { id: 'meta_adset_1' } })
+      .mockResolvedValueOnce({ data: { id: 'meta_ad_1' } });
+
+    await DraftPublishService.publishCampaign('camp-1', 'token');
+    const adSetCall = mockFbPost.mock.calls[1];
+    expect(adSetCall[1].promoted_object).toEqual({ pixel_id: '12345', custom_event_type: 'PURCHASE' });
+  });
+
+  it('injects page_id into object_story_spec from adSet promoted_object', async () => {
+    const campaign = makeDraftCampaign();
+    campaign.adSets[0].data.promoted_object = { page_id: '999' };
+    campaign.adSets[0].ads[0].data = {
+      creative: { object_story_spec: { link_data: { link: 'http://example.com' } } },
+    };
+    mockPrisma.draftCampaign.findUnique.mockResolvedValue(campaign);
+    mockPrisma.draftCampaign.update.mockResolvedValue({});
+    mockPrisma.draftAdSet.update.mockResolvedValue({});
+    mockPrisma.draftAd.update.mockResolvedValue({});
+
+    mockFbPost
+      .mockResolvedValueOnce({ data: { id: 'meta_camp_1' } })
+      .mockResolvedValueOnce({ data: { id: 'meta_adset_1' } })
+      .mockResolvedValueOnce({ data: { id: 'meta_ad_1' } });
+
+    await DraftPublishService.publishCampaign('camp-1', 'token');
+    const adCall = mockFbPost.mock.calls[2];
+    expect(adCall[1].creative.object_story_spec.page_id).toBe('999');
+  });
+
+  it('injects page_id from adSet.data.page_id when promoted_object has no page_id', async () => {
+    const campaign = makeDraftCampaign();
+    campaign.adSets[0].data.page_id = '888';
+    campaign.adSets[0].ads[0].data = {
+      creative: { object_story_spec: { link_data: { link: 'http://example.com' } } },
+    };
+    mockPrisma.draftCampaign.findUnique.mockResolvedValue(campaign);
+    mockPrisma.draftCampaign.update.mockResolvedValue({});
+    mockPrisma.draftAdSet.update.mockResolvedValue({});
+    mockPrisma.draftAd.update.mockResolvedValue({});
+
+    mockFbPost
+      .mockResolvedValueOnce({ data: { id: 'meta_camp_1' } })
+      .mockResolvedValueOnce({ data: { id: 'meta_adset_1' } })
+      .mockResolvedValueOnce({ data: { id: 'meta_ad_1' } });
+
+    await DraftPublishService.publishCampaign('camp-1', 'token');
+    const adCall = mockFbPost.mock.calls[2];
+    expect(adCall[1].creative.object_story_spec.page_id).toBe('888');
+  });
+
+  it('deletes and recreates campaign on objective mismatch, clears child metaIds', async () => {
+    const campaign = makeDraftCampaign({ metaId: 'existing_camp' });
+    campaign.data.objective = 'OUTCOME_LEADS';
+    campaign.objective = 'OUTCOME_LEADS';
+    campaign.adSets[0].metaId = 'old_adset_meta';
+    campaign.adSets[0].ads[0].metaId = 'old_ad_meta';
+    campaign.adSets[0].data.promoted_object = { page_id: '123' };
+    mockPrisma.draftCampaign.findUnique.mockResolvedValue(campaign);
+    mockPrisma.draftCampaign.update.mockResolvedValue({});
+    mockPrisma.draftAdSet.update.mockResolvedValue({});
+    mockPrisma.draftAd.update.mockResolvedValue({});
+    mockCheckExistence.mockResolvedValue(true);
+    mockFbGet.mockResolvedValueOnce({ data: { objective: 'OUTCOME_TRAFFIC' } });
+    mockFbDelete.mockResolvedValueOnce({});
+
+    mockFbPost
+      .mockResolvedValueOnce({ data: { id: 'new_camp_1' } })
+      .mockResolvedValueOnce({ data: { id: 'meta_adset_1' } })
+      .mockResolvedValueOnce({ data: { id: 'meta_ad_1' } });
+
+    await DraftPublishService.publishCampaign('camp-1', 'token');
+    expect(mockFbDelete).toHaveBeenCalledWith('/existing_camp');
+    expect(mockPrisma.draftAdSet.update).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { id: 'adset-1' }, data: expect.objectContaining({ metaId: null }) })
+    );
+    expect(mockPrisma.draftAd.update).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { id: 'ad-1' }, data: { metaId: null } })
+    );
+    const campaignCall = mockFbPost.mock.calls[0];
+    expect(campaignCall[1].objective).toBe('OUTCOME_LEADS');
+  });
+
+  it('continues publishing when deleteMetaCampaign fails', async () => {
+    const campaign = makeDraftCampaign({ metaId: 'existing_camp' });
+    campaign.data.objective = 'OUTCOME_LEADS';
+    campaign.objective = 'OUTCOME_LEADS';
+    campaign.adSets[0].data.promoted_object = { page_id: '123' };
+    mockPrisma.draftCampaign.findUnique.mockResolvedValue(campaign);
+    mockPrisma.draftCampaign.update.mockResolvedValue({});
+    mockPrisma.draftAdSet.update.mockResolvedValue({});
+    mockPrisma.draftAd.update.mockResolvedValue({});
+    mockCheckExistence.mockResolvedValue(true);
+    mockFbGet.mockResolvedValueOnce({ data: { objective: 'OUTCOME_TRAFFIC' } });
+    mockFbDelete.mockRejectedValueOnce(new Error('Network error'));
+
+    mockFbPost
+      .mockResolvedValueOnce({ data: { id: 'new_camp_1' } })
+      .mockResolvedValueOnce({ data: { id: 'meta_adset_1' } })
+      .mockResolvedValueOnce({ data: { id: 'meta_ad_1' } });
+
+    await DraftPublishService.publishCampaign('camp-1', 'token');
+    expect(mockFbDelete).toHaveBeenCalledWith('/existing_camp');
+    expect(mockFbPost).toHaveBeenCalled();
   });
 
   it('handles adset with lifetime_budget and end_time', async () => {

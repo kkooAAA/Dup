@@ -160,6 +160,12 @@ describe('sanitizeTargeting', () => {
     expect(result.age_min).toBe(20);
   });
 
+  it('sets age_min to 18 for non-TH country without age_min', () => {
+    const targeting = { geo_locations: { countries: ['US'] } };
+    const result = sanitizeTargeting(targeting);
+    expect(result.age_min).toBe(18);
+  });
+
   it('returns default on invalid JSON', () => {
     const circular: any = {};
     circular.self = circular;
