@@ -19,13 +19,12 @@ export class WideCreationController {
       const template = req.body as WideCreationTemplate;
       const authReq = req as AuthRequest;
 
-      // Validate first
-      const validation = WideCreationService.validateTemplate(template);
-      if (!validation.valid) {
-        return res.status(400).json({
-          error: 'Template validation failed',
-          validation,
-        });
+      // Structural checks only (adAccountId, campaigns exist, valid objectives)
+      if (!template.adAccountId) {
+        return res.status(400).json({ error: 'adAccountId is required' });
+      }
+      if (!template.campaigns || template.campaigns.length === 0) {
+        return res.status(400).json({ error: 'At least one campaign is required' });
       }
 
       const result = await WideCreationService.generateFromTemplate(template, authReq.userId!);

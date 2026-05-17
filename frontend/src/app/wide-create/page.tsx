@@ -74,7 +74,7 @@ export default function WideCreatePage() {
     }
     setIsValidating(true);
     try {
-      const template = store.toTemplate(selectedAccount.adaccount_id);
+      const template = store.toTemplate(selectedAccount.adaccount_id || selectedAccount.id);
       const res = await wideCreationApi.validate(template);
       setValidation(res.data);
       if (res.data.valid) {
@@ -96,7 +96,7 @@ export default function WideCreatePage() {
     }
     setIsGenerating(true);
     try {
-      const template = store.toTemplate(selectedAccount.adaccount_id);
+      const template = store.toTemplate(selectedAccount.adaccount_id || selectedAccount.id);
       const res = await wideCreationApi.generate(template);
       setGenerationResult(res.data);
       toast.success(

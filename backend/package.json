@@ -12,7 +12,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
-    "test:drift": "vitest run tests/drift --reporter=verbose"
+    "test:drift": "vitest run tests/drift --reporter=verbose",
+    "db:cleanup": "npx ts-node --skip-project --compiler-options '{\"module\":\"commonjs\"}' scripts/cleanup-drafts.ts"
   },
   "keywords": [],
   "author": "",

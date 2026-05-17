@@ -12,6 +12,7 @@ vi.mock('../../src/prisma', () => ({
 let mockFbGet: ReturnType<typeof vi.fn>;
 let mockFbGetAdSets: ReturnType<typeof vi.fn>;
 let mockFbGetAds: ReturnType<typeof vi.fn>;
+let mockFbGetPixelId: ReturnType<typeof vi.fn>;
 
 vi.mock('../../src/services/facebook.service', () => ({
   FacebookService: vi.fn().mockImplementation(function () {
@@ -19,6 +20,7 @@ vi.mock('../../src/services/facebook.service', () => ({
       get: (...args: any[]) => mockFbGet(...args),
       getAdSets: (...args: any[]) => mockFbGetAdSets(...args),
       getAds: (...args: any[]) => mockFbGetAds(...args),
+      getPixelId: (...args: any[]) => mockFbGetPixelId(...args),
     };
   }),
 }));
@@ -47,6 +49,7 @@ beforeEach(() => {
   mockFbGet = vi.fn();
   mockFbGetAdSets = vi.fn().mockResolvedValue([]);
   mockFbGetAds = vi.fn().mockResolvedValue([]);
+  mockFbGetPixelId = vi.fn().mockResolvedValue(null);
   mockTransformCampaign = vi.fn();
   mockTransformAdSet = vi.fn();
   mockTransformAd = vi.fn();
@@ -115,28 +118,17 @@ describe('DraftService.convertCampaignToDraft', () => {
   it('converts campaign to different objective', async () => {
     // Call sequence:
     // 1. fbService.get(campaignId) - fetch original
-    // 2. fbService.get(adset.id) - fetch full adset
-    // 3. fbService.get(ad.id) - for page_id lookup creative
-    // 4. fbService.get(creativeId) - fetch creative for page_id
-    // 5. fbService.get(ad.id) - fetch full ad for transform
+    // 2. fbService.get(creativeId) - fetch creative for page_id
     mockFbGet
       .mockResolvedValueOnce({
         data: { name: 'Original', objective: 'OUTCOME_TRAFFIC', account_id: '123' },
       })
       .mockResolvedValueOnce({
-        data: { id: 'adset-1', name: 'AdSet', billing_event: 'IMPRESSIONS', optimization_goal: 'LINK_CLICKS' },
-      })
-      .mockResolvedValueOnce({
-        data: { id: 'ad-1', name: 'Ad', creative: { id: 'cr-1' } },
-      })
-      .mockResolvedValueOnce({
         data: { id: 'cr-1', object_id: 'page-123' },
-      })
-      .mockResolvedValueOnce({
-        data: { id: 'ad-1', name: 'Ad', creative: { creative_id: 'cr-1' } },
       });
-    mockFbGetAdSets.mockResolvedValue([{ id: 'adset-1', name: 'AdSet' }]);
-    mockFbGetAds.mockResolvedValue([{ id: 'ad-1', name: 'Ad' }]);
+    mockFbGetPixelId.mockResolvedValue('pixel-123');
+    mockFbGetAdSets.mockResolvedValue([{ id: 'adset-1', name: 'AdSet', billing_event: 'IMPRESSIONS', optimization_goal: 'LINK_CLICKS' }]);
+    mockFbGetAds.mockResolvedValue([{ id: 'ad-1', name: 'Ad', creative: { id: 'cr-1' } }]);
 
     mockTransformCampaign.mockReturnValue({ name: 'Converted', objective: 'OUTCOME_SALES' });
     mockTransformAdSet.mockReturnValue({ name: 'AdSet - Converted', optimization_goal: 'OFFSITE_CONVERSIONS' });
@@ -153,6 +145,7 @@ describe('DraftService.convertCampaignToDraft', () => {
     expect(mockTransformCampaign).toHaveBeenCalled();
     expect(mockTransformAdSet).toHaveBeenCalled();
     expect(mockTransformAd).toHaveBeenCalled();
+    expect(mockFbGetPixelId).toHaveBeenCalledWith('act_123');
   });
 
   it('normalizes adAccountId without act_ prefix', async () => {
@@ -176,12 +169,9 @@ describe('DraftService.convertCampaignToDraft', () => {
   it('falls back when page_id not found in promoted_object', async () => {
     mockFbGet
       .mockResolvedValueOnce({ data: { name: 'Camp', objective: 'OUTCOME_TRAFFIC', account_id: '123' } })
-      .mockResolvedValueOnce({ data: { id: 'adset-1', name: 'AS' } })
-      .mockResolvedValueOnce({ data: { id: 'ad-1', name: 'Ad', creative: { id: 'cr-1' } } })
-      .mockResolvedValueOnce({ data: { id: 'cr-1', actor_id: 'page-456' } })
-      .mockResolvedValueOnce({ data: { id: 'ad-1', name: 'Ad Full', creative: { creative_id: 'cr-1' } } });
+      .mockResolvedValueOnce({ data: { id: 'cr-1', actor_id: 'page-456' } });
     mockFbGetAdSets.mockResolvedValue([{ id: 'adset-1', name: 'AS' }]);
-    mockFbGetAds.mockResolvedValue([{ id: 'ad-1', name: 'Ad' }]);
+    mockFbGetAds.mockResolvedValue([{ id: 'ad-1', name: 'Ad', creative: { id: 'cr-1' } }]);
 
     mockTransformCampaign.mockReturnValue({ name: 'Conv', objective: 'OUTCOME_LEADS' });
     mockTransformAdSet.mockReturnValue({ name: 'AS Conv' });
@@ -206,14 +196,12 @@ describe('DraftService.convertCampaignToDraft', () => {
   it('handles error when fetching page_id from creative (getAds throws)', async () => {
     const consoleSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
     mockFbGet
-      .mockResolvedValueOnce({ data: { name: 'Camp', objective: 'OUTCOME_TRAFFIC', account_id: '123' } })
-      .mockResolvedValueOnce({ data: { id: 'adset-1', name: 'AS' } })
-      .mockResolvedValueOnce({ data: { id: 'ad-1', name: 'Ad Full', creative: { creative_id: 'cr-1' } } });
+      .mockResolvedValueOnce({ data: { name: 'Camp', objective: 'OUTCOME_TRAFFIC', account_id: '123' } });
     mockFbGetAdSets.mockResolvedValue([{ id: 'adset-1', name: 'AS' }]);
-    // getAds throws an error for page_id lookup
+    // getAds throws for page_id lookup, then returns ads for transformation
     mockFbGetAds
       .mockRejectedValueOnce(new Error('Network error'))
-      .mockResolvedValueOnce([{ id: 'ad-1', name: 'Ad' }]);
+      .mockResolvedValueOnce([{ id: 'ad-1', name: 'Ad', creative: { creative_id: 'cr-1' } }]);
 
     mockTransformCampaign.mockReturnValue({ name: 'Conv', objective: 'OUTCOME_LEADS' });
     mockTransformAdSet.mockReturnValue({ name: 'AS Conv' });
@@ -239,14 +227,12 @@ describe('DraftService.convertCampaignToDraft', () => {
 
   it('handles ads.length === 0 in page_id lookup (no ads available)', async () => {
     mockFbGet
-      .mockResolvedValueOnce({ data: { name: 'Camp', objective: 'OUTCOME_TRAFFIC', account_id: '123' } })
-      .mockResolvedValueOnce({ data: { id: 'adset-1', name: 'AS' } })
-      .mockResolvedValueOnce({ data: { id: 'ad-1', name: 'Ad Full', creative: { creative_id: 'cr-1' } } });
+      .mockResolvedValueOnce({ data: { name: 'Camp', objective: 'OUTCOME_TRAFFIC', account_id: '123' } });
     mockFbGetAdSets.mockResolvedValue([{ id: 'adset-1', name: 'AS' }]);
     // First getAds call for page_id lookup returns empty, second for ad transforms
     mockFbGetAds
       .mockResolvedValueOnce([])
-      .mockResolvedValueOnce([{ id: 'ad-1', name: 'Ad' }]);
+      .mockResolvedValueOnce([{ id: 'ad-1', name: 'Ad', creative: { creative_id: 'cr-1' } }]);
 
     mockTransformCampaign.mockReturnValue({ name: 'Conv', objective: 'OUTCOME_LEADS' });
     mockTransformAdSet.mockReturnValue({ name: 'AS Conv' });
@@ -270,13 +256,10 @@ describe('DraftService.convertCampaignToDraft', () => {
 
   it('handles creative without id (creativeId undefined)', async () => {
     mockFbGet
-      .mockResolvedValueOnce({ data: { name: 'Camp', objective: 'OUTCOME_TRAFFIC', account_id: '123' } })
-      .mockResolvedValueOnce({ data: { id: 'adset-1', name: 'AS' } })
-      // ad has creative but no id field
-      .mockResolvedValueOnce({ data: { id: 'ad-1', name: 'Ad', creative: {} } })
-      .mockResolvedValueOnce({ data: { id: 'ad-1', name: 'Ad Full', creative: { creative_id: 'cr-1' } } });
+      .mockResolvedValueOnce({ data: { name: 'Camp', objective: 'OUTCOME_TRAFFIC', account_id: '123' } });
     mockFbGetAdSets.mockResolvedValue([{ id: 'adset-1', name: 'AS' }]);
-    mockFbGetAds.mockResolvedValue([{ id: 'ad-1', name: 'Ad' }]);
+    // ads have creative but no id field — can't look up page_id
+    mockFbGetAds.mockResolvedValue([{ id: 'ad-1', name: 'Ad', creative: {} }]);
 
     mockTransformCampaign.mockReturnValue({ name: 'Conv', objective: 'OUTCOME_LEADS' });
     mockTransformAdSet.mockReturnValue({ name: 'AS Conv' });
@@ -301,13 +284,10 @@ describe('DraftService.convertCampaignToDraft', () => {
   it('extracts page_id from object_story_spec.page_id fallback', async () => {
     mockFbGet
       .mockResolvedValueOnce({ data: { name: 'Camp', objective: 'OUTCOME_TRAFFIC', account_id: '123' } })
-      .mockResolvedValueOnce({ data: { id: 'adset-1', name: 'AS' } })
-      .mockResolvedValueOnce({ data: { id: 'ad-1', name: 'Ad', creative: { id: 'cr-1' } } })
-      // creative has neither object_id nor actor_id, only object_story_spec.page_id
-      .mockResolvedValueOnce({ data: { id: 'cr-1', object_story_spec: { page_id: 'page-789' } } })
-      .mockResolvedValueOnce({ data: { id: 'ad-1', name: 'Ad Full', creative: { creative_id: 'cr-1' } } });
+      // creative lookup for page_id
+      .mockResolvedValueOnce({ data: { id: 'cr-1', object_story_spec: { page_id: 'page-789' } } });
     mockFbGetAdSets.mockResolvedValue([{ id: 'adset-1', name: 'AS' }]);
-    mockFbGetAds.mockResolvedValue([{ id: 'ad-1', name: 'Ad' }]);
+    mockFbGetAds.mockResolvedValue([{ id: 'ad-1', name: 'Ad', creative: { id: 'cr-1' } }]);
 
     mockTransformCampaign.mockReturnValue({ name: 'Conv', objective: 'OUTCOME_LEADS' });
     mockTransformAdSet.mockReturnValue({ name: 'AS Conv' });
@@ -331,11 +311,10 @@ describe('DraftService.convertCampaignToDraft', () => {
 
   it('uses promoted_object.page_id when available (skips ad lookup)', async () => {
     mockFbGet
-      .mockResolvedValueOnce({ data: { name: 'Camp', objective: 'OUTCOME_TRAFFIC', account_id: '123' } })
-      .mockResolvedValueOnce({ data: { id: 'adset-1', name: 'AS', promoted_object: { page_id: 'page-direct' } } })
-      .mockResolvedValueOnce({ data: { id: 'ad-1', name: 'Ad Full', creative: { creative_id: 'cr-1' } } });
-    mockFbGetAdSets.mockResolvedValue([{ id: 'adset-1', name: 'AS' }]);
-    mockFbGetAds.mockResolvedValue([{ id: 'ad-1', name: 'Ad' }]);
+      .mockResolvedValueOnce({ data: { name: 'Camp', objective: 'OUTCOME_TRAFFIC', account_id: '123' } });
+    // getAdSets returns full data including promoted_object
+    mockFbGetAdSets.mockResolvedValue([{ id: 'adset-1', name: 'AS', promoted_object: { page_id: 'page-direct' } }]);
+    mockFbGetAds.mockResolvedValue([{ id: 'ad-1', name: 'Ad', creative: { creative_id: 'cr-1' } }]);
 
     mockTransformCampaign.mockReturnValue({ name: 'Conv', objective: 'OUTCOME_LEADS' });
     mockTransformAdSet.mockReturnValue({ name: 'AS Conv' });
@@ -359,9 +338,9 @@ describe('DraftService.convertCampaignToDraft', () => {
 
   it('uses fallback name when adSet.name is empty', async () => {
     mockFbGet
-      .mockResolvedValueOnce({ data: { name: 'Camp', objective: 'OUTCOME_TRAFFIC', account_id: '123' } })
-      .mockResolvedValueOnce({ data: { id: 'adset-1' } }); // no name
-    mockFbGetAdSets.mockResolvedValue([{ id: 'adset-1', name: 'AS' }]);
+      .mockResolvedValueOnce({ data: { name: 'Camp', objective: 'OUTCOME_TRAFFIC', account_id: '123' } });
+    // getAdSets returns ad set without name
+    mockFbGetAdSets.mockResolvedValue([{ id: 'adset-1' }]);
     mockFbGetAds.mockResolvedValue([]);
 
     mockTransformCampaign.mockReturnValue({ name: 'Conv', objective: 'OUTCOME_LEADS' });
@@ -385,14 +364,11 @@ describe('DraftService.convertCampaignToDraft', () => {
   it('uses fallback name when ad.name is empty', async () => {
     mockFbGet
       .mockResolvedValueOnce({ data: { name: 'Camp', objective: 'OUTCOME_TRAFFIC', account_id: '123' } })
-      .mockResolvedValueOnce({ data: { id: 'adset-1', name: 'AS' } })
-      // page_id lookup: ad has creative with id
-      .mockResolvedValueOnce({ data: { id: 'ad-1', name: 'Ad', creative: { id: 'cr-1' } } })
-      .mockResolvedValueOnce({ data: { id: 'cr-1', object_id: 'page-123' } })
-      // full ad fetch: no name
-      .mockResolvedValueOnce({ data: { id: 'ad-1', creative: { creative_id: 'cr-1' } } });
+      // creative lookup for page_id
+      .mockResolvedValueOnce({ data: { id: 'cr-1', object_id: 'page-123' } });
     mockFbGetAdSets.mockResolvedValue([{ id: 'adset-1', name: 'AS' }]);
-    mockFbGetAds.mockResolvedValue([{ id: 'ad-1', name: 'Ad' }]);
+    // getAds returns ad with creative.id (used for page_id lookup) but no name
+    mockFbGetAds.mockResolvedValue([{ id: 'ad-1', creative: { id: 'cr-1' } }]);
 
     mockTransformCampaign.mockReturnValue({ name: 'Conv', objective: 'OUTCOME_LEADS' });
     mockTransformAdSet.mockReturnValue({ name: 'AS Conv' });

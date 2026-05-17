@@ -37,6 +37,9 @@ export interface WideCreationState {
   // Generated structure
   campaigns: WideCampaignNode[];
 
+  // Default creative (applies to all ads without explicit creative)
+  defaultCreative: Record<string, any> | null;
+
   // Naming
   namingPattern: {
     campaign: string;
@@ -93,6 +96,9 @@ export interface WideCreationState {
   // Bulk
   bulkUpdateSelectedField: (field: string, value: any) => void;
 
+  // Default creative
+  setDefaultCreative: (creative: Record<string, any> | null) => void;
+
   // Naming
   setNamingPattern: (level: 'campaign' | 'adSet' | 'ad', pattern: string) => void;
 
@@ -119,6 +125,7 @@ const initialState = {
   adSetsPerCampaign: 1,
   adsPerAdSet: 1,
   campaigns: [] as WideCampaignNode[],
+  defaultCreative: null as Record<string, any> | null,
   namingPattern: {
     campaign: '{objective} Campaign {index:02d}',
     adSet: '{parent} - AdSet {index:02d}',
@@ -366,6 +373,10 @@ export const useWideCreationStore = create<WideCreationState>((set, get) => ({
     };
   }),
 
+  // ── Default Creative ──
+
+  setDefaultCreative: (creative) => set({ defaultCreative: creative }),
+
   // ── Naming ──
 
   setNamingPattern: (level, pattern) => set((state) => ({
@@ -384,6 +395,7 @@ export const useWideCreationStore = create<WideCreationState>((set, get) => ({
       name: state.templateName || 'Wide Creation',
       adAccountId,
       namingPattern: state.namingPattern,
+      ...(state.defaultCreative ? { defaults: { ad: { creative: state.defaultCreative } } } : {}),
       campaigns: state.campaigns.map(c => ({
         fields: c.fields,
         adSetCount: c.adSets.length,

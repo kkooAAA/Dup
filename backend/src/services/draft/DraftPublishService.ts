@@ -5,6 +5,7 @@ import {
   BID_CAP_STRATEGIES,
   ATTRIBUTION_SPEC_OBJECTIVES,
   VALID_DESTINATION_TYPES,
+  OBJECTIVE_DEFAULTS,
   PROMOTED_OBJECT_REQUIREMENTS,
   stripImmutableFields,
   sanitizeTargeting,
@@ -78,7 +79,38 @@ export class DraftPublishService {
             data: { metaId: metaCampaignId },
           });
         } else {
-          await this.updateMetaCampaign(fbService, metaCampaignId, campaign.name, campaignData, isCBO);
+          // Check if objective matches — objective is immutable on Meta
+          const needsRecreate = await this.checkObjectiveMismatch(fbService, metaCampaignId, campaignData.objective);
+          if (needsRecreate) {
+            console.warn(`[DraftPublishService] Objective mismatch on ${metaCampaignId}, deleting and recreating`);
+            await this.deleteMetaCampaign(fbService, metaCampaignId);
+            await prisma.draftCampaign.update({
+              where: { id: campaignId },
+              data: { metaId: null },
+            });
+            // Clear child metaIds — they were under the old campaign
+            for (const adSet of campaign.adSets) {
+              if (adSet.metaId) {
+                await prisma.draftAdSet.update({ where: { id: adSet.id }, data: { metaId: null } });
+                adSet.metaId = null;
+              }
+              for (const ad of adSet.ads) {
+                if (ad.metaId) {
+                  await prisma.draftAd.update({ where: { id: ad.id }, data: { metaId: null } });
+                  ad.metaId = null;
+                }
+              }
+            }
+            metaCampaignId = await this.createMetaCampaign(
+              fbService, campaignAccountId, campaign.name, campaignData, isCBO
+            );
+            await prisma.draftCampaign.update({
+              where: { id: campaignId },
+              data: { metaId: metaCampaignId },
+            });
+          } else {
+            await this.updateMetaCampaign(fbService, metaCampaignId, campaign.name, campaignData, isCBO);
+          }
         }
       } else {
         metaCampaignId = await this.createMetaCampaign(
@@ -222,6 +254,31 @@ export class DraftPublishService {
     return hasCampaignBudget;
   }
 
+  private static async checkObjectiveMismatch(
+    fbService: FacebookService,
+    metaCampaignId: string,
+    targetObjective: string,
+  ): Promise<boolean> {
+    try {
+      const resp = await fbService.client.get(`/${metaCampaignId}`, { params: { fields: 'objective' } });
+      const metaObjective = resp.data.objective;
+      return metaObjective && metaObjective !== targetObjective;
+    } catch {
+      return false;
+    }
+  }
+
+  private static async deleteMetaCampaign(
+    fbService: FacebookService,
+    metaCampaignId: string,
+  ): Promise<void> {
+    try {
+      await fbService.client.delete(`/${metaCampaignId}`);
+    } catch (error: any) {
+      console.warn(`[DraftPublishService] Failed to delete stale campaign ${metaCampaignId}:`, error.message);
+    }
+  }
+
   // ─── Campaign Create ───
 
   private static async createMetaCampaign(
@@ -251,10 +308,11 @@ export class DraftPublishService {
         campaignPayload.lifetime_budget = String(campaignData.lifetime_budget);
       }
 
-      // BID FIX: Include bid_strategy as-is. If it's a cap strategy, that's the user's intent.
-      // Only default to LOWEST_COST_WITHOUT_CAP if no strategy is set.
       if (campaignData.bid_strategy) {
         campaignPayload.bid_strategy = campaignData.bid_strategy;
+        if (BID_CAP_STRATEGIES.has(campaignData.bid_strategy) && campaignData.bid_amount) {
+          campaignPayload.bid_amount = String(campaignData.bid_amount);
+        }
       } else {
         campaignPayload.bid_strategy = 'LOWEST_COST_WITHOUT_CAP';
       }
@@ -354,11 +412,23 @@ export class DraftPublishService {
     // FIX: Use shared sanitizeTargeting
     const targeting = sanitizeTargeting(adSetData.targeting);
 
-    // FIX: destination_type — validate against objective-specific valid types
+    // destination_type — validate against objective-specific valid types, infer from optimization_goal
     const validDestTypes = VALID_DESTINATION_TYPES[campaignObjective] || [];
-    const destinationType = adSetData.destination_type && validDestTypes.includes(adSetData.destination_type)
-      ? adSetData.destination_type
-      : undefined;
+    let destinationType: string | undefined;
+    if (adSetData.destination_type && validDestTypes.includes(adSetData.destination_type)) {
+      destinationType = adSetData.destination_type;
+    } else if (campaignObjective === 'OUTCOME_ENGAGEMENT') {
+      const goal = adSetData.optimization_goal;
+      if (goal === 'POST_ENGAGEMENT') destinationType = 'ON_POST';
+      else if (goal === 'VIDEO_VIEWS' || goal === 'THRUPLAY') destinationType = 'ON_VIDEO';
+      else if (goal === 'MESSAGES') destinationType = 'FACEBOOK';
+      else destinationType = 'WEBSITE';
+    } else if (campaignObjective !== 'OUTCOME_AWARENESS') {
+      const defaultDest = OBJECTIVE_DEFAULTS[campaignObjective]?.destination_type;
+      if (defaultDest && defaultDest !== 'UNDEFINED') {
+        destinationType = defaultDest;
+      }
+    }
 
     const adSetPayload: any = {
       name: adSet.name,
@@ -390,10 +460,13 @@ export class DraftPublishService {
         if (BID_CAP_STRATEGIES.has(adSetBidStrategy) && adSetBidAmount) {
           adSetPayload.bid_strategy = adSetBidStrategy;
           adSetPayload.bid_amount = String(adSetBidAmount);
-        } else if (!BID_CAP_STRATEGIES.has(adSetBidStrategy)) {
+        } else if (BID_CAP_STRATEGIES.has(adSetBidStrategy) && !adSetBidAmount) {
+          adSetPayload.bid_strategy = 'LOWEST_COST_WITHOUT_CAP';
+        } else {
           adSetPayload.bid_strategy = adSetBidStrategy;
         }
-        // Cap strategies without bid_amount: skip (Meta will reject)
+      } else {
+        adSetPayload.bid_strategy = 'LOWEST_COST_WITHOUT_CAP';
       }
 
       const adSetDailyBudget = Number(adSetData.daily_budget) || 0;
@@ -420,25 +493,39 @@ export class DraftPublishService {
       const errData = error.response?.data?.error;
       console.error(`[DraftPublishService] Ad set creation failed:`, JSON.stringify(errData) || error.message);
 
-      // Retry without bid fields on known CBO-conflict errors
+      // Retry on bid-related errors
       const bidConflictSubcodes = new Set([2490487, 1815857, 1885621]);
       if (bidConflictSubcodes.has(errData?.error_subcode)) {
-        const bidlessPayload = { ...adSetPayload };
-        delete bidlessPayload.bid_strategy;
-        delete bidlessPayload.bid_amount;
-        delete bidlessPayload.bid_constraints;
-        delete bidlessPayload.daily_budget;
-        delete bidlessPayload.lifetime_budget;
-        console.log(`[DraftPublishService] Retrying ad set ${adSet.id} without budget/bid fields (CBO conflict)`);
+        // Strategy 1: Force LOWEST_COST_WITHOUT_CAP (doesn't need bid_amount)
+        const retryPayload = { ...adSetPayload };
+        retryPayload.bid_strategy = 'LOWEST_COST_WITHOUT_CAP';
+        delete retryPayload.bid_amount;
+        delete retryPayload.bid_constraints;
+        console.log(`[DraftPublishService] Retrying ad set ${adSet.id} with LOWEST_COST_WITHOUT_CAP (bid conflict fix)`);
         try {
-          const fbAdSetRetry = await fbService.client.post(`/${accountId}/adsets`, bidlessPayload);
+          const fbAdSetRetry = await fbService.client.post(`/${accountId}/adsets`, retryPayload);
+          console.warn(`[DraftPublishService] Ad set ${adSet.id} published with LOWEST_COST_WITHOUT_CAP fallback — bid_strategy was reset`);
           return fbAdSetRetry.data.id;
-        } catch (retryError: any) {
-          const retryErrData = retryError.response?.data?.error;
-          const retryDetail = retryErrData
-            ? `${retryErrData.message} (code ${retryErrData.code}/${retryErrData.error_subcode ?? '-'})${retryErrData.error_user_msg ? ': ' + retryErrData.error_user_msg : ''}`
-            : retryError.message;
-          throw new Error(`Facebook API Error (AdSet ${adSet.id}): ${retryDetail}`);
+        } catch (retryError1: any) {
+          // Strategy 2: Strip all budget/bid fields (true CBO conflict)
+          const bidlessPayload = { ...adSetPayload };
+          delete bidlessPayload.bid_strategy;
+          delete bidlessPayload.bid_amount;
+          delete bidlessPayload.bid_constraints;
+          delete bidlessPayload.daily_budget;
+          delete bidlessPayload.lifetime_budget;
+          console.log(`[DraftPublishService] Retrying ad set ${adSet.id} without budget/bid fields (CBO fallback)`);
+          try {
+            const fbAdSetRetry2 = await fbService.client.post(`/${accountId}/adsets`, bidlessPayload);
+            console.warn(`[DraftPublishService] Ad set ${adSet.id} published without budget — CBO fallback used`);
+            return fbAdSetRetry2.data.id;
+          } catch (retryError2: any) {
+            const retryErrData = retryError2.response?.data?.error;
+            const retryDetail = retryErrData
+              ? `${retryErrData.message} (code ${retryErrData.code}/${retryErrData.error_subcode ?? '-'})${retryErrData.error_user_msg ? ': ' + retryErrData.error_user_msg : ''}`
+              : retryError2.message;
+            throw new Error(`Facebook API Error (AdSet ${adSet.id}): ${retryDetail}`);
+          }
         }
       }
 
@@ -511,15 +598,19 @@ export class DraftPublishService {
     const adData = ad.data as any;
 
     const creativeId = adData.creative?.creative_id || adData.creative?.id;
-    if (!creativeId) {
-      throw new Error(`Ad "${ad.name}" is missing creative_id — cannot publish without a creative`);
+    const hasInlineCreative = adData.creative?.object_story_spec;
+
+    if (!creativeId && !hasInlineCreative) {
+      throw new Error(`Ad "${ad.name}" is missing creative_id or object_story_spec — cannot publish without a creative`);
     }
 
     const adPayload: any = {
       name: ad.name,
       adset_id: metaAdSetId,
       status: 'PAUSED',
-      creative: { creative_id: String(creativeId) },
+      creative: creativeId
+        ? { creative_id: String(creativeId) }
+        : { object_story_spec: adData.creative.object_story_spec },
     };
 
     if (adData.tracking_specs) {

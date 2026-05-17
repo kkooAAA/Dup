@@ -43,6 +43,22 @@ export class FacebookService {
     }
   }
 
+  async getPixelId(adAccountId: string): Promise<string | null> {
+    try {
+      const response = await this.client.get(`/${adAccountId}/adspixels`, {
+        params: { fields: 'id', limit: 1 }
+      });
+      const pixelId = response.data.data?.[0]?.id || null;
+      if (!pixelId) {
+        console.warn(`[FacebookService] No pixels found for ${adAccountId}`);
+      }
+      return pixelId;
+    } catch (error: any) {
+      console.warn(`[FacebookService] Failed to fetch pixels for ${adAccountId}:`, error.response?.data?.error?.message || error.message);
+      return null;
+    }
+  }
+
   async getCampaigns(adAccountId: string) {
     const response = await this.client.get(`/${adAccountId}/campaigns`, {
       params: {
@@ -75,7 +91,38 @@ export class FacebookService {
         if (data.data) allAdSets = [...allAdSets, ...data.data];
         url = data.paging?.next || null;
       } catch (error: any) {
-        console.error(`Failed to fetch ad sets page:`, error.response?.data || error.message);
+        const errData = error.response?.data?.error || error.response?.data;
+        console.error(`Failed to fetch ad sets page:`, errData || error.message);
+        // Retry with backoff on rate limit (code 17)
+        if (errData?.code === 17) {
+          let retrySuccess = false;
+          for (const delay of [10000, 20000]) {
+            console.warn(`[FacebookService] Rate limited fetching ad sets, retrying in ${delay / 1000}s...`);
+            await new Promise(r => setTimeout(r, delay));
+            try {
+              let retryResp: any;
+              if (isFirstPage) {
+                retryResp = await this.client.get(`/${campaignId}/adsets`, {
+                  params: {
+                    fields: 'name,id,status,billing_event,optimization_goal,bid_amount,daily_budget,lifetime_budget,start_time,end_time,targeting,promoted_object,attribution_spec,optimization_sub_event,destination_type,bid_strategy',
+                    limit: 100
+                  }
+                });
+                isFirstPage = false;
+              } else {
+                retryResp = await axios.get(url!);
+              }
+              const retryData = retryResp.data;
+              if (retryData.data) allAdSets = [...allAdSets, ...retryData.data];
+              url = retryData.paging?.next || null;
+              retrySuccess = true;
+              break;
+            } catch {
+              console.error(`[FacebookService] Rate limit retry failed (waited ${delay / 1000}s)`);
+            }
+          }
+          if (retrySuccess) continue;
+        }
         break;
       }
     }
@@ -105,7 +152,29 @@ export class FacebookService {
         if (data.data) allAds = [...allAds, ...data.data];
         url = data.paging?.next || null;
       } catch (error: any) {
-        console.error(`Failed to fetch ads page:`, error.response?.data || error.message);
+        const errData = error.response?.data?.error || error.response?.data;
+        console.error(`Failed to fetch ads page:`, errData || error.message);
+        if (errData?.code === 17) {
+          console.warn(`[FacebookService] Rate limited fetching ads, retrying in 10s...`);
+          await new Promise(r => setTimeout(r, 10000));
+          try {
+            let retryResp: any;
+            if (isFirstPage) {
+              retryResp = await this.client.get(`/${adSetId}/ads`, {
+                params: { fields: 'name,id,status,creative,tracking_specs', limit: 100 }
+              });
+              isFirstPage = false;
+            } else {
+              retryResp = await axios.get(url!);
+            }
+            const retryData = retryResp.data;
+            if (retryData.data) allAds = [...allAds, ...retryData.data];
+            url = retryData.paging?.next || null;
+            continue;
+          } catch {
+            console.error(`[FacebookService] Rate limit retry failed for ads`);
+          }
+        }
         break;
       }
     }

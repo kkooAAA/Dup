@@ -258,7 +258,7 @@ export class WideCreationService {
 
           // Bid cap without bid_amount
           if (adSetFields.bid_strategy && BID_CAP_STRATEGIES.has(adSetFields.bid_strategy) && !adSetFields.bid_amount) {
-            warnings.push({
+            errors.push({
               path: adSetPath,
               field: 'bid_amount',
               message: `${adSetFields.bid_strategy} requires bid_amount`,
@@ -282,8 +282,11 @@ export class WideCreationService {
             TEMPLATE_AD_INHERITABLE,
           );
 
-          if (!adFields.creative && !adFields.name && !template.namingPattern?.ad) {
-            warnings.push({ path: adPath, message: 'Ad has no creative or name configured' });
+          if (!adFields.creative && !adFields.creative_id) {
+            errors.push({ path: adPath, field: 'creative', message: 'Creative (creative_id or object_story_spec) is required' });
+          }
+          if (!adFields.name && !template.namingPattern?.ad) {
+            warnings.push({ path: adPath, message: 'Ad has no name configured' });
           }
         }
       }

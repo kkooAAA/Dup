@@ -13,6 +13,7 @@ import {
 } from '../../src/services/draft/MetaFieldRegistry';
 
 const ALL_OBJECTIVES = Object.keys(VALID_OPTIMIZATION_GOALS);
+const AD_DEFAULTS = { ad: { creative: { creative_id: '99999' } } };
 
 // ─── Per-Objective Schema Differentiation ───
 // These tests verify that each objective produces a DIFFERENT schema with
@@ -180,6 +181,7 @@ describe('Mixed-Objective Template Validation (per-objective rules)', () => {
     const template: WideCreationTemplate = {
       name: 'Mixed',
       adAccountId: 'act_123',
+      defaults: AD_DEFAULTS,
       namingPattern: { campaign: '{objective} {index}', adSet: 'AS {index}', ad: 'Ad {index}' },
       campaigns: [
         {
@@ -222,6 +224,7 @@ describe('Mixed-Objective Template Validation (per-objective rules)', () => {
     const template: WideCreationTemplate = {
       name: 'Mismatch',
       adAccountId: 'act_123',
+      defaults: AD_DEFAULTS,
       campaigns: [
         {
           // TRAFFIC with valid goal
@@ -249,6 +252,7 @@ describe('Mixed-Objective Template Validation (per-objective rules)', () => {
     const template: WideCreationTemplate = {
       name: 'Promoted',
       adAccountId: 'act_123',
+      defaults: AD_DEFAULTS,
       campaigns: [
         {
           // TRAFFIC — does NOT require promoted_object
@@ -277,6 +281,7 @@ describe('Mixed-Objective Template Validation (per-objective rules)', () => {
     const template: WideCreationTemplate = {
       name: 'Dest',
       adAccountId: 'act_123',
+      defaults: AD_DEFAULTS,
       campaigns: [
         {
           // AWARENESS only supports UNDEFINED — WEBSITE is invalid
@@ -341,6 +346,7 @@ describe('Large Mixed-Objective Templates', () => {
     const template: WideCreationTemplate = {
       name: 'Scale Test',
       adAccountId: 'act_123',
+      defaults: AD_DEFAULTS,
       namingPattern: { campaign: '{objective} {index}', adSet: 'AS {index}', ad: 'Ad {index}' },
       campaigns: [
         ...Array.from({ length: 5 }, (_, i) => ({
@@ -385,6 +391,7 @@ describe('Large Mixed-Objective Templates', () => {
     const template: WideCreationTemplate = {
       name: 'All Objectives',
       adAccountId: 'act_123',
+      defaults: AD_DEFAULTS,
       namingPattern: { campaign: '{objective} {index}', adSet: 'AS {index}', ad: 'Ad {index}' },
       campaigns: ALL_OBJECTIVES.flatMap(obj =>
         Array.from({ length: 3 }, () => ({

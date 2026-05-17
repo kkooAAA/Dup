@@ -532,6 +532,12 @@ exports[`Ad Set Conversion Snapshots > OUTCOME_LEADS adset → OUTCOME_TRAFFIC o
 
 exports[`Ad Set Conversion Snapshots > OUTCOME_SALES adset → OUTCOME_APP_PROMOTION objective 1`] = `
 {
+  "attribution_spec": [
+    {
+      "event_type": "CLICK_THROUGH",
+      "window_days": 7,
+    },
+  ],
   "bid_amount": "2000",
   "bid_strategy": "COST_CAP",
   "billing_event": "IMPRESSIONS",
@@ -662,12 +668,6 @@ exports[`Ad Set Conversion Snapshots > OUTCOME_SALES adset → OUTCOME_LEADS obj
 
 exports[`Ad Set Conversion Snapshots > OUTCOME_SALES adset → OUTCOME_TRAFFIC objective 1`] = `
 {
-  "attribution_spec": [
-    {
-      "event_type": "CLICK_THROUGH",
-      "window_days": 7,
-    },
-  ],
   "bid_amount": "2000",
   "bid_strategy": "COST_CAP",
   "billing_event": "IMPRESSIONS",

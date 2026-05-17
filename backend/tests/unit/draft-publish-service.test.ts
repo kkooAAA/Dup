@@ -585,12 +585,12 @@ describe('DraftPublishService.publishCampaign', () => {
       .rejects.toThrow('Facebook API Error (AdSet');
   });
 
-  it('skips bid_strategy for cap strategy without bid_amount', async () => {
+  it('falls back to LOWEST_COST_WITHOUT_CAP for cap strategy without bid_amount', async () => {
     const campaign = makeDraftCampaign();
     campaign.data = { objective: 'OUTCOME_TRAFFIC', special_ad_categories: ['NONE'] };
     campaign.adSets[0].data.bid_strategy = 'COST_CAP';
     campaign.adSets[0].data.daily_budget = '3000';
-    // No bid_amount set — should skip bid_strategy entirely
+    // No bid_amount set — should fall back to LOWEST_COST_WITHOUT_CAP
     mockPrisma.draftCampaign.findUnique.mockResolvedValue(campaign);
     mockPrisma.draftCampaign.update.mockResolvedValue({});
     mockPrisma.draftAdSet.update.mockResolvedValue({});
@@ -603,7 +603,7 @@ describe('DraftPublishService.publishCampaign', () => {
 
     await DraftPublishService.publishCampaign('camp-1', 'token');
     const adSetCall = mockFbPost.mock.calls[1];
-    expect(adSetCall[1]).not.toHaveProperty('bid_strategy');
+    expect(adSetCall[1].bid_strategy).toBe('LOWEST_COST_WITHOUT_CAP');
     expect(adSetCall[1]).not.toHaveProperty('bid_amount');
   });
 

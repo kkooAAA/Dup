@@ -28,7 +28,22 @@
       "Bash(npx vitest *)",
       "Bash(grep -E \"\\\\|.*\\\\d+\\\\s*$\")",
       "Bash(npm test *)",
-      "Bash(grep -E \"\\\\|.*\\\\d+\\\\s*$|=====\")"
+      "Bash(grep -E \"\\\\|.*\\\\d+\\\\s*$|=====\")",
+      "WebFetch(domain:bir.ch)",
+      "WebFetch(domain:www.data-axle.com)",
+      "WebFetch(domain:glama.ai)",
+      "WebFetch(domain:www.jonloomer.com)",
+      "WebFetch(domain:ppc.land)",
+      "WebFetch(domain:getelevar.com)",
+      "WebFetch(domain:rboa.com)",
+      "WebFetch(domain:www.bugsyempire.com)",
+      "WebFetch(domain:sovran.ai)",
+      "WebFetch(domain:winninghunter.com)",
+      "WebFetch(domain:www.dojoai.com)",
+      "WebFetch(domain:www.adstellar.ai)",
+      "Bash(npx ts-node *)",
+      "Bash(echo \"exit: $?\")",
+      "Bash(node *)"
     ]
   }
 }

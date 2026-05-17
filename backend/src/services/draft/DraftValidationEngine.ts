@@ -133,6 +133,16 @@ export class DraftValidationEngine {
       }
     }
 
+    if (!isCBO && data.bid_strategy && BID_CAP_STRATEGIES.has(data.bid_strategy)) {
+      if (!data.bid_amount && !data.bid_constraints) {
+        errors.push({
+          field: 'bid_amount',
+          message: `${data.bid_strategy} requires bid_amount or bid_constraints`,
+          severity: 'error',
+        });
+      }
+    }
+
     if (campaignObjective && data.attribution_spec) {
       if (!ATTRIBUTION_SPEC_OBJECTIVES.has(campaignObjective)) {
         errors.push({
@@ -197,8 +207,8 @@ export class DraftValidationEngine {
 
     if (!data.creative) {
       errors.push({ field: 'creative', message: 'Creative is required', severity: 'error' });
-    } else if (!data.creative.id && !data.creative.creative_id) {
-      errors.push({ field: 'creative', message: 'Creative must have a valid creative_id', severity: 'error' });
+    } else if (!data.creative.id && !data.creative.creative_id && !data.creative.object_story_spec) {
+      errors.push({ field: 'creative', message: 'Creative must have a creative_id or object_story_spec', severity: 'error' });
     }
 
     return errors;
@@ -220,7 +230,6 @@ export class DraftValidationEngine {
       const campaignData = campaign.data as any;
       const campaignObjective = campaignData?.objective || campaign.objective;
       const isCBO = !!(campaignData.daily_budget || campaignData.lifetime_budget);
-
       for (const adSet of campaign.adSets) {
         const errors = await this.validateAdSet(adSet, campaignObjective, isCBO);
         adSetErrors[adSet.id] = errors;

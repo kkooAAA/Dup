@@ -212,6 +212,18 @@ export class ObjectiveConversionService {
       payload.destination_type = 'WEBSITE';
     } else if (targetObjective === 'OUTCOME_TRAFFIC') {
       payload.destination_type = 'WEBSITE';
+    } else if (targetObjective === 'OUTCOME_ENGAGEMENT') {
+      if (optimization_goal === 'POST_ENGAGEMENT') {
+        payload.destination_type = 'ON_POST';
+      } else if (optimization_goal === 'VIDEO_VIEWS' || optimization_goal === 'THRUPLAY') {
+        payload.destination_type = 'ON_VIDEO';
+      } else if (optimization_goal === 'MESSAGES') {
+        payload.destination_type = 'FACEBOOK';
+      } else {
+        payload.destination_type = 'WEBSITE';
+      }
+    } else if (targetObjective === 'OUTCOME_SALES') {
+      payload.destination_type = 'WEBSITE';
     } else if (data.destination_type && data.destination_type !== 'UNDEFINED') {
       payload.destination_type = String(data.destination_type);
     }

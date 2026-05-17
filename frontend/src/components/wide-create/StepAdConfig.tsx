@@ -45,7 +45,132 @@ export function StepAdConfig() {
 
   return (
     <div className="space-y-4">
-      {/* Objective tabs */}
+      {/* Default Creative — applies to all ads */}
+      <Card className="bg-gray-900 border-gray-800">
+        <CardHeader className="pb-2">
+          <CardTitle className="text-sm font-medium text-gray-300 flex items-center gap-2">
+            <ImageIcon className="w-4 h-4 text-blue-400" />
+            Default Creative
+            <Badge variant="outline" className="text-[10px] text-blue-400 border-blue-400/30 ml-auto">
+              All ads
+            </Badge>
+          </CardTitle>
+          <p className="text-[10px] text-gray-500">
+            Applied to every ad that doesn't have its own creative set below
+          </p>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <div className="flex items-center gap-1 mb-2">
+            <button
+              onClick={() => setCreativeMode("id")}
+              className={`px-2 py-1 rounded text-[10px] ${
+                creativeMode === "id"
+                  ? "bg-blue-600/20 text-blue-400"
+                  : "text-gray-500 hover:text-gray-300"
+              }`}
+            >
+              Existing ID
+            </button>
+            <button
+              onClick={() => setCreativeMode("inline")}
+              className={`px-2 py-1 rounded text-[10px] ${
+                creativeMode === "inline"
+                  ? "bg-blue-600/20 text-blue-400"
+                  : "text-gray-500 hover:text-gray-300"
+              }`}
+            >
+              Inline
+            </button>
+          </div>
+          {creativeMode === "id" ? (
+            <div>
+              <Label className="text-xs text-gray-500">Creative ID (reuse existing)</Label>
+              <Input
+                value={store.defaultCreative?.creative_id || ""}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  store.setDefaultCreative(val ? { creative_id: val } : null);
+                }}
+                placeholder="Enter creative_id to reuse"
+                className="bg-gray-800 border-gray-700 mt-1"
+              />
+              <p className="text-[10px] text-gray-600 mt-1">
+                Reuses an existing creative to preserve social proof (likes, comments, shares)
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              <div>
+                <Label className="text-xs text-gray-500">Page ID</Label>
+                <Input
+                  value={store.defaultCreative?.object_story_spec?.page_id || ""}
+                  onChange={(e) => store.setDefaultCreative({
+                    object_story_spec: {
+                      ...store.defaultCreative?.object_story_spec,
+                      page_id: e.target.value,
+                    },
+                  })}
+                  placeholder="Facebook Page ID"
+                  className="bg-gray-800 border-gray-700 mt-1"
+                />
+              </div>
+              <div>
+                <Label className="text-xs text-gray-500">Primary Text</Label>
+                <Input
+                  value={store.defaultCreative?.object_story_spec?.link_data?.message || ""}
+                  onChange={(e) => store.setDefaultCreative({
+                    object_story_spec: {
+                      ...store.defaultCreative?.object_story_spec,
+                      link_data: {
+                        ...store.defaultCreative?.object_story_spec?.link_data,
+                        message: e.target.value,
+                      },
+                    },
+                  })}
+                  placeholder="Ad copy text"
+                  className="bg-gray-800 border-gray-700 mt-1"
+                />
+              </div>
+              <div>
+                <Label className="text-xs text-gray-500">Link URL</Label>
+                <Input
+                  value={store.defaultCreative?.object_story_spec?.link_data?.link || ""}
+                  onChange={(e) => store.setDefaultCreative({
+                    object_story_spec: {
+                      ...store.defaultCreative?.object_story_spec,
+                      link_data: {
+                        ...store.defaultCreative?.object_story_spec?.link_data,
+                        link: e.target.value,
+                      },
+                    },
+                  })}
+                  placeholder="https://example.com"
+                  className="bg-gray-800 border-gray-700 mt-1"
+                />
+              </div>
+              <div>
+                <Label className="text-xs text-gray-500">Image URL</Label>
+                <Input
+                  value={store.defaultCreative?.object_story_spec?.link_data?.picture || ""}
+                  onChange={(e) => store.setDefaultCreative({
+                    object_story_spec: {
+                      ...store.defaultCreative?.object_story_spec,
+                      link_data: {
+                        ...store.defaultCreative?.object_story_spec?.link_data,
+                        picture: e.target.value,
+                      },
+                    },
+                  })}
+                  placeholder="https://example.com/image.jpg"
+                  className="bg-gray-800 border-gray-700 mt-1"
+                />
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Per-objective overrides */}
       <div className="flex items-center gap-2 flex-wrap">
         {objectives.map((obj) => {
           const count = store.getCampaignsByObjective(obj).reduce(
@@ -74,118 +199,26 @@ export function StepAdConfig() {
         <Copy className="w-3 h-3" />
       </div>
 
-      {/* Creative Configuration */}
+      {/* Per-objective Creative Override */}
       <Card className="bg-gray-900 border-gray-800">
         <CardHeader className="pb-2">
-          <div className="flex items-center justify-between">
-            <CardTitle className="text-sm font-medium text-gray-300">Creative</CardTitle>
-            <div className="flex items-center gap-1">
-              <button
-                onClick={() => setCreativeMode("id")}
-                className={`px-2 py-1 rounded text-[10px] ${
-                  creativeMode === "id"
-                    ? "bg-blue-600/20 text-blue-400"
-                    : "text-gray-500 hover:text-gray-300"
-                }`}
-              >
-                Existing ID
-              </button>
-              <button
-                onClick={() => setCreativeMode("inline")}
-                className={`px-2 py-1 rounded text-[10px] ${
-                  creativeMode === "inline"
-                    ? "bg-blue-600/20 text-blue-400"
-                    : "text-gray-500 hover:text-gray-300"
-                }`}
-              >
-                Inline
-              </button>
-            </div>
-          </div>
+          <CardTitle className="text-sm font-medium text-gray-300">
+            Creative Override ({OBJECTIVE_LABELS[activeObjective]})
+          </CardTitle>
+          <p className="text-[10px] text-gray-500">
+            Optional — overrides the default creative for this objective's ads only
+          </p>
         </CardHeader>
         <CardContent className="space-y-3">
-          {creativeMode === "id" ? (
-            <div>
-              <Label className="text-xs text-gray-500">Creative ID (reuse existing)</Label>
-              <Input
-                value={firstAd?.fields.creative?.creative_id || ""}
-                onChange={(e) => handleChange("creative", { creative_id: e.target.value })}
-                placeholder="Enter creative_id to reuse"
-                className="bg-gray-800 border-gray-700 mt-1"
-              />
-              <p className="text-[10px] text-gray-600 mt-1">
-                Reuses an existing creative to preserve social proof (likes, comments, shares)
-              </p>
-            </div>
-          ) : (
-            <div className="space-y-3">
-              <div>
-                <Label className="text-xs text-gray-500">Page ID</Label>
-                <Input
-                  value={firstAd?.fields.creative?.object_story_spec?.page_id || ""}
-                  onChange={(e) => handleChange("creative", {
-                    object_story_spec: {
-                      ...firstAd?.fields.creative?.object_story_spec,
-                      page_id: e.target.value,
-                    },
-                  })}
-                  placeholder="Facebook Page ID"
-                  className="bg-gray-800 border-gray-700 mt-1"
-                />
-              </div>
-              <div>
-                <Label className="text-xs text-gray-500">Primary Text</Label>
-                <Input
-                  value={firstAd?.fields.creative?.object_story_spec?.link_data?.message || ""}
-                  onChange={(e) => handleChange("creative", {
-                    object_story_spec: {
-                      ...firstAd?.fields.creative?.object_story_spec,
-                      link_data: {
-                        ...firstAd?.fields.creative?.object_story_spec?.link_data,
-                        message: e.target.value,
-                      },
-                    },
-                  })}
-                  placeholder="Ad copy text"
-                  className="bg-gray-800 border-gray-700 mt-1"
-                />
-              </div>
-              <div>
-                <Label className="text-xs text-gray-500">Link URL</Label>
-                <Input
-                  value={firstAd?.fields.creative?.object_story_spec?.link_data?.link || ""}
-                  onChange={(e) => handleChange("creative", {
-                    object_story_spec: {
-                      ...firstAd?.fields.creative?.object_story_spec,
-                      link_data: {
-                        ...firstAd?.fields.creative?.object_story_spec?.link_data,
-                        link: e.target.value,
-                      },
-                    },
-                  })}
-                  placeholder="https://example.com"
-                  className="bg-gray-800 border-gray-700 mt-1"
-                />
-              </div>
-              <div>
-                <Label className="text-xs text-gray-500">Image URL</Label>
-                <Input
-                  value={firstAd?.fields.creative?.object_story_spec?.link_data?.picture || ""}
-                  onChange={(e) => handleChange("creative", {
-                    object_story_spec: {
-                      ...firstAd?.fields.creative?.object_story_spec,
-                      link_data: {
-                        ...firstAd?.fields.creative?.object_story_spec?.link_data,
-                        picture: e.target.value,
-                      },
-                    },
-                  })}
-                  placeholder="https://example.com/image.jpg"
-                  className="bg-gray-800 border-gray-700 mt-1"
-                />
-              </div>
-            </div>
-          )}
+          <div>
+            <Label className="text-xs text-gray-500">Creative ID</Label>
+            <Input
+              value={firstAd?.fields.creative?.creative_id || ""}
+              onChange={(e) => handleChange("creative", e.target.value ? { creative_id: e.target.value } : undefined)}
+              placeholder="Leave empty to use default creative"
+              className="bg-gray-800 border-gray-700 mt-1"
+            />
+          </div>
         </CardContent>
       </Card>
 

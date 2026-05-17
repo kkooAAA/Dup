@@ -13,6 +13,7 @@ import {
 } from '../../src/services/draft/MetaFieldRegistry';
 
 const ALL_OBJECTIVES = Object.keys(VALID_OPTIMIZATION_GOALS);
+const AD_DEFAULTS = { ad: { creative: { creative_id: '99999' } } };
 
 // ─── Template Validation ───
 
@@ -22,6 +23,7 @@ describe('WideCreationService.validateTemplate', () => {
     const template: WideCreationTemplate = {
       name: 'Test Template',
       adAccountId: 'act_123456',
+      defaults: AD_DEFAULTS,
       campaigns: [{
         fields: { objective: 'OUTCOME_TRAFFIC', name: 'Campaign 1' },
         adSetCount: 1,
@@ -103,6 +105,7 @@ describe('WideCreationService.validateTemplate', () => {
     const template: WideCreationTemplate = {
       name: 'Pattern',
       adAccountId: 'act_123',
+      defaults: AD_DEFAULTS,
       namingPattern: { campaign: '{objective}_{index:02d}' },
       campaigns: [{
         fields: { objective: 'OUTCOME_TRAFFIC' },
@@ -119,6 +122,7 @@ describe('WideCreationService.validateTemplate', () => {
       const template: WideCreationTemplate = {
         name: `${objective} test`,
         adAccountId: 'act_123',
+        defaults: AD_DEFAULTS,
         campaigns: [{
           fields: { objective, name: `${objective} Campaign` },
           adSetCount: 1,
@@ -237,10 +241,11 @@ describe('WideCreationService.validateTemplate', () => {
     }
   });
 
-  it('warns about bid_cap strategy without bid_amount', () => {
+  it('errors on bid_cap strategy without bid_amount', () => {
     const template: WideCreationTemplate = {
       name: 'Bid Cap',
       adAccountId: 'act_123',
+      defaults: AD_DEFAULTS,
       campaigns: [{
         fields: { objective: 'OUTCOME_TRAFFIC', name: 'C' },
         adSetCount: 0,
@@ -251,7 +256,8 @@ describe('WideCreationService.validateTemplate', () => {
       }],
     };
     const result = WideCreationService.validateTemplate(template);
-    expect(result.warnings.some(w => w.message.includes('bid_amount'))).toBe(true);
+    expect(result.valid).toBe(false);
+    expect(result.errors.some(e => e.message.includes('bid_amount'))).toBe(true);
   });
 
   it('counts total entities correctly', () => {
@@ -363,6 +369,7 @@ describe('Template Defaults Inheritance', () => {
           objective: 'OUTCOME_TRAFFIC',
           bid_strategy: 'LOWEST_COST_WITHOUT_CAP',
         },
+        ...AD_DEFAULTS,
       },
       namingPattern: { campaign: 'C_{index}' },
       campaigns: [
@@ -384,6 +391,7 @@ describe('Template Defaults Inheritance', () => {
           billing_event: 'IMPRESSIONS',
           targeting: { geo_locations: { countries: ['US'] } },
         },
+        ...AD_DEFAULTS,
       },
       campaigns: [{
         fields: { objective: 'OUTCOME_TRAFFIC', name: 'C' },
@@ -404,6 +412,7 @@ describe('Template Defaults Inheritance', () => {
       adAccountId: 'act_123',
       defaults: {
         campaign: { objective: 'OUTCOME_TRAFFIC' },
+        ...AD_DEFAULTS,
       },
       campaigns: [{
         fields: { objective: 'OUTCOME_SALES', name: 'Sales C' },
@@ -422,6 +431,7 @@ describe('Naming Pattern Resolution', () => {
     const template: WideCreationTemplate = {
       name: 'Pattern Test',
       adAccountId: 'act_123',
+      defaults: AD_DEFAULTS,
       namingPattern: {
         campaign: '{objective} Campaign {index:02d}',
         adSet: 'AdSet {index} of {total}',
@@ -476,6 +486,7 @@ describe('Large Structure Validation', () => {
     const template: WideCreationTemplate = {
       name: 'Large',
       adAccountId: 'act_123',
+      defaults: AD_DEFAULTS,
       namingPattern: { adSet: 'AS_{index}', ad: 'Ad_{index}' },
       campaigns,
     };
@@ -500,6 +511,7 @@ describe('Large Structure Validation', () => {
     const template: WideCreationTemplate = {
       name: 'Perf',
       adAccountId: 'act_123',
+      defaults: AD_DEFAULTS,
       namingPattern: { adSet: 'AS_{index}', ad: 'Ad_{index}' },
       campaigns,
     };
@@ -533,6 +545,7 @@ describe('Cross-Objective Wide Creation', () => {
     const template: WideCreationTemplate = {
       name: 'All Objectives',
       adAccountId: 'act_123',
+      defaults: AD_DEFAULTS,
       namingPattern: { ad: '{parent} Ad {index}' },
       campaigns,
     };
@@ -560,6 +573,7 @@ describe('Wide Creation Budget Combinations', () => {
         const template: WideCreationTemplate = {
           name: 'Budget',
           adAccountId: 'act_123',
+          defaults: AD_DEFAULTS,
           campaigns: [{
             fields: { objective, name: 'C', ...budgetConfig.campaignBudget },
             adSetCount: 0,

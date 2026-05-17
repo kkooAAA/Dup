@@ -108,34 +108,58 @@ export class DraftService {
       }
     });
 
-    // 4. Fetch and transform Ad Sets
+    // 4. Fetch pixel_id for objectives that require it
+    let pixelId: string | undefined;
+    const NEEDS_PIXEL = new Set(['OUTCOME_SALES']);
+    if (NEEDS_PIXEL.has(targetObjective)) {
+      pixelId = await fbService.getPixelId(normalizedAccountId) || undefined;
+      if (pixelId) {
+        console.log(`[DraftService] Found pixel_id ${pixelId} for ${targetObjective} conversion`);
+      }
+    }
+
+    // 5. Fetch and transform Ad Sets (getAdSets already returns all needed fields)
     const adSets = await fbService.getAdSets(campaignId);
 
-    for (const adSet of adSets) {
-      const fullAdSet = await fbService.get(`/${adSet.id}`, {
-        fields: 'name,billing_event,optimization_goal,bid_amount,daily_budget,lifetime_budget,start_time,end_time,targeting,promoted_object,attribution_spec,destination_type,bid_strategy'
-      });
-      const adSetData = fullAdSet.data;
+    // If pixel_id not found from account, try to find it from source ad sets
+    if (NEEDS_PIXEL.has(targetObjective) && !pixelId) {
+      for (const adSet of adSets) {
+        const foundPixel = adSet.promoted_object?.pixel_id;
+        if (foundPixel) {
+          pixelId = foundPixel;
+          console.log(`[DraftService] Found pixel_id ${pixelId} from source ad set ${adSet.id}`);
+          break;
+        }
+      }
+      if (!pixelId) {
+        console.warn(`[DraftService] No pixel_id found for ${targetObjective} — promoted_object will be incomplete. Edit the draft to add pixel_id before publishing.`);
+      }
+    }
 
-      // Try to find page_id
+    for (const adSet of adSets) {
+      const adSetData = adSet; // getAdSets already fetches full fields
+
+      // Try to find page_id from promoted_object or creative
       let pageId: string | undefined = adSetData.promoted_object?.page_id;
       if (!pageId) {
         try {
           const ads = await fbService.getAds(adSet.id);
-          if (ads.length > 0) {
-            const adResp = await fbService.get(`/${ads[0].id}`, { fields: 'creative' });
-            const creativeId = adResp.data.creative?.id;
-            if (creativeId) {
-              const creativeResp = await fbService.get(`/${creativeId}`, {
-                fields: 'object_id,actor_id,object_story_spec'
-              });
-              const cr = creativeResp.data;
-              pageId = cr.object_id || cr.actor_id || cr.object_story_spec?.page_id;
-            }
+          if (ads.length > 0 && ads[0].creative?.id) {
+            const creativeResp = await fbService.get(`/${ads[0].creative.id}`, {
+              fields: 'object_id,actor_id,object_story_spec'
+            });
+            const cr = creativeResp.data;
+            pageId = cr.object_id || cr.actor_id || cr.object_story_spec?.page_id;
           }
         } catch (e) {
           console.warn(`[DraftService] Could not find page_id for ad set ${adSet.id}`);
         }
+      }
+
+      // Inject pixel_id into adSetData for conversion if needed
+      if (pixelId && NEEDS_PIXEL.has(targetObjective)) {
+        if (!adSetData.promoted_object) adSetData.promoted_object = {};
+        adSetData.promoted_object.pixel_id = pixelId;
       }
 
       const transformedAdSet = conversionService.transformAdSet(
@@ -157,16 +181,13 @@ export class DraftService {
         }
       });
 
-      // 5. Fetch and transform Ads
+      // 6. Fetch and transform Ads (getAds already returns creative+tracking_specs)
       const ads = await fbService.getAds(adSet.id);
       for (const ad of ads) {
-        const fullAd = await fbService.get(`/${ad.id}`, {
-          fields: 'name,creative,tracking_specs'
-        });
         const transformedAd = conversionService.transformAd(
-          fullAd.data,
+          ad,
           targetObjective,
-          `${fullAd.data.name || 'Ad'} - Converted`,
+          `${ad.name || 'Ad'} - Converted`,
           'PENDING_ADSET_ID' // replaced at publish time
         );
 

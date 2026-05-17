@@ -189,6 +189,7 @@ describe('Wide Creation Inheritance Scenarios', () => {
       adAccountId: 'act_123',
       defaults: {
         adSet: { optimization_goal: 'LINK_CLICKS' },
+        ad: { creative: { creative_id: '99999' } },
       },
       campaigns: [{
         fields: { objective: 'OUTCOME_TRAFFIC', name: 'C' },
@@ -213,10 +214,11 @@ describe('Wide Creation Budget×Bid Combinatorial', () => {
     for (const bidStrategy of bidStrategies) {
       const requiresBidAmount = BID_CAP_STRATEGIES.has(bidStrategy);
 
-      it(`${objective} / ${bidStrategy} ${requiresBidAmount ? '(warns about bid_amount)' : '(no warnings)'}`, () => {
+      it(`${objective} / ${bidStrategy} ${requiresBidAmount ? '(errors on missing bid_amount)' : '(valid)'}`, () => {
         const template: WideCreationTemplate = {
           name: 'Bid Test',
           adAccountId: 'act_123',
+          defaults: { ad: { creative: { creative_id: '99999' } } },
           campaigns: [{
             fields: { objective, name: 'C' },
             adSetCount: 0,
@@ -233,9 +235,11 @@ describe('Wide Creation Budget×Bid Combinatorial', () => {
           }],
         };
         const result = WideCreationService.validateTemplate(template);
-        expect(result.valid).toBe(true);
         if (requiresBidAmount) {
-          expect(result.warnings.some(w => w.message.includes('bid_amount'))).toBe(true);
+          expect(result.valid).toBe(false);
+          expect(result.errors.some(e => e.message.includes('bid_amount'))).toBe(true);
+        } else {
+          expect(result.valid).toBe(true);
         }
       });
     }
@@ -251,6 +255,7 @@ describe('Wide Creation Attribution Spec', () => {
       const template: WideCreationTemplate = {
         name: 'Attr',
         adAccountId: 'act_123',
+        defaults: { ad: { creative: { creative_id: '99999' } } },
         campaigns: [{
           fields: { objective, name: 'C' },
           adSetCount: 0,

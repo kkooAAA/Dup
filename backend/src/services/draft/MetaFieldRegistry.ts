@@ -100,11 +100,12 @@ export const ADSET_FIELDS: Record<string, FieldConfig> = {
   billing_event: {
     mutability: 'mutable', required: true, type: 'enum',
     label: 'Billing Event',
-    enumValues: ['IMPRESSIONS', 'LINK_CLICKS', 'APP_INSTALLS', 'THRUPLAY', 'POST_ENGAGEMENT'],
+    enumValues: ['IMPRESSIONS', 'LINK_CLICKS', 'APP_INSTALLS', 'THRUPLAY', 'POST_ENGAGEMENT', 'PAGE_LIKES', 'PURCHASE', 'CLICKS'],
     enumLabels: {
       IMPRESSIONS: 'Impressions', LINK_CLICKS: 'Link Clicks',
       APP_INSTALLS: 'App Installs', THRUPLAY: 'ThruPlay',
-      POST_ENGAGEMENT: 'Post Engagement',
+      POST_ENGAGEMENT: 'Post Engagement', PAGE_LIKES: 'Page Likes',
+      PURCHASE: 'Purchase', CLICKS: 'Clicks',
     },
   },
   destination_type: {
@@ -194,9 +195,9 @@ export const VALID_OPTIMIZATION_GOALS: Record<string, string[]> = {
   OUTCOME_AWARENESS:     ['REACH', 'IMPRESSIONS', 'AD_RECALL_LIFT', 'THRUPLAY'],
   OUTCOME_TRAFFIC:       ['LINK_CLICKS', 'LANDING_PAGE_VIEWS', 'REACH', 'IMPRESSIONS', 'OFFSITE_CONVERSIONS'],
   OUTCOME_ENGAGEMENT:    ['POST_ENGAGEMENT', 'VIDEO_VIEWS', 'THRUPLAY', 'MESSAGES', 'REACH', 'IMPRESSIONS'],
-  OUTCOME_LEADS:         ['LEAD_GENERATION', 'OFFSITE_CONVERSIONS', 'LINK_CLICKS', 'QUALITY_LEAD'],
-  OUTCOME_SALES:         ['OFFSITE_CONVERSIONS', 'VALUE', 'LINK_CLICKS'],
-  OUTCOME_APP_PROMOTION: ['APP_INSTALLS', 'LINK_CLICKS', 'OFFSITE_CONVERSIONS', 'VALUE'],
+  OUTCOME_LEADS:         ['LEAD_GENERATION', 'OFFSITE_CONVERSIONS', 'LINK_CLICKS', 'QUALITY_LEAD', 'QUALITY_CALL'],
+  OUTCOME_SALES:         ['OFFSITE_CONVERSIONS', 'VALUE', 'LINK_CLICKS', 'CONVERSATIONS'],
+  OUTCOME_APP_PROMOTION: ['APP_INSTALLS', 'LINK_CLICKS', 'OFFSITE_CONVERSIONS', 'VALUE', 'APP_INSTALLS_AND_OFFSITE_CONVERSIONS'],
 };
 
 export const OPTIMIZATION_GOAL_LABELS: Record<string, string> = {
@@ -205,14 +206,16 @@ export const OPTIMIZATION_GOAL_LABELS: Record<string, string> = {
   LANDING_PAGE_VIEWS: 'Landing Page Views', OFFSITE_CONVERSIONS: 'Conversions',
   POST_ENGAGEMENT: 'Post Engagement', VIDEO_VIEWS: 'Video Views',
   MESSAGES: 'Messages', LEAD_GENERATION: 'Lead Generation',
-  QUALITY_LEAD: 'Quality Lead', VALUE: 'Value',
+  QUALITY_LEAD: 'Quality Lead', QUALITY_CALL: 'Quality Call',
+  VALUE: 'Value', CONVERSATIONS: 'Conversations',
   APP_INSTALLS: 'App Installs',
+  APP_INSTALLS_AND_OFFSITE_CONVERSIONS: 'App Installs & Conversions',
 };
 
 export const VALID_DESTINATION_TYPES: Record<string, string[]> = {
   OUTCOME_AWARENESS:     ['UNDEFINED'],
   OUTCOME_TRAFFIC:       ['WEBSITE', 'APP', 'MESSENGER', 'WHATSAPP', 'INSTAGRAM_DIRECT'],
-  OUTCOME_ENGAGEMENT:    ['WEBSITE', 'ON_POST', 'ON_VIDEO', 'FACEBOOK', 'INSTAGRAM_DIRECT'],
+  OUTCOME_ENGAGEMENT:    ['WEBSITE', 'ON_POST', 'ON_VIDEO', 'ON_PAGE', 'ON_EVENT', 'FACEBOOK', 'INSTAGRAM_DIRECT'],
   OUTCOME_LEADS:         ['WEBSITE', 'ON_AD', 'MESSENGER', 'INSTAGRAM_DIRECT', 'WHATSAPP'],
   OUTCOME_SALES:         ['WEBSITE', 'APP', 'MESSENGER', 'WHATSAPP', 'SHOP_AUTOMATIC'],
   OUTCOME_APP_PROMOTION: ['APP', 'UNDEFINED'],
@@ -222,7 +225,8 @@ export const DESTINATION_TYPE_LABELS: Record<string, string> = {
   UNDEFINED: 'Default', WEBSITE: 'Website', APP: 'App',
   MESSENGER: 'Messenger', WHATSAPP: 'WhatsApp',
   INSTAGRAM_DIRECT: 'Instagram DM', ON_AD: 'Instant Form',
-  ON_POST: 'On Post', ON_VIDEO: 'On Video', FACEBOOK: 'Facebook',
+  ON_POST: 'On Post', ON_VIDEO: 'On Video', ON_PAGE: 'On Page',
+  ON_EVENT: 'On Event', FACEBOOK: 'Facebook',
   SHOP_AUTOMATIC: 'Shop', APPLINKS_AUTOMATIC: 'App Links',
 };
 
@@ -236,11 +240,11 @@ export const PROMOTED_OBJECT_REQUIREMENTS: Record<string, string[]> = {
 };
 
 export const ATTRIBUTION_SPEC_OBJECTIVES = new Set([
-  'OUTCOME_SALES', 'OUTCOME_LEADS', 'OUTCOME_TRAFFIC',
+  'OUTCOME_SALES', 'OUTCOME_LEADS', 'OUTCOME_APP_PROMOTION',
 ]);
 
 export const BID_CAP_STRATEGIES = new Set([
-  'LOWEST_COST_WITH_BID_CAP', 'COST_CAP', 'TARGET_COST', 'LOWEST_COST_WITH_MIN_ROAS',
+  'LOWEST_COST_WITH_BID_CAP', 'COST_CAP', 'LOWEST_COST_WITH_MIN_ROAS',
 ]);
 
 // ─── Objective conversion defaults ───
@@ -274,6 +278,9 @@ export const OPTIMIZATION_GOAL_MIGRATION: Record<string, string> = {
   VALUE:               'VALUE',
   AD_RECALL_LIFT:      'REACH',
   QUALITY_LEAD:        'LEAD_GENERATION',
+  QUALITY_CALL:        'LEAD_GENERATION',
+  CONVERSATIONS:       'OFFSITE_CONVERSIONS',
+  APP_INSTALLS_AND_OFFSITE_CONVERSIONS: 'APP_INSTALLS',
 };
 
 // ─── Derived lists ───
