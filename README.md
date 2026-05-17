@@ -15,7 +15,7 @@ A modern full-stack web application for duplicating, converting, and managing Fa
 - **Creative Reuse**: Reuses original `creative_id` to preserve social proof (likes, comments, shares).
 - **Naming Patterns**: Customize the name of duplicated objects using templates.
 - **Audit Log**: Keep track of all duplication jobs and their status.
-- **Automated Testing**: 1252 auto-generated tests with 99.38% line coverage and Meta API drift detection.
+- **Automated Testing**: 1267 auto-generated tests with 99.38% line coverage and Meta API drift detection.
 
 ## Tech Stack
 
@@ -25,9 +25,14 @@ A modern full-stack web application for duplicating, converting, and managing Fa
 - **Authentication**: Facebook OAuth 2.0
 - **API**: Meta Marketing API v21.0
 
+## Documentation
+
+Full project documentation is available in the [wiki/](wiki/) directory, covering architecture, service internals, domain concepts, API reference, and testing strategy. See [wiki/index.md](wiki/index.md) for the complete table of contents.
+
 ## Project Structure
 
 ```
+├── wiki/                # Project documentation wiki
 ├── backend/
 │   ├── prisma/              # Database schema and migrations
 │   ├── src/
@@ -108,7 +113,7 @@ A modern full-stack web application for duplicating, converting, and managing Fa
 
 ```bash
 cd backend
-npm test              # Run all tests (1252 tests, ~1s)
+npm test              # Run all tests (1267 tests, ~1s)
 npm run test:watch    # Watch mode for development
 npm run test:coverage # With v8 coverage report (98.85% statements, 99.38% lines, 100% functions)
 npm run test:drift    # Live Meta API drift detection (needs META_ACCESS_TOKEN)

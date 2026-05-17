@@ -23,7 +23,7 @@ frontend/        Next.js (App Router) + TypeScript client
 ```bash
 cd backend
 npm run dev          # Start dev server (port 5000)
-npm test             # Run all 1252 tests (~1s)
+npm test             # Run all 1267 tests (~1s)
 npm run test:coverage  # Coverage report
 ```
 
