@@ -226,6 +226,8 @@ export class ObjectiveConversionService {
       }
     } else if (targetObjective === 'OUTCOME_SALES') {
       payload.destination_type = 'WEBSITE';
+    } else if (targetObjective === 'OUTCOME_APP_PROMOTION') {
+      payload.destination_type = 'APP';
     } else if (data.destination_type && data.destination_type !== 'UNDEFINED') {
       payload.destination_type = String(data.destination_type);
     }
@@ -252,7 +254,18 @@ export class ObjectiveConversionService {
         if (pageId) {
           payload.promoted_object = { page_id: String(pageId) };
         } else if (!payload.promoted_object?.page_id) {
-          // No page_id available at all — remove promoted_object to avoid bad data
+          delete payload.promoted_object;
+        }
+      }
+      // APP_PROMOTION needs application_id + object_store_url — source page_id is invalid
+      if (targetObjective === 'OUTCOME_APP_PROMOTION') {
+        const appId = data.promoted_object?.application_id;
+        if (appId) {
+          payload.promoted_object = {
+            application_id: String(appId),
+            object_store_url: data.promoted_object?.object_store_url || undefined,
+          };
+        } else {
           delete payload.promoted_object;
         }
       }
