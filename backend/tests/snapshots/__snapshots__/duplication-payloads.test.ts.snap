@@ -42,7 +42,7 @@ exports[`Ad Set Conversion Snapshots > OUTCOME_APP_PROMOTION adset → OUTCOME_A
   },
   "targeting": {
     "age_max": 35,
-    "age_min": 18,
+    "age_min": 20,
     "geo_locations": {
       "countries": [
         "TH",
@@ -67,7 +67,7 @@ exports[`Ad Set Conversion Snapshots > OUTCOME_APP_PROMOTION adset → OUTCOME_E
   },
   "targeting": {
     "age_max": 35,
-    "age_min": 18,
+    "age_min": 20,
     "geo_locations": {
       "countries": [
         "TH",
@@ -92,7 +92,7 @@ exports[`Ad Set Conversion Snapshots > OUTCOME_APP_PROMOTION adset → OUTCOME_L
   },
   "targeting": {
     "age_max": 35,
-    "age_min": 18,
+    "age_min": 20,
     "geo_locations": {
       "countries": [
         "TH",
@@ -117,7 +117,7 @@ exports[`Ad Set Conversion Snapshots > OUTCOME_APP_PROMOTION adset → OUTCOME_S
   },
   "targeting": {
     "age_max": 35,
-    "age_min": 18,
+    "age_min": 20,
     "geo_locations": {
       "countries": [
         "TH",
@@ -142,7 +142,7 @@ exports[`Ad Set Conversion Snapshots > OUTCOME_APP_PROMOTION adset → OUTCOME_T
   },
   "targeting": {
     "age_max": 35,
-    "age_min": 18,
+    "age_min": 20,
     "geo_locations": {
       "countries": [
         "TH",
@@ -163,7 +163,7 @@ exports[`Ad Set Conversion Snapshots > OUTCOME_AWARENESS adset → OUTCOME_APP_P
   "optimization_goal": "APP_INSTALLS",
   "targeting": {
     "age_max": 65,
-    "age_min": 18,
+    "age_min": 20,
     "geo_locations": {
       "countries": [
         "TH",
@@ -186,7 +186,7 @@ exports[`Ad Set Conversion Snapshots > OUTCOME_AWARENESS adset → OUTCOME_ENGAG
   "optimization_goal": "REACH",
   "targeting": {
     "age_max": 65,
-    "age_min": 18,
+    "age_min": 20,
     "geo_locations": {
       "countries": [
         "TH",
@@ -209,7 +209,7 @@ exports[`Ad Set Conversion Snapshots > OUTCOME_AWARENESS adset → OUTCOME_LEADS
   "optimization_goal": "LEAD_GENERATION",
   "targeting": {
     "age_max": 65,
-    "age_min": 18,
+    "age_min": 20,
     "geo_locations": {
       "countries": [
         "TH",
@@ -232,7 +232,7 @@ exports[`Ad Set Conversion Snapshots > OUTCOME_AWARENESS adset → OUTCOME_SALES
   "optimization_goal": "OFFSITE_CONVERSIONS",
   "targeting": {
     "age_max": 65,
-    "age_min": 18,
+    "age_min": 20,
     "geo_locations": {
       "countries": [
         "TH",
@@ -255,7 +255,7 @@ exports[`Ad Set Conversion Snapshots > OUTCOME_AWARENESS adset → OUTCOME_TRAFF
   "optimization_goal": "REACH",
   "targeting": {
     "age_max": 65,
-    "age_min": 18,
+    "age_min": 20,
     "geo_locations": {
       "countries": [
         "TH",
@@ -281,7 +281,7 @@ exports[`Ad Set Conversion Snapshots > OUTCOME_ENGAGEMENT adset → OUTCOME_APP_
   },
   "targeting": {
     "age_max": 55,
-    "age_min": 18,
+    "age_min": 20,
     "geo_locations": {
       "countries": [
         "TH",
@@ -302,7 +302,7 @@ exports[`Ad Set Conversion Snapshots > OUTCOME_ENGAGEMENT adset → OUTCOME_AWAR
   },
   "targeting": {
     "age_max": 55,
-    "age_min": 18,
+    "age_min": 20,
     "geo_locations": {
       "countries": [
         "TH",
@@ -323,7 +323,7 @@ exports[`Ad Set Conversion Snapshots > OUTCOME_ENGAGEMENT adset → OUTCOME_LEAD
   },
   "targeting": {
     "age_max": 55,
-    "age_min": 18,
+    "age_min": 20,
     "geo_locations": {
       "countries": [
         "TH",
@@ -344,7 +344,7 @@ exports[`Ad Set Conversion Snapshots > OUTCOME_ENGAGEMENT adset → OUTCOME_SALE
   },
   "targeting": {
     "age_max": 55,
-    "age_min": 18,
+    "age_min": 20,
     "geo_locations": {
       "countries": [
         "TH",
@@ -365,7 +365,7 @@ exports[`Ad Set Conversion Snapshots > OUTCOME_ENGAGEMENT adset → OUTCOME_TRAF
   },
   "targeting": {
     "age_max": 55,
-    "age_min": 18,
+    "age_min": 20,
     "geo_locations": {
       "countries": [
         "TH",
@@ -551,7 +551,7 @@ exports[`Ad Set Conversion Snapshots > OUTCOME_SALES adset → OUTCOME_APP_PROMO
   },
   "targeting": {
     "age_max": 65,
-    "age_min": 18,
+    "age_min": 20,
     "custom_audiences": [
       {
         "id": "23851234567890",
@@ -582,7 +582,7 @@ exports[`Ad Set Conversion Snapshots > OUTCOME_SALES adset → OUTCOME_AWARENESS
   },
   "targeting": {
     "age_max": 65,
-    "age_min": 18,
+    "age_min": 20,
     "custom_audiences": [
       {
         "id": "23851234567890",
@@ -613,7 +613,7 @@ exports[`Ad Set Conversion Snapshots > OUTCOME_SALES adset → OUTCOME_ENGAGEMEN
   },
   "targeting": {
     "age_max": 65,
-    "age_min": 18,
+    "age_min": 20,
     "custom_audiences": [
       {
         "id": "23851234567890",
@@ -650,7 +650,7 @@ exports[`Ad Set Conversion Snapshots > OUTCOME_SALES adset → OUTCOME_LEADS obj
   },
   "targeting": {
     "age_max": 65,
-    "age_min": 18,
+    "age_min": 20,
     "custom_audiences": [
       {
         "id": "23851234567890",
@@ -681,7 +681,7 @@ exports[`Ad Set Conversion Snapshots > OUTCOME_SALES adset → OUTCOME_TRAFFIC o
   },
   "targeting": {
     "age_max": 65,
-    "age_min": 18,
+    "age_min": 20,
     "custom_audiences": [
       {
         "id": "23851234567890",
@@ -706,7 +706,7 @@ exports[`Ad Set Conversion Snapshots > OUTCOME_TRAFFIC adset → OUTCOME_APP_PRO
   "start_time": "2024-01-15T10:00:00+0000",
   "targeting": {
     "age_max": 55,
-    "age_min": 18,
+    "age_min": 20,
     "facebook_positions": [
       "feed",
       "story",
@@ -740,7 +740,7 @@ exports[`Ad Set Conversion Snapshots > OUTCOME_TRAFFIC adset → OUTCOME_AWARENE
   "start_time": "2024-01-15T10:00:00+0000",
   "targeting": {
     "age_max": 55,
-    "age_min": 18,
+    "age_min": 20,
     "facebook_positions": [
       "feed",
       "story",
@@ -774,7 +774,7 @@ exports[`Ad Set Conversion Snapshots > OUTCOME_TRAFFIC adset → OUTCOME_ENGAGEM
   "start_time": "2024-01-15T10:00:00+0000",
   "targeting": {
     "age_max": 55,
-    "age_min": 18,
+    "age_min": 20,
     "facebook_positions": [
       "feed",
       "story",
@@ -808,7 +808,7 @@ exports[`Ad Set Conversion Snapshots > OUTCOME_TRAFFIC adset → OUTCOME_LEADS o
   "start_time": "2024-01-15T10:00:00+0000",
   "targeting": {
     "age_max": 55,
-    "age_min": 18,
+    "age_min": 20,
     "facebook_positions": [
       "feed",
       "story",
@@ -842,7 +842,7 @@ exports[`Ad Set Conversion Snapshots > OUTCOME_TRAFFIC adset → OUTCOME_SALES o
   "start_time": "2024-01-15T10:00:00+0000",
   "targeting": {
     "age_max": 55,
-    "age_min": 18,
+    "age_min": 20,
     "facebook_positions": [
       "feed",
       "story",
@@ -878,7 +878,7 @@ exports[`Ad Set Duplication Snapshots > Bid strategy variations > OUTCOME_TRAFFI
   "start_time": "2024-01-15T10:00:00+0000",
   "targeting": {
     "age_max": 55,
-    "age_min": 18,
+    "age_min": 20,
     "facebook_positions": [
       "feed",
       "story",
@@ -916,7 +916,7 @@ exports[`Ad Set Duplication Snapshots > Bid strategy variations > OUTCOME_TRAFFI
   "start_time": "2024-01-15T10:00:00+0000",
   "targeting": {
     "age_max": 55,
-    "age_min": 18,
+    "age_min": 20,
     "facebook_positions": [
       "feed",
       "story",
@@ -954,7 +954,7 @@ exports[`Ad Set Duplication Snapshots > Bid strategy variations > OUTCOME_TRAFFI
   "start_time": "2024-01-15T10:00:00+0000",
   "targeting": {
     "age_max": 55,
-    "age_min": 18,
+    "age_min": 20,
     "facebook_positions": [
       "feed",
       "story",
@@ -991,7 +991,7 @@ exports[`Ad Set Duplication Snapshots > Bid strategy variations > OUTCOME_TRAFFI
   "start_time": "2024-01-15T10:00:00+0000",
   "targeting": {
     "age_max": 55,
-    "age_min": 18,
+    "age_min": 20,
     "facebook_positions": [
       "feed",
       "story",
@@ -1030,7 +1030,7 @@ exports[`Ad Set Duplication Snapshots > OUTCOME_APP_PROMOTION > CBO payload (str
   },
   "targeting": {
     "age_max": 35,
-    "age_min": 18,
+    "age_min": 20,
     "geo_locations": {
       "countries": [
         "TH",
@@ -1055,7 +1055,7 @@ exports[`Ad Set Duplication Snapshots > OUTCOME_APP_PROMOTION > non-CBO payload 
   },
   "targeting": {
     "age_max": 35,
-    "age_min": 18,
+    "age_min": 20,
     "geo_locations": {
       "countries": [
         "TH",
@@ -1080,7 +1080,7 @@ exports[`Ad Set Duplication Snapshots > OUTCOME_AWARENESS > CBO payload (strips 
   "optimization_goal": "REACH",
   "targeting": {
     "age_max": 65,
-    "age_min": 18,
+    "age_min": 20,
     "geo_locations": {
       "countries": [
         "TH",
@@ -1103,7 +1103,7 @@ exports[`Ad Set Duplication Snapshots > OUTCOME_AWARENESS > non-CBO payload 1`] 
   "optimization_goal": "REACH",
   "targeting": {
     "age_max": 65,
-    "age_min": 18,
+    "age_min": 20,
     "geo_locations": {
       "countries": [
         "TH",
@@ -1133,7 +1133,7 @@ exports[`Ad Set Duplication Snapshots > OUTCOME_ENGAGEMENT > CBO payload (strips
   },
   "targeting": {
     "age_max": 55,
-    "age_min": 18,
+    "age_min": 20,
     "geo_locations": {
       "countries": [
         "TH",
@@ -1154,7 +1154,7 @@ exports[`Ad Set Duplication Snapshots > OUTCOME_ENGAGEMENT > non-CBO payload 1`]
   },
   "targeting": {
     "age_max": 55,
-    "age_min": 18,
+    "age_min": 20,
     "geo_locations": {
       "countries": [
         "TH",
@@ -1252,7 +1252,7 @@ exports[`Ad Set Duplication Snapshots > OUTCOME_SALES > CBO payload (strips budg
   },
   "targeting": {
     "age_max": 65,
-    "age_min": 18,
+    "age_min": 20,
     "custom_audiences": [
       {
         "id": "23851234567890",
@@ -1289,7 +1289,7 @@ exports[`Ad Set Duplication Snapshots > OUTCOME_SALES > non-CBO payload 1`] = `
   },
   "targeting": {
     "age_max": 65,
-    "age_min": 18,
+    "age_min": 20,
     "custom_audiences": [
       {
         "id": "23851234567890",
@@ -1318,7 +1318,7 @@ exports[`Ad Set Duplication Snapshots > OUTCOME_TRAFFIC > CBO payload (strips bu
   "start_time": "2024-01-15T10:00:00+0000",
   "targeting": {
     "age_max": 55,
-    "age_min": 18,
+    "age_min": 20,
     "facebook_positions": [
       "feed",
       "story",
@@ -1352,7 +1352,7 @@ exports[`Ad Set Duplication Snapshots > OUTCOME_TRAFFIC > non-CBO payload 1`] = 
   "start_time": "2024-01-15T10:00:00+0000",
   "targeting": {
     "age_max": 55,
-    "age_min": 18,
+    "age_min": 20,
     "facebook_positions": [
       "feed",
       "story",

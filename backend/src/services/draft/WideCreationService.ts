@@ -133,6 +133,7 @@ const CAMPAIGN_TO_ADSET_INHERITABLE = [
 const TEMPLATE_ADSET_INHERITABLE = [
   'targeting', 'billing_event', 'optimization_goal', 'destination_type',
   'daily_budget', 'lifetime_budget', 'start_time', 'end_time',
+  'promoted_object', 'page_id',
 ];
 
 // Keys that can be set at template level for ads
@@ -241,7 +242,7 @@ export class WideCreationService {
           // Check promoted_object requirements
           const promotedReqs = PROMOTED_OBJECT_REQUIREMENTS[objective] || [];
           if (promotedReqs.length > 0 && !adSetFields.promoted_object) {
-            warnings.push({
+            errors.push({
               path: adSetPath,
               field: 'promoted_object',
               message: `${objective} requires promoted_object with ${promotedReqs.join('/')}`,
@@ -253,6 +254,15 @@ export class WideCreationService {
             warnings.push({
               path: adSetPath,
               message: 'Campaign uses CBO — ad set budget fields will be stripped on publish',
+            });
+          }
+
+          // Non-CBO campaigns require budget at ad set level
+          if (!isCBO && !adSetFields.daily_budget && !adSetFields.lifetime_budget) {
+            errors.push({
+              path: adSetPath,
+              field: 'daily_budget',
+              message: 'Ad set requires daily_budget or lifetime_budget (campaign has no CBO budget)',
             });
           }
 
@@ -284,6 +294,13 @@ export class WideCreationService {
 
           if (!adFields.creative && !adFields.creative_id) {
             errors.push({ path: adPath, field: 'creative', message: 'Creative (creative_id or object_story_spec) is required' });
+          } else if (adFields.creative?.object_story_spec && !adFields.creative?.creative_id) {
+            // object_story_spec needs page_id — check spec, adSet, or promoted_object
+            const specPageId = adFields.creative.object_story_spec.page_id;
+            const adSetPageId = adSetFields.page_id || adSetFields.promoted_object?.page_id;
+            if (!specPageId && !adSetPageId) {
+              errors.push({ path: adPath, field: 'page_id', message: 'page_id is required when using object_story_spec (set in adSet defaults or creative)' });
+            }
           }
           if (!adFields.name && !template.namingPattern?.ad) {
             warnings.push({ path: adPath, message: 'Ad has no name configured' });
@@ -421,6 +438,11 @@ export class WideCreationService {
         // Attribution spec
         if (resolvedAdSetFields.attribution_spec && ATTRIBUTION_SPEC_OBJECTIVES.has(objective)) {
           adSetPayload.attribution_spec = resolvedAdSetFields.attribution_spec;
+        }
+
+        // page_id for ad creative injection at publish time
+        if (resolvedAdSetFields.page_id) {
+          adSetPayload.page_id = resolvedAdSetFields.page_id;
         }
 
         // Time

@@ -157,31 +157,6 @@ beforeAll(async () => {
 describe.skipIf(!process.env.META_ACCESS_TOKEN)('Live Meta API Drift', () => {
   const accessToken = process.env.META_ACCESS_TOKEN!;
   const adAccountId = process.env.META_AD_ACCOUNT_ID || '';
-  const createdCampaignIds: string[] = [];
-
-  beforeAll(async () => {
-    // Clean up leftover drift campaigns from previous runs
-    try {
-      const resp = await fetch(
-        `https://graph.facebook.com/v21.0/act_${adAccountId}/campaigns?fields=id,name&limit=50&access_token=${accessToken}`
-      );
-      const data = await resp.json();
-      for (const c of data.data || []) {
-        if (c.name?.startsWith('drift-')) {
-          await fetch(`https://graph.facebook.com/v21.0/${c.id}?access_token=${accessToken}`, { method: 'DELETE' });
-        }
-      }
-    } catch {}
-  });
-
-  afterAll(async () => {
-    // Clean up campaigns created in this run
-    for (const id of createdCampaignIds) {
-      try {
-        await fetch(`https://graph.facebook.com/v21.0/${id}?access_token=${accessToken}`, { method: 'DELETE' });
-      } catch {}
-    }
-  });
 
   beforeEach((ctx) => {
     if (!tokenValid) {
@@ -207,10 +182,6 @@ describe.skipIf(!process.env.META_ACCESS_TOKEN)('Live Meta API Drift', () => {
       if (data.error) {
         return { success: false, error: data.error };
       }
-      // Track created objects for cleanup
-      if (data.id) {
-        createdCampaignIds.push(data.id);
-      }
       return { success: true };
     } catch (error) {
       return { success: false, error };
@@ -225,6 +196,7 @@ describe.skipIf(!process.env.META_ACCESS_TOKEN)('Live Meta API Drift', () => {
         status: 'PAUSED',
         special_ad_categories: ['NONE'],
         is_adset_budget_sharing_enabled: 'false',
+        validation_only: 'true',
       });
       if (!result.success) {
         console.log(`  [DRIFT] ${objective} rejected:`, result.error?.error_user_title || result.error?.message);
@@ -239,6 +211,7 @@ describe.skipIf(!process.env.META_ACCESS_TOKEN)('Live Meta API Drift', () => {
       objective: 'COMPLETELY_INVALID_OBJECTIVE',
       status: 'PAUSED',
       special_ad_categories: ['NONE'],
+      validation_only: 'true',
     });
     expect(result.success).toBe(false);
   });
@@ -251,6 +224,7 @@ describe.skipIf(!process.env.META_ACCESS_TOKEN)('Live Meta API Drift', () => {
       special_ad_categories: ['NONE'],
       daily_budget: '5000',
       lifetime_budget: '100000',
+      validation_only: 'true',
     });
     expect(result.success).toBe(false);
   });
@@ -264,6 +238,7 @@ describe.skipIf(!process.env.META_ACCESS_TOKEN)('Live Meta API Drift', () => {
         special_ad_categories: ['NONE'],
         bid_strategy: strategy,
         daily_budget: '5000',
+        validation_only: 'true',
       });
       // Either accepts or rejects with a specific bid-related error (not unknown field)
       if (!result.success) {

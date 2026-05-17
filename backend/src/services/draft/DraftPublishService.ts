@@ -182,7 +182,7 @@ export class DraftPublishService {
                 where: { id: ad.id },
                 data: { metaId: null },
               });
-              metaAdId = await this.createMetaAd(fbService, adAccountId, ad, metaAdSetId);
+              metaAdId = await this.createMetaAd(fbService, adAccountId, ad, metaAdSetId, adSet);
               await prisma.draftAd.update({
                 where: { id: ad.id },
                 data: { metaId: metaAdId },
@@ -412,18 +412,20 @@ export class DraftPublishService {
     // FIX: Use shared sanitizeTargeting
     const targeting = sanitizeTargeting(adSetData.targeting);
 
-    // destination_type — validate against objective-specific valid types, infer from optimization_goal
+    // destination_type — infer from optimization_goal for ENGAGEMENT, validate for others
     const validDestTypes = VALID_DESTINATION_TYPES[campaignObjective] || [];
     let destinationType: string | undefined;
-    if (adSetData.destination_type && validDestTypes.includes(adSetData.destination_type)) {
-      destinationType = adSetData.destination_type;
-    } else if (campaignObjective === 'OUTCOME_ENGAGEMENT') {
+    if (campaignObjective === 'OUTCOME_ENGAGEMENT') {
       const goal = adSetData.optimization_goal;
       if (goal === 'POST_ENGAGEMENT') destinationType = 'ON_POST';
       else if (goal === 'VIDEO_VIEWS' || goal === 'THRUPLAY') destinationType = 'ON_VIDEO';
       else if (goal === 'MESSAGES') destinationType = 'FACEBOOK';
       else destinationType = 'WEBSITE';
-    } else if (campaignObjective !== 'OUTCOME_AWARENESS') {
+    } else if (campaignObjective === 'OUTCOME_AWARENESS') {
+      // AWARENESS only supports UNDEFINED (= omit from payload)
+    } else if (adSetData.destination_type && adSetData.destination_type !== 'UNDEFINED' && validDestTypes.includes(adSetData.destination_type)) {
+      destinationType = adSetData.destination_type;
+    } else {
       const defaultDest = OBJECTIVE_DEFAULTS[campaignObjective]?.destination_type;
       if (defaultDest && defaultDest !== 'UNDEFINED') {
         destinationType = defaultDest;
@@ -440,6 +442,10 @@ export class DraftPublishService {
     };
 
     if (cleanPromotedObject) {
+      // SALES requires custom_event_type with pixel_id
+      if (campaignObjective === 'OUTCOME_SALES' && cleanPromotedObject.pixel_id && !cleanPromotedObject.custom_event_type) {
+        cleanPromotedObject.custom_event_type = 'PURCHASE';
+      }
       adSetPayload.promoted_object = cleanPromotedObject;
     }
 
@@ -594,6 +600,7 @@ export class DraftPublishService {
     accountId: string,
     ad: any,
     metaAdSetId: string,
+    adSet?: any,
   ): Promise<string> {
     const adData = ad.data as any;
 
@@ -604,13 +611,28 @@ export class DraftPublishService {
       throw new Error(`Ad "${ad.name}" is missing creative_id or object_story_spec — cannot publish without a creative`);
     }
 
+    let creative: any;
+    if (creativeId) {
+      creative = { creative_id: String(creativeId) };
+    } else {
+      const storySpec = { ...adData.creative.object_story_spec };
+      // Meta requires page_id in object_story_spec
+      if (!storySpec.page_id) {
+        const pageId = adSet?.data?.promoted_object?.page_id
+          || adSet?.data?.page_id
+          || adData.page_id;
+        if (pageId) {
+          storySpec.page_id = String(pageId);
+        }
+      }
+      creative = { object_story_spec: storySpec };
+    }
+
     const adPayload: any = {
       name: ad.name,
       adset_id: metaAdSetId,
       status: 'PAUSED',
-      creative: creativeId
-        ? { creative_id: String(creativeId) }
-        : { object_story_spec: adData.creative.object_story_spec },
+      creative,
     };
 
     if (adData.tracking_specs) {

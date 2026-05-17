@@ -1,7 +1,7 @@
 import axios from 'axios';
 import { READ_ONLY_FIELDS } from './draft/MetaFieldRegistry';
 
-const FB_API_VERSION = 'v19.0';
+const FB_API_VERSION = 'v21.0';
 const FB_BASE_URL = `https://graph.facebook.com/${FB_API_VERSION}`;
 
 export class FacebookService {

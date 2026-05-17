@@ -13,7 +13,7 @@ import {
 } from '../../src/services/draft/MetaFieldRegistry';
 
 const ALL_OBJECTIVES = Object.keys(VALID_OPTIMIZATION_GOALS);
-const AD_DEFAULTS = { ad: { creative: { creative_id: '99999' } } };
+const AD_DEFAULTS = { ad: { creative: { creative_id: '99999' } }, adSet: { daily_budget: '5000' } };
 
 // ─── Template Validation ───
 
@@ -219,7 +219,7 @@ describe('WideCreationService.validateTemplate', () => {
     expect(result.errors.some(e => e.message.includes('WEBSITE'))).toBe(true);
   });
 
-  it('warns about missing promoted_object for objectives that require it', () => {
+  it('errors on missing promoted_object for objectives that require it', () => {
     for (const objective of ALL_OBJECTIVES) {
       const reqs = PROMOTED_OBJECT_REQUIREMENTS[objective] || [];
       if (reqs.length === 0) continue;
@@ -237,7 +237,8 @@ describe('WideCreationService.validateTemplate', () => {
         }],
       };
       const result = WideCreationService.validateTemplate(template);
-      expect(result.warnings.some(w => w.message.includes('promoted_object'))).toBe(true);
+      expect(result.valid).toBe(false);
+      expect(result.errors.some(e => e.message.includes('promoted_object'))).toBe(true);
     }
   });
 
@@ -386,12 +387,13 @@ describe('Template Defaults Inheritance', () => {
       name: 'AdSet Defaults',
       adAccountId: 'act_123',
       defaults: {
+        ...AD_DEFAULTS,
         adSet: {
+          daily_budget: '5000',
           optimization_goal: 'LINK_CLICKS',
           billing_event: 'IMPRESSIONS',
           targeting: { geo_locations: { countries: ['US'] } },
         },
-        ...AD_DEFAULTS,
       },
       campaigns: [{
         fields: { objective: 'OUTCOME_TRAFFIC', name: 'C' },
@@ -411,8 +413,9 @@ describe('Template Defaults Inheritance', () => {
       name: 'Override',
       adAccountId: 'act_123',
       defaults: {
-        campaign: { objective: 'OUTCOME_TRAFFIC' },
         ...AD_DEFAULTS,
+        campaign: { objective: 'OUTCOME_TRAFFIC' },
+        adSet: { daily_budget: '5000', promoted_object: { pixel_id: 'px_123' } },
       },
       campaigns: [{
         fields: { objective: 'OUTCOME_SALES', name: 'Sales C' },
@@ -431,7 +434,7 @@ describe('Naming Pattern Resolution', () => {
     const template: WideCreationTemplate = {
       name: 'Pattern Test',
       adAccountId: 'act_123',
-      defaults: AD_DEFAULTS,
+      defaults: { ...AD_DEFAULTS, adSet: { daily_budget: '5000', promoted_object: { pixel_id: 'px_123' } } },
       namingPattern: {
         campaign: '{objective} Campaign {index:02d}',
         adSet: 'AdSet {index} of {total}',

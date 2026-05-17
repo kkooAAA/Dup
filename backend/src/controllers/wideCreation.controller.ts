@@ -27,6 +27,12 @@ export class WideCreationController {
         return res.status(400).json({ error: 'At least one campaign is required' });
       }
 
+      // Full validation before generating
+      const validation = WideCreationService.validateTemplate(template);
+      if (!validation.valid) {
+        return res.status(400).json({ error: 'Validation failed', errors: validation.errors });
+      }
+
       const result = await WideCreationService.generateFromTemplate(template, authReq.userId!);
       res.json(result);
     } catch (error: any) {

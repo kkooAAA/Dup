@@ -138,12 +138,12 @@ describe('stripImmutableFields', () => {
 describe('sanitizeTargeting', () => {
   it('returns default targeting when null', () => {
     const result = sanitizeTargeting(null);
-    expect(result).toEqual({ geo_locations: { countries: ['TH'] } });
+    expect(result).toEqual({ geo_locations: { countries: ['TH'] }, age_min: 20 });
   });
 
   it('returns default targeting when undefined', () => {
     const result = sanitizeTargeting(undefined);
-    expect(result).toEqual({ geo_locations: { countries: ['TH'] } });
+    expect(result).toEqual({ geo_locations: { countries: ['TH'] }, age_min: 20 });
   });
 
   it('preserves valid targeting', () => {
@@ -157,6 +157,7 @@ describe('sanitizeTargeting', () => {
     const targeting = { age_min: 18, geo_locations: {} };
     const result = sanitizeTargeting(targeting);
     expect(result.geo_locations).toEqual({ countries: ['TH'] });
+    expect(result.age_min).toBe(20);
   });
 
   it('returns default on invalid JSON', () => {
@@ -167,7 +168,7 @@ describe('sanitizeTargeting', () => {
     // We can test the catch path by passing something that causes stringify to throw
     // Actually, circular refs throw on JSON.stringify
     const result = sanitizeTargeting(circular);
-    expect(result).toEqual({ geo_locations: { countries: ['TH'] } });
+    expect(result).toEqual({ geo_locations: { countries: ['TH'] }, age_min: 20 });
   });
 });
 

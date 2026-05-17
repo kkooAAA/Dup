@@ -188,7 +188,7 @@ describe('Wide Creation Inheritance Scenarios', () => {
       name: 'Override',
       adAccountId: 'act_123',
       defaults: {
-        adSet: { optimization_goal: 'LINK_CLICKS' },
+        adSet: { optimization_goal: 'LINK_CLICKS', daily_budget: '5000' },
         ad: { creative: { creative_id: '99999' } },
       },
       campaigns: [{
@@ -218,7 +218,7 @@ describe('Wide Creation Budget×Bid Combinatorial', () => {
         const template: WideCreationTemplate = {
           name: 'Bid Test',
           adAccountId: 'act_123',
-          defaults: { ad: { creative: { creative_id: '99999' } } },
+          defaults: { ad: { creative: { creative_id: '99999' } }, adSet: { daily_budget: '5000' } },
           campaigns: [{
             fields: { objective, name: 'C' },
             adSetCount: 0,
@@ -255,7 +255,7 @@ describe('Wide Creation Attribution Spec', () => {
       const template: WideCreationTemplate = {
         name: 'Attr',
         adAccountId: 'act_123',
-        defaults: { ad: { creative: { creative_id: '99999' } } },
+        defaults: { ad: { creative: { creative_id: '99999' } }, adSet: { daily_budget: '5000' } },
         campaigns: [{
           fields: { objective, name: 'C' },
           adSetCount: 0,

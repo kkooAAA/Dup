@@ -385,7 +385,7 @@ export function sanitizePromotedObject(obj: any): any {
 }
 
 export function sanitizeTargeting(targeting: any): any {
-  const defaultTargeting = { geo_locations: { countries: ['TH'] } };
+  const defaultTargeting = { geo_locations: { countries: ['TH'] }, age_min: 20 };
   if (!targeting) return defaultTargeting;
   try {
     const sanitized = JSON.parse(JSON.stringify(targeting));
@@ -394,6 +394,14 @@ export function sanitizeTargeting(targeting: any): any {
     }
     if (!sanitized.geo_locations || Object.keys(sanitized.geo_locations).length === 0) {
       sanitized.geo_locations = defaultTargeting.geo_locations;
+    }
+    // Thailand requires age_min >= 20
+    const countries = sanitized.geo_locations?.countries || [];
+    if (countries.includes('TH') && (!sanitized.age_min || sanitized.age_min < 20)) {
+      sanitized.age_min = 20;
+    }
+    if (!sanitized.age_min) {
+      sanitized.age_min = 18;
     }
     return sanitized;
   } catch {

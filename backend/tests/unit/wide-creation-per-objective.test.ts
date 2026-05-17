@@ -13,7 +13,7 @@ import {
 } from '../../src/services/draft/MetaFieldRegistry';
 
 const ALL_OBJECTIVES = Object.keys(VALID_OPTIMIZATION_GOALS);
-const AD_DEFAULTS = { ad: { creative: { creative_id: '99999' } } };
+const AD_DEFAULTS = { ad: { creative: { creative_id: '99999' } }, adSet: { daily_budget: '5000' } };
 
 // ─── Per-Objective Schema Differentiation ───
 // These tests verify that each objective produces a DIFFERENT schema with
@@ -269,12 +269,11 @@ describe('Mixed-Objective Template Validation (per-objective rules)', () => {
       ],
     };
     const result = WideCreationService.validateTemplate(template);
-    // Should be valid (promoted_object produces warning, not error)
-    expect(result.valid).toBe(true);
-    // But should warn about missing promoted_object for LEADS
-    expect(result.warnings.some(w => w.path.includes('campaigns[1]') && w.message.includes('promoted_object'))).toBe(true);
-    // No warning for TRAFFIC
-    expect(result.warnings.some(w => w.path.includes('campaigns[0]') && w.message.includes('promoted_object'))).toBe(false);
+    // Should fail — promoted_object missing for LEADS is now an error
+    expect(result.valid).toBe(false);
+    expect(result.errors.some(e => e.path.includes('campaigns[1]') && e.message.includes('promoted_object'))).toBe(true);
+    // No error for TRAFFIC
+    expect(result.errors.some(e => e.path.includes('campaigns[0]') && e.message.includes('promoted_object'))).toBe(false);
   });
 
   it('each objective enforces its own destination_type rules', () => {

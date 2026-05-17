@@ -16,7 +16,7 @@ export const FacebookSDK = () => {
         appId: process.env.NEXT_PUBLIC_FB_APP_ID,
         cookie: true,
         xfbml: true,
-        version: "v19.0",
+        version: "v21.0",
       });
     }
   };
