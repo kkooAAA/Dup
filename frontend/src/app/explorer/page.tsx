@@ -30,6 +30,7 @@ import {
   type OptimizedField,
 } from "@/lib/meta-schema";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 
 // ─── Small helpers ───
 
@@ -113,6 +114,7 @@ export default function ExplorerPage() {
   const [deleting, setDeleting] = useState(false);
   const [activating, setActivating] = useState(false);
   const [pausing, setPausing] = useState(false);
+  const [confirmAction, setConfirmAction] = useState<'delete' | 'activate' | 'pause' | null>(null);
   const [sortKey, setSortKey] = useState<'name' | 'status' | 'objective' | 'budget'>('name');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
 
@@ -366,22 +368,25 @@ export default function ExplorerPage() {
     finally { setConverting(false); }
   };
 
-  const handleBulkDelete = async () => {
-    const allIds = selectedItemsList.map(i => i.id);
-    if (allIds.length === 0) return;
-
+  const selectionLabel = useMemo(() => {
     const counts = {
       CAMPAIGN: selectedItemsList.filter(i => i.type === 'CAMPAIGN').length,
       ADSET: selectedItemsList.filter(i => i.type === 'ADSET').length,
       AD: selectedItemsList.filter(i => i.type === 'AD').length,
     };
-    const label = [
+    return [
       counts.CAMPAIGN > 0 && `${counts.CAMPAIGN} campaign${counts.CAMPAIGN > 1 ? 's' : ''}`,
       counts.ADSET > 0 && `${counts.ADSET} ad set${counts.ADSET > 1 ? 's' : ''}`,
       counts.AD > 0 && `${counts.AD} ad${counts.AD > 1 ? 's' : ''}`,
     ].filter(Boolean).join(', ');
+  }, [selectedItemsList]);
 
-    if (!confirm(`Delete ${label} from Meta? This cannot be undone.`)) return;
+  const handleBulkDelete = async () => {
+    const allIds = selectedItemsList.map(i => i.id);
+    if (allIds.length === 0) return;
+    const hasCampaign = selectedItemsList.some(i => i.type === 'CAMPAIGN');
+    const hasAdSet = selectedItemsList.some(i => i.type === 'ADSET');
+    const hasAd = selectedItemsList.some(i => i.type === 'AD');
     setDeleting(true);
     try {
       const response = await adAccountApi.bulkDelete(allIds);
@@ -391,15 +396,15 @@ export default function ExplorerPage() {
       setSelectedItems(new Map());
       setPanelOpen(false);
 
-      if (counts.CAMPAIGN > 0) fetchCampaigns();
-      if (counts.ADSET > 0) {
+      if (hasCampaign) fetchCampaigns();
+      if (hasAdSet) {
         setAdSets(prev => {
           const next = { ...prev };
           for (const key in next) next[key] = next[key].filter(as => !successIds.has(as.id));
           return next;
         });
       }
-      if (counts.AD > 0) {
+      if (hasAd) {
         setAds(prev => {
           const next = { ...prev };
           for (const key in next) next[key] = next[key].filter(ad => !successIds.has(ad.id));
@@ -407,25 +412,12 @@ export default function ExplorerPage() {
         });
       }
     } catch (err: any) { toast.error(err.response?.data?.message || "Delete failed"); }
-    finally { setDeleting(false); }
+    finally { setDeleting(false); setConfirmAction(null); }
   };
 
   const handleBulkActivate = async () => {
     const allIds = selectedItemsList.map(i => i.id);
     if (allIds.length === 0) return;
-
-    const counts = {
-      CAMPAIGN: selectedItemsList.filter(i => i.type === 'CAMPAIGN').length,
-      ADSET: selectedItemsList.filter(i => i.type === 'ADSET').length,
-      AD: selectedItemsList.filter(i => i.type === 'AD').length,
-    };
-    const label = [
-      counts.CAMPAIGN > 0 && `${counts.CAMPAIGN} campaign${counts.CAMPAIGN > 1 ? 's' : ''}`,
-      counts.ADSET > 0 && `${counts.ADSET} ad set${counts.ADSET > 1 ? 's' : ''}`,
-      counts.AD > 0 && `${counts.AD} ad${counts.AD > 1 ? 's' : ''}`,
-    ].filter(Boolean).join(', ');
-
-    if (!confirm(`Set ${label} to ACTIVE on Meta? They will start running immediately.`)) return;
     setActivating(true);
     try {
       const response = await adAccountApi.bulkActivate(allIds);
@@ -447,25 +439,12 @@ export default function ExplorerPage() {
         return next;
       });
     } catch (err: any) { toast.error(err.response?.data?.message || "Activate failed"); }
-    finally { setActivating(false); }
+    finally { setActivating(false); setConfirmAction(null); }
   };
 
   const handleBulkPause = async () => {
     const allIds = selectedItemsList.map(i => i.id);
     if (allIds.length === 0) return;
-
-    const counts = {
-      CAMPAIGN: selectedItemsList.filter(i => i.type === 'CAMPAIGN').length,
-      ADSET: selectedItemsList.filter(i => i.type === 'ADSET').length,
-      AD: selectedItemsList.filter(i => i.type === 'AD').length,
-    };
-    const label = [
-      counts.CAMPAIGN > 0 && `${counts.CAMPAIGN} campaign${counts.CAMPAIGN > 1 ? 's' : ''}`,
-      counts.ADSET > 0 && `${counts.ADSET} ad set${counts.ADSET > 1 ? 's' : ''}`,
-      counts.AD > 0 && `${counts.AD} ad${counts.AD > 1 ? 's' : ''}`,
-    ].filter(Boolean).join(', ');
-
-    if (!confirm(`Pause ${label} on Meta?`)) return;
     setPausing(true);
     try {
       const response = await adAccountApi.bulkPause(allIds);
@@ -487,7 +466,7 @@ export default function ExplorerPage() {
         return next;
       });
     } catch (err: any) { toast.error(err.response?.data?.message || "Pause failed"); }
-    finally { setPausing(false); }
+    finally { setPausing(false); setConfirmAction(null); }
   };
 
   const handleSelectAll = () => {
@@ -1139,20 +1118,20 @@ export default function ExplorerPage() {
                   <div className="flex gap-2">
                     <Button variant="outline" size="sm"
                       className="flex-1 border-emerald-800/50 text-emerald-400 hover:bg-emerald-500/10 hover:text-emerald-300 gap-1.5 h-8 text-xs"
-                      onClick={handleBulkActivate} disabled={isBusy}>
+                      onClick={() => setConfirmAction('activate')} disabled={isBusy}>
                       {activating ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Zap className="w-3.5 h-3.5" />}
                       {activating ? "Activating..." : "Activate"}
                     </Button>
                     <Button variant="outline" size="sm"
                       className="flex-1 border-amber-800/50 text-amber-400 hover:bg-amber-500/10 hover:text-amber-300 gap-1.5 h-8 text-xs"
-                      onClick={handleBulkPause} disabled={isBusy}>
+                      onClick={() => setConfirmAction('pause')} disabled={isBusy}>
                       {pausing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Globe className="w-3.5 h-3.5" />}
                       {pausing ? "Pausing..." : "Pause"}
                     </Button>
                   </div>
                   <Button variant="outline" size="sm"
                     className="w-full border-red-800/50 text-red-400 hover:bg-red-600/10 hover:text-red-300 gap-2 h-8 text-xs"
-                    onClick={handleBulkDelete} disabled={isBusy}>
+                    onClick={() => setConfirmAction('delete')} disabled={isBusy}>
                     {deleting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
                     {deleting ? "Deleting..." : `Delete (${selectedItemsList.length}) from Meta`}
                   </Button>
@@ -1168,6 +1147,35 @@ export default function ExplorerPage() {
           </div>
         )}
       </div>
+      <ConfirmDialog
+        open={confirmAction === 'delete'}
+        onOpenChange={() => setConfirmAction(null)}
+        title="Delete from Meta"
+        description={`Delete ${selectionLabel} from Meta? This cannot be undone.`}
+        confirmLabel="Delete"
+        variant="danger"
+        onConfirm={handleBulkDelete}
+        isLoading={deleting}
+      />
+      <ConfirmDialog
+        open={confirmAction === 'activate'}
+        onOpenChange={() => setConfirmAction(null)}
+        title="Activate on Meta"
+        description={`Set ${selectionLabel} to ACTIVE on Meta? They will start running immediately.`}
+        confirmLabel="Activate"
+        variant="warning"
+        onConfirm={handleBulkActivate}
+        isLoading={activating}
+      />
+      <ConfirmDialog
+        open={confirmAction === 'pause'}
+        onOpenChange={() => setConfirmAction(null)}
+        title="Pause on Meta"
+        description={`Pause ${selectionLabel} on Meta?`}
+        confirmLabel="Pause"
+        onConfirm={handleBulkPause}
+        isLoading={pausing}
+      />
     </DashboardLayout>
   );
 }

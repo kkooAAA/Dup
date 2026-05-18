@@ -24,5 +24,5 @@ Called via `POST /api/drafts/form-schema`.
 ## Related Pages
 
 - [[meta-field-registry]] — field definitions
-- [[frontend-components]] — SchemaField and MetaForm components
+- [[components]] — SchemaField and MetaForm components
 - [[draft-system]] — forms are used in the draft editing flow

@@ -41,6 +41,6 @@ Initializes the Facebook JavaScript SDK v21.0. Used on the login page for OAuth 
 
 ## Related Pages
 
-- [[frontend-pages]] — pages that use these components
+- [[pages]] — pages that use these components
 - [[meta-form-schema-engine]] — generates the schemas SchemaField renders
 - [[state-management]] — Zustand stores for form state

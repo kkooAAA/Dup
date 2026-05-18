@@ -68,4 +68,4 @@ Standard CRUD for reusable templates.
 ## Related Pages
 
 - [[controllers]] — handler functions for each route
-- [[api-client]] — frontend methods that call these routes
+- [[state-management]] — frontend API client that calls these routes

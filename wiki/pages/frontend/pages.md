@@ -41,6 +41,5 @@ Duplication history log. Shows past duplication and conversion operations with t
 
 ## Related Pages
 
-- [[frontend-components]] — key UI components
-- [[state-management]] — Zustand stores
-- [[api-client]] — API methods used by pages
+- [[components]] — key UI components
+- [[state-management]] — Zustand stores and API client

@@ -12,6 +12,7 @@ import Link from "next/link";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { BulkEditPanel } from "@/components/dashboard/BulkEditPanel";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 
 export default function DraftsPage() {
   const [drafts, setDrafts] = useState<any[]>([]);
@@ -23,6 +24,8 @@ export default function DraftsPage() {
   const [showPublished, setShowPublished] = useState(false);
   const [showBulkEdit, setShowBulkEdit] = useState(false);
   const [togglingId, setTogglingId] = useState<string | null>(null);
+  const [confirmAction, setConfirmAction] = useState<'delete' | 'bulkDelete' | 'publish' | null>(null);
+  const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
   const fetchDrafts = async () => {
     try {
       setIsLoading(true);
@@ -40,17 +43,21 @@ export default function DraftsPage() {
     fetchDrafts();
   }, []);
 
-  const handleDelete = async (id: string) => {
-    if (!confirm("Are you sure you want to delete this draft?")) return;
+  const handleDelete = async (id?: string) => {
+    const targetId = id || deleteTargetId;
+    if (!targetId) return;
     const prev = drafts;
-    setDrafts(d => d.filter(x => x.id !== id));
-    setSelectedIds(s => { const next = new Set(s); next.delete(id); return next; });
+    setDrafts(d => d.filter(x => x.id !== targetId));
+    setSelectedIds(s => { const next = new Set(s); next.delete(targetId); return next; });
     try {
-      await draftApi.deleteCampaign(id);
+      await draftApi.deleteCampaign(targetId);
       toast.success("Draft deleted");
     } catch (error) {
       toast.error("Failed to delete draft");
       setDrafts(prev);
+    } finally {
+      setConfirmAction(null);
+      setDeleteTargetId(null);
     }
   };
 
@@ -75,8 +82,6 @@ export default function DraftsPage() {
   const handleBulkDelete = async () => {
     const ids = Array.from(selectedIds);
     if (ids.length === 0) return;
-    if (!confirm(`Delete ${ids.length} draft${ids.length > 1 ? "s" : ""}? This cannot be undone.`)) return;
-
     setIsBulkDeleting(true);
     try {
       const response = await draftApi.bulkDeleteDrafts(ids);
@@ -87,6 +92,7 @@ export default function DraftsPage() {
       toast.error(error.response?.data?.error || "Bulk delete failed");
     } finally {
       setIsBulkDeleting(false);
+      setConfirmAction(null);
     }
   };
 
@@ -119,8 +125,6 @@ export default function DraftsPage() {
   const handleBulkPublish = async () => {
     const ids = Array.from(selectedIds);
     if (ids.length === 0) return;
-    if (!confirm(`Publish ${ids.length} draft${ids.length > 1 ? "s" : ""} to Meta? All will be created in PAUSED status.`)) return;
-
     setIsBulkPublishing(true);
     setPublishProgress({ current: 0, total: ids.length });
     try {
@@ -140,6 +144,7 @@ export default function DraftsPage() {
     } finally {
       setIsBulkPublishing(false);
       setPublishProgress(null);
+      setConfirmAction(null);
     }
   };
 
@@ -209,7 +214,7 @@ export default function DraftsPage() {
                   variant="outline"
                   size="sm"
                   className="gap-1.5 border-red-500/30 text-red-400 hover:bg-red-500/10"
-                  onClick={handleBulkDelete}
+                  onClick={() => setConfirmAction('bulkDelete')}
                   disabled={isBusy}
                 >
                   {isBulkDeleting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <X className="w-3.5 h-3.5" />}
@@ -218,7 +223,7 @@ export default function DraftsPage() {
                 <Button
                   size="sm"
                   className="gap-1.5 bg-blue-600 hover:bg-blue-700 shadow-lg shadow-blue-600/20"
-                  onClick={handleBulkPublish}
+                  onClick={() => setConfirmAction('publish')}
                   disabled={isBusy}
                 >
                   {isBulkPublishing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
@@ -314,7 +319,7 @@ export default function DraftsPage() {
                             </Button>
                           </>
                         )}
-                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleDelete(draft.id)} disabled={isBusy}>
+                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => { setDeleteTargetId(draft.id); setConfirmAction('delete'); }} disabled={isBusy}>
                           <Trash2 className="w-3.5 h-3.5 text-gray-600 hover:text-red-400" />
                         </Button>
                         <Link href={`/drafts/${draft.id}`}>
@@ -342,6 +347,35 @@ export default function DraftsPage() {
           setSelectedIds(new Set());
           fetchDrafts();
         }}
+      />
+      <ConfirmDialog
+        open={confirmAction === 'delete'}
+        onOpenChange={() => { setConfirmAction(null); setDeleteTargetId(null); }}
+        title="Delete Draft"
+        description="Are you sure you want to delete this draft?"
+        confirmLabel="Delete"
+        variant="danger"
+        onConfirm={() => handleDelete()}
+      />
+      <ConfirmDialog
+        open={confirmAction === 'bulkDelete'}
+        onOpenChange={() => setConfirmAction(null)}
+        title="Delete Drafts"
+        description={`Delete ${selectedIds.size} draft${selectedIds.size !== 1 ? "s" : ""}? This cannot be undone.`}
+        confirmLabel="Delete"
+        variant="danger"
+        onConfirm={handleBulkDelete}
+        isLoading={isBulkDeleting}
+      />
+      <ConfirmDialog
+        open={confirmAction === 'publish'}
+        onOpenChange={() => setConfirmAction(null)}
+        title="Publish to Meta"
+        description={`Publish ${selectedIds.size} draft${selectedIds.size !== 1 ? "s" : ""} to Meta? All will be created in PAUSED status.`}
+        confirmLabel="Publish"
+        variant="warning"
+        onConfirm={handleBulkPublish}
+        isLoading={isBulkPublishing}
       />
     </DashboardLayout>
   );

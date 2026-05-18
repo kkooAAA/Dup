@@ -5,6 +5,9 @@
 - [Architecture Overview](pages/architecture/overview.md) — System design, four core flows, key design decisions
 - [Tech Stack](pages/architecture/tech-stack.md) — Backend and frontend technology choices
 - [Data Flows](pages/architecture/data-flow.md) — Visual flow diagrams for duplication, conversion, drafts, wide creation
+- [Database Schema](pages/architecture/database-schema.md) — Prisma models: User, Draft entities, DuplicateJob, NamingTemplate, PublishLog
+- [Auth Flow](pages/architecture/auth-flow.md) — Facebook OAuth login, token exchange, JWT sessions
+- [Environment Setup](pages/architecture/setup.md) — Local dev setup, env vars, scripts, FB app requirements
 
 ## Backend Services
 
@@ -27,6 +30,7 @@
 - [Promoted Object](pages/concepts/promoted-object.md) — Required promoted_object fields per objective
 - [Campaign Budget Optimization](pages/concepts/cbo.md) — CBO vs non-CBO budget rules
 - [Meta API Constraints](pages/concepts/meta-api-constraints.md) — All critical Meta API rules in one place
+- [Naming Templates](pages/concepts/naming-templates.md) — User-defined naming patterns for campaigns/adsets/ads
 
 ## Frontend
 

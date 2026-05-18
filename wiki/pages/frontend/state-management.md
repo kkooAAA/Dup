@@ -39,5 +39,5 @@ Not a Zustand store, but the centralized API layer. Axios instance with:
 
 ## Related Pages
 
-- [[frontend-pages]] — pages that consume these stores
-- [[frontend-components]] — components that render from store state
+- [[pages]] — pages that consume these stores
+- [[components]] — components that render from store state

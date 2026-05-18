@@ -35,7 +35,7 @@ CloneZone is a full-stack tool for duplicating, converting, and bulk-managing Me
 
 ## Four Core Flows
 
-1. **Live Duplication** — Clone campaigns/adsets/ads directly on Meta via the Graph API. Handled by [[duplication-controller]] and [[facebook-service]].
+1. **Live Duplication** — Clone campaigns/adsets/ads directly on Meta via the Graph API. Handled by [[controllers]] and [[facebook-service]].
 
 2. **Objective Conversion** — Convert a campaign from one objective to another (e.g. Awareness → Sales). Creates new entities on Meta with transformed fields. Handled by [[objective-conversion-service]].
 

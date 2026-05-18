@@ -26,10 +26,10 @@ Each entity has:
 
 | Service | Purpose |
 |---------|---------|
-| [[draft-service-crud]] | Imports live Meta campaigns into drafts |
-| [[draft-campaign-service]] | Campaign CRUD + objective conversion logic |
-| [[draft-adset-service]] | AdSet CRUD |
-| [[draft-ad-service]] | Ad CRUD |
+| `DraftService.ts` | Imports live Meta campaigns into drafts |
+| `DraftCampaignService.ts` | Campaign CRUD + objective conversion logic |
+| `DraftAdSetService.ts` | AdSet CRUD |
+| `DraftAdService.ts` | Ad CRUD |
 | [[draft-validation-engine]] | Pre-publish validation |
 | [[draft-publish-service]] | Publish to Meta API |
 | [[meta-form-schema-engine]] | Generate UI form schemas |

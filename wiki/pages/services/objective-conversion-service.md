@@ -57,4 +57,4 @@ All defaults use `billing_event: IMPRESSIONS`.
 - [[field-optimization-engine]] — similar transformation logic for duplication
 - [[meta-field-registry]] — source of valid enums and migration maps
 - [[objectives]] — the 6 supported objectives
-- [[duplication-controller]] — routes that invoke this service
+- [[controllers]] — routes that invoke this service
