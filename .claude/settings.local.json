@@ -46,7 +46,8 @@
       "Bash(node *)",
       "Bash(python3 -m json.tool)",
       "Bash(python3 -c ' *)",
-      "Bash(python3 -c \"import sys,json;data=json.load\\(sys.stdin\\);[print\\(d['promoted_object']\\) for d in data['data'] if 'promoted_object' in d and 'application_id' in d.get\\('promoted_object',{}\\)]\")"
+      "Bash(python3 -c \"import sys,json;data=json.load\\(sys.stdin\\);[print\\(d['promoted_object']\\) for d in data['data'] if 'promoted_object' in d and 'application_id' in d.get\\('promoted_object',{}\\)]\")",
+      "Bash(grep -E '^<\\(ChevronRight|ChevronDown|Megaphone|Layers|ImageIcon|Search|Loader2|Edit2|Copy|Checkbox\\)$')"
     ]
   }
 }
