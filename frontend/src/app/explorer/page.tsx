@@ -293,19 +293,45 @@ export default function ExplorerPage() {
   };
 
   const handleBulkDelete = async () => {
-    const campaignIds = selectedItemsList.filter(i => i.type === 'CAMPAIGN').map(i => i.id);
-    if (campaignIds.length === 0) {
-      toast.error("Select campaigns to delete");
-      return;
-    }
-    if (!confirm(`Delete ${campaignIds.length} campaign${campaignIds.length > 1 ? 's' : ''} from Meta? This cannot be undone.`)) return;
+    const allIds = selectedItemsList.map(i => i.id);
+    if (allIds.length === 0) return;
+
+    const counts = {
+      CAMPAIGN: selectedItemsList.filter(i => i.type === 'CAMPAIGN').length,
+      ADSET: selectedItemsList.filter(i => i.type === 'ADSET').length,
+      AD: selectedItemsList.filter(i => i.type === 'AD').length,
+    };
+    const label = [
+      counts.CAMPAIGN > 0 && `${counts.CAMPAIGN} campaign${counts.CAMPAIGN > 1 ? 's' : ''}`,
+      counts.ADSET > 0 && `${counts.ADSET} ad set${counts.ADSET > 1 ? 's' : ''}`,
+      counts.AD > 0 && `${counts.AD} ad${counts.AD > 1 ? 's' : ''}`,
+    ].filter(Boolean).join(', ');
+
+    if (!confirm(`Delete ${label} from Meta? This cannot be undone.`)) return;
     setDeleting(true);
     try {
-      const response = await adAccountApi.bulkDelete(campaignIds);
-      toast.success(`${response.data.deleted} campaign${response.data.deleted !== 1 ? 's' : ''} deleted`);
+      const response = await adAccountApi.bulkDelete(allIds);
+      const successIds = new Set(response.data.results.filter((r: any) => r.success).map((r: any) => r.id));
+      toast.success(`${response.data.deleted} item${response.data.deleted !== 1 ? 's' : ''} deleted`);
+
       setSelectedItems(new Map());
       setPanelOpen(false);
-      fetchCampaigns();
+
+      if (counts.CAMPAIGN > 0) fetchCampaigns();
+      if (counts.ADSET > 0) {
+        setAdSets(prev => {
+          const next = { ...prev };
+          for (const key in next) next[key] = next[key].filter(as => !successIds.has(as.id));
+          return next;
+        });
+      }
+      if (counts.AD > 0) {
+        setAds(prev => {
+          const next = { ...prev };
+          for (const key in next) next[key] = next[key].filter(ad => !successIds.has(ad.id));
+          return next;
+        });
+      }
     } catch (err: any) { toast.error(err.response?.data?.message || "Delete failed"); }
     finally { setDeleting(false); }
   };
@@ -646,17 +672,7 @@ export default function ExplorerPage() {
                               <div className="flex items-center gap-2">
                                 <div className="min-w-0">
                                   <p className="font-medium text-sm text-gray-200 truncate">{campaign.name}</p>
-                                  <div className="flex items-center gap-2 flex-wrap mt-0.5">
-                                    <span className="text-[11px] text-gray-600">{OBJECTIVE_LABELS[campaign.objective] || campaign.objective}</span>
-                                    {campaign.bid_strategy && (
-                                      <span className="text-[10px] text-gray-700 bg-gray-800/50 px-1.5 py-0.5 rounded">{campaign.bid_strategy.replace(/_/g, ' ')}</span>
-                                    )}
-                                    {(campaign.daily_budget || campaign.lifetime_budget) && (
-                                      <span className="text-[10px] text-gray-700 bg-gray-800/50 px-1.5 py-0.5 rounded font-mono">
-                                        ฿{Number(campaign.daily_budget || campaign.lifetime_budget).toLocaleString()}{campaign.daily_budget ? '/day' : ' total'}
-                                      </span>
-                                    )}
-                                  </div>
+                                  <p className="text-[11px] text-gray-600">{OBJECTIVE_LABELS[campaign.objective] || campaign.objective}</p>
                                 </div>
                                 <button onClick={(e) => { e.stopPropagation(); setEditingId(campaign.id); setEditValue(campaign.name); }}
                                   className="opacity-0 group-hover:opacity-100 p-1 hover:bg-gray-700/50 rounded transition-all shrink-0">
@@ -692,7 +708,6 @@ export default function ExplorerPage() {
                                     {editingId === adset.id ? (
                                       <InlineEditor id={adset.id} type="ADSET" />
                                     ) : (
-                                      <>
                                       <div className="flex items-center gap-2">
                                         <p className="text-sm text-gray-300 truncate">{adset.name}</p>
                                         <button onClick={(e) => { e.stopPropagation(); setEditingId(adset.id); setEditValue(adset.name); }}
@@ -700,18 +715,6 @@ export default function ExplorerPage() {
                                           <Edit2 className="w-2.5 h-2.5 text-gray-500" />
                                         </button>
                                       </div>
-                                      <div className="flex items-center gap-1.5 flex-wrap mt-0.5">
-                                        {adset.optimization_goal && (
-                                          <span className="text-[10px] text-gray-700 bg-gray-800/50 px-1.5 py-0.5 rounded">{adset.optimization_goal.replace(/_/g, ' ')}</span>
-                                        )}
-                                        {adset.destination_type && adset.destination_type !== 'UNDEFINED' && (
-                                          <span className="text-[10px] text-gray-700">→ {adset.destination_type.replace(/_/g, ' ')}</span>
-                                        )}
-                                        {(adset.daily_budget || adset.lifetime_budget) && (
-                                          <span className="text-[10px] text-gray-700 font-mono">฿{Number(adset.daily_budget || adset.lifetime_budget).toLocaleString()}{adset.daily_budget ? '/day' : ' total'}</span>
-                                        )}
-                                      </div>
-                                      </>
                                     )}
                                   </div>
                                   <StatusBadge status={adset.status} />
@@ -812,16 +815,14 @@ export default function ExplorerPage() {
                 </div>
 
                 {/* Delete button */}
-                {selectedItemsList.some(i => i.type === 'CAMPAIGN') && (
-                  <div className="px-4 pt-2">
-                    <Button variant="outline" size="sm"
-                      className="w-full border-red-800/50 text-red-400 hover:bg-red-600/10 hover:text-red-300 gap-2 h-8 text-xs"
-                      onClick={handleBulkDelete} disabled={isBusy}>
-                      {deleting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
-                      Delete {selectedItemsList.filter(i => i.type === 'CAMPAIGN').length} from Meta
-                    </Button>
-                  </div>
-                )}
+                <div className="px-4 pt-2">
+                  <Button variant="outline" size="sm"
+                    className="w-full border-red-800/50 text-red-400 hover:bg-red-600/10 hover:text-red-300 gap-2 h-8 text-xs"
+                    onClick={handleBulkDelete} disabled={isBusy}>
+                    {deleting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
+                    Delete {selectedItemsList.length} from Meta
+                  </Button>
+                </div>
 
                 {/* Panel body */}
                 <div className="flex-1 overflow-y-auto p-4">
