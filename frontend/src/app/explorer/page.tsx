@@ -69,7 +69,7 @@ function resolvePattern(pattern: string, ctx: Record<string, string | undefined>
 // ─── Main page ───
 
 export default function ExplorerPage() {
-  const { selectedAccount } = useAppStore();
+  const { selectedAccount, adAccounts } = useAppStore();
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [expandedCampaigns, setExpandedCampaigns] = useState<Set<string>>(new Set());
   const [expandedAdSets, setExpandedAdSets] = useState<Set<string>>(new Set());
@@ -91,7 +91,7 @@ export default function ExplorerPage() {
   // Duplicate settings
   const [renamePattern, setRenamePattern] = useState("{{campaign_name}}{{adset_name}}{{ad_name}} - Copy");
   const [numCopies, setNumCopies] = useState(1);
-  const [customBudget, setCustomBudget] = useState("40");
+
   const [country, setCountry] = useState("TH");
   const [angle, setAngle] = useState("UGC");
   const [deep, setDeep] = useState(true);
@@ -99,6 +99,7 @@ export default function ExplorerPage() {
   // Convert settings
   const [targetObjective, setTargetObjective] = useState("OUTCOME_TRAFFIC");
   const [convertName, setConvertName] = useState("");
+  const [destAccountId, setDestAccountId] = useState<string | null>(null);
 
   // Optimization state (shared)
   const [optimizing, setOptimizing] = useState(false);
@@ -121,11 +122,11 @@ export default function ExplorerPage() {
   const canConvert = isSingleItem && selectedItemsList[0]?.type === "CAMPAIGN";
 
   const previewContext = useMemo(() => ({
-    country, angle, budget: customBudget,
+    country, angle,
     campaign_name: selectedItemsList.find((i) => i.type === "CAMPAIGN")?.name,
     adset_name: selectedItemsList.find((i) => i.type === "ADSET")?.name,
     ad_name: selectedItemsList.find((i) => i.type === "AD")?.name,
-  }), [country, angle, customBudget, selectedItemsList]);
+  }), [country, angle, selectedItemsList]);
 
   useEffect(() => {
     const timer = setTimeout(() => setDebouncedSearch(searchQuery), 200);
@@ -133,7 +134,15 @@ export default function ExplorerPage() {
   }, [searchQuery]);
 
   useEffect(() => {
-    if (selectedAccount) fetchCampaigns();
+    if (selectedAccount) {
+      setAdSets({});
+      setAds({});
+      setExpandedCampaigns(new Set());
+      setExpandedAdSets(new Set());
+      setSelectedItems(new Map());
+      setDestAccountId(selectedAccount.id);
+      fetchCampaigns();
+    }
   }, [selectedAccount]);
 
   useEffect(() => {
@@ -293,12 +302,13 @@ export default function ExplorerPage() {
   };
 
   const handleDuplicate = async () => {
-    if (!selectedAccount?.id) { toast.error("No ad account selected"); return; }
+    const targetAccId = destAccountId || selectedAccount?.id;
+    if (!targetAccId) { toast.error("No destination account selected"); return; }
     setDuplicating(true);
     try {
       await duplicationApi.duplicateBulk({
-        items: selectedItemsList, adAccountId: selectedAccount.id,
-        options: { numCopies, renamePattern, deep, customBudget: customBudget || undefined, context: { country, angle } },
+        items: selectedItemsList, adAccountId: targetAccId,
+        options: { numCopies, renamePattern, deep, context: { country, angle } },
       });
       toast.success(`Duplicated ${selectedItemsList.length * numCopies} items!`);
       setSelectedItems(new Map());
@@ -338,12 +348,13 @@ export default function ExplorerPage() {
   };
 
   const handleConvert = async (mode: "draft" | "publish") => {
-    if (!selectedAccount?.id) return;
+    const targetAccId = destAccountId || selectedAccount?.id;
+    if (!targetAccId) { toast.error("No destination account selected"); return; }
     setConverting(true);
     try {
       await duplicationApi.convertObjective({
         items: selectedItemsList, targetObjective,
-        newName: convertName, adAccountId: selectedAccount.id,
+        newName: convertName, adAccountId: targetAccId,
         saveAsDraft: mode === "draft",
       });
       toast.success(mode === "draft" ? "Saved as draft!" : "Converted successfully!");
@@ -648,7 +659,32 @@ export default function ExplorerPage() {
           <MetaField label="Target Country" value={country} onChange={setCountry} placeholder="e.g. TH" />
           <MetaField label="Marketing Angle" value={angle} onChange={setAngle} placeholder="e.g. UGC" />
           <MetaField label="Copies" value={numCopies} type="number" onChange={(v: string) => setNumCopies(parseInt(v) || 1)} />
-          <MetaField label="Daily Budget (THB)" value={customBudget} type="number" isBudget onChange={setCustomBudget} />
+        </div>
+
+        {/* Destination account */}
+        <div className="mt-3">
+          <label className="text-[10px] text-gray-500 uppercase tracking-wider font-semibold block mb-1.5">
+            Destination Account
+          </label>
+          <Select value={destAccountId} onValueChange={setDestAccountId}>
+            <SelectTrigger className="h-8 bg-gray-950 border-gray-800 text-xs text-gray-300 focus:ring-0">
+              <SelectValue placeholder="Select account..." />
+            </SelectTrigger>
+            <SelectContent className="bg-gray-900 border-gray-800">
+              {adAccounts.map(acc => (
+                <SelectItem key={acc.id} value={acc.id}
+                  className={cn("text-xs", acc.id === selectedAccount?.id ? "text-blue-400" : "text-gray-300")}>
+                  {acc.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          {destAccountId && destAccountId !== selectedAccount?.id && (
+            <p className="text-[10px] text-amber-400 mt-1 flex items-center gap-1">
+              <AlertTriangle className="w-3 h-3" />
+              Cloning to a different ad account
+            </p>
+          )}
         </div>
 
         {hasCampaigns && (
@@ -733,10 +769,36 @@ export default function ExplorerPage() {
         </div>
       </section>
 
-      {/* Name */}
+      {/* Name + destination */}
       <section>
         <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Configuration</h3>
-        <MetaField label="New Campaign Name" value={convertName} onChange={setConvertName} placeholder="Enter new name..." />
+        <div className="space-y-3">
+          <MetaField label="New Campaign Name" value={convertName} onChange={setConvertName} placeholder="Enter new name..." />
+          <div>
+            <label className="text-[10px] text-gray-500 uppercase tracking-wider font-semibold block mb-1.5">
+              Destination Account
+            </label>
+            <Select value={destAccountId ?? ''} onValueChange={(v) => setDestAccountId(v || null)}>
+              <SelectTrigger className="h-8 bg-gray-950 border-gray-800 text-xs text-gray-300 focus:ring-0">
+                <SelectValue placeholder="Select account..." />
+              </SelectTrigger>
+              <SelectContent className="bg-gray-900 border-gray-800">
+                {adAccounts.map(acc => (
+                  <SelectItem key={acc.id} value={acc.id}
+                    className={cn("text-xs", acc.id === selectedAccount?.id ? "text-blue-400" : "text-gray-300")}>
+                    {acc.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {destAccountId && destAccountId !== selectedAccount?.id && (
+              <p className="text-[10px] text-amber-400 mt-1 flex items-center gap-1">
+                <AlertTriangle className="w-3 h-3" />
+                Converting to a different ad account
+              </p>
+            )}
+          </div>
+        </div>
       </section>
 
       {/* Optimization */}
