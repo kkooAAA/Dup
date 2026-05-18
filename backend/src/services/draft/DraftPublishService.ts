@@ -12,6 +12,7 @@ import {
   sanitizePromotedObject,
 } from './MetaFieldRegistry';
 import { DraftValidationEngine } from './DraftValidationEngine';
+import { extractMetaError } from '../../utils/metaErrorHelper';
 
 export class DraftPublishService {
   static async publishCampaign(campaignId: string, accessToken: string) {
@@ -329,11 +330,7 @@ export class DraftPublishService {
       const fbCampaign = await fbService.client.post(`/${accountId}/campaigns`, campaignPayload);
       return fbCampaign.data.id;
     } catch (error: any) {
-      const errData = error.response?.data?.error;
-      const errMsg = errData
-        ? `${errData.message} (code ${errData.code}/${errData.error_subcode ?? '-'})${errData.error_user_msg ? ': ' + errData.error_user_msg : ''}`
-        : error.message;
-      throw new Error(`Facebook API Error (Campaign): ${errMsg}`);
+      throw new Error(extractMetaError(error, 'Facebook API Error (Campaign)'));
     }
   }
 
@@ -526,19 +523,12 @@ export class DraftPublishService {
             console.warn(`[DraftPublishService] Ad set ${adSet.id} published without budget — CBO fallback used`);
             return fbAdSetRetry2.data.id;
           } catch (retryError2: any) {
-            const retryErrData = retryError2.response?.data?.error;
-            const retryDetail = retryErrData
-              ? `${retryErrData.message} (code ${retryErrData.code}/${retryErrData.error_subcode ?? '-'})${retryErrData.error_user_msg ? ': ' + retryErrData.error_user_msg : ''}`
-              : retryError2.message;
-            throw new Error(`Facebook API Error (AdSet ${adSet.id}): ${retryDetail}`);
+            throw new Error(extractMetaError(retryError2, `Facebook API Error (AdSet ${adSet.id})`));
           }
         }
       }
 
-      const detail = errData
-        ? `${errData.message} (code ${errData.code}/${errData.error_subcode ?? '-'})${errData.error_user_msg ? ': ' + errData.error_user_msg : ''}`
-        : error.message;
-      throw new Error(`Facebook API Error (AdSet ${adSet.id}): ${detail}`);
+      throw new Error(extractMetaError(error, `Facebook API Error (AdSet ${adSet.id})`));
     }
   }
 
@@ -644,11 +634,7 @@ export class DraftPublishService {
       const fbAd = await fbService.client.post(`/${accountId}/ads`, adPayload);
       return fbAd.data.id;
     } catch (error: any) {
-      const errData = error.response?.data?.error;
-      const errMsg = errData
-        ? `${errData.message} (code ${errData.code}/${errData.error_subcode ?? '-'})${errData.error_user_msg ? ': ' + errData.error_user_msg : ''}`
-        : error.message;
-      throw new Error(`Facebook API Error (Ad ${ad.id}): ${errMsg}`);
+      throw new Error(extractMetaError(error, `Facebook API Error (Ad ${ad.id})`));
     }
   }
 

@@ -12,6 +12,7 @@ import {
   VALID_OPTIMIZATION_GOALS, VALID_DESTINATION_TYPES,
   OPTIMIZATION_GOAL_LABELS, DESTINATION_TYPE_LABELS,
 } from '../services/draft/MetaFieldRegistry';
+import { extractMetaError } from '../utils/metaErrorHelper';
 
 export const getHistory = async (req: AuthRequest, res: Response) => {
   try {
@@ -82,9 +83,8 @@ export const previewConversion = async (req: AuthRequest, res: Response) => {
     const preview = await conversionService.getPreview(type, id, targetObjective, newName);
     res.json(preview);
   } catch (error: any) {
-    const errorData = error.response?.data || error.message;
-    console.error('previewConversion Error:', errorData);
-    res.status(500).json({ message: 'Failed to preview conversion', error: errorData });
+    console.error('previewConversion Error:', error.response?.data || error.message);
+    res.status(500).json({ message: extractMetaError(error, 'Failed to preview conversion') });
   }
 };
 
@@ -131,9 +131,8 @@ export const convertObjective = async (req: AuthRequest, res: Response) => {
 
     res.json({ success: true, results });
   } catch (error: any) {
-    const errorData = error.response?.data || error.message;
-    console.error('convertObjective Error:', errorData);
-    res.status(500).json({ message: 'Failed to convert objective', error: errorData });
+    console.error('convertObjective Error:', error.response?.data || error.message);
+    res.status(500).json({ message: extractMetaError(error, 'Failed to convert objective') });
   }
 };
 
@@ -211,13 +210,8 @@ export const duplicateItems = async (req: AuthRequest, res: Response) => {
 
     res.json({ success: true, results });
   } catch (error: any) {
-    const errorDetail = error.response?.data || error.message || error;
-    console.error('[DuplicationController] Bulk Duplicate Error:', errorDetail);
-
-    res.status(500).json({
-      message: 'Failed to duplicate items',
-      error: errorDetail,
-    });
+    console.error('[DuplicationController] Bulk Duplicate Error:', error.response?.data || error.message);
+    res.status(500).json({ message: extractMetaError(error, 'Failed to duplicate items') });
   }
 };
 
@@ -240,7 +234,7 @@ export const duplicateCampaign = async (req: AuthRequest, res: Response) => {
 
     res.json(result);
   } catch (error: any) {
-    res.status(500).json({ message: 'Failed to duplicate campaign', error: error.response?.data });
+    res.status(500).json({ message: extractMetaError(error, 'Failed to duplicate campaign') });
   }
 };
 
@@ -263,7 +257,7 @@ export const duplicateAdSet = async (req: AuthRequest, res: Response) => {
 
     res.json(result);
   } catch (error: any) {
-    res.status(500).json({ message: 'Failed to duplicate ad set', error: error.response?.data });
+    res.status(500).json({ message: extractMetaError(error, 'Failed to duplicate ad set') });
   }
 };
 
@@ -286,7 +280,7 @@ export const duplicateAd = async (req: AuthRequest, res: Response) => {
 
     res.json(result);
   } catch (error: any) {
-    res.status(500).json({ message: 'Failed to duplicate ad', error: error.response?.data });
+    res.status(500).json({ message: extractMetaError(error, 'Failed to duplicate ad') });
   }
 };
 
@@ -366,7 +360,7 @@ export const optimizeDuplicate = async (req: AuthRequest, res: Response) => {
     return res.status(400).json({ message: 'Invalid type' });
   } catch (error: any) {
     console.error('[DuplicationController] optimizeDuplicate error:', error.response?.data || error.message);
-    res.status(500).json({ message: 'Failed to optimize', error: error.response?.data?.error?.message || error.message });
+    res.status(500).json({ message: extractMetaError(error, 'Failed to optimize') });
   }
 };
 
@@ -439,7 +433,7 @@ export const optimizeConversion = async (req: AuthRequest, res: Response) => {
     });
   } catch (error: any) {
     console.error('[DuplicationController] optimizeConversion error:', error.response?.data || error.message);
-    res.status(500).json({ message: 'Failed to optimize conversion', error: error.response?.data?.error?.message || error.message });
+    res.status(500).json({ message: extractMetaError(error, 'Failed to optimize conversion') });
   }
 };
 

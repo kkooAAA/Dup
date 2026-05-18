@@ -24,6 +24,7 @@ import {
   AlertCircle,
   Loader2,
 } from "lucide-react";
+import { extractApiError } from "@/lib/utils";
 
 const STEP_LABELS = [
   { n: 1, label: "Objectives" },
@@ -83,7 +84,7 @@ export default function WideCreatePage() {
         toast.error(`${res.data.errors.length} error(s) found`);
       }
     } catch (error: any) {
-      toast.error(error.response?.data?.error || "Validation failed");
+      toast.error(extractApiError(error, "Validation failed"));
     } finally {
       setIsValidating(false);
     }
@@ -103,8 +104,7 @@ export default function WideCreatePage() {
         `Created ${res.data.totalCreated.campaigns} campaigns, ${res.data.totalCreated.adSets} ad sets, ${res.data.totalCreated.ads} ads as drafts`
       );
     } catch (error: any) {
-      const msg = error.response?.data?.error || "Generation failed";
-      toast.error(msg);
+      toast.error(extractApiError(error, "Generation failed"));
       if (error.response?.data?.validation) {
         setValidation(error.response.data.validation);
       }

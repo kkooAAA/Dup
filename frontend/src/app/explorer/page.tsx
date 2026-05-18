@@ -17,7 +17,7 @@ import {
 } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
-import { cn } from "@/lib/utils";
+import { cn, extractApiError } from "@/lib/utils";
 import { NamingTemplateEditor } from "@/components/dashboard/NamingTemplateEditor";
 import { NamingPreview } from "@/components/dashboard/NamingPreview";
 import { MetaField } from "@/components/meta/MetaField";
@@ -287,7 +287,7 @@ export default function ExplorerPage() {
       const item = selectedItemsList[0];
       const resp = await duplicationApi.optimizeDuplicate({ type: item.type, id: item.id, overrides });
       setOptimizationData(resp.data);
-    } catch (err: any) { toast.error(err.response?.data?.message || "Failed to analyze fields"); }
+    } catch (err: any) { toast.error(extractApiError(err, "Failed to analyze fields")); }
     finally { setOptimizing(false); }
   };
 
@@ -317,7 +317,7 @@ export default function ExplorerPage() {
       setPanelOpen(false);
       resetOptimization();
       fetchCampaigns();
-    } catch (err: any) { toast.error(err.response?.data?.message || "Failed to duplicate"); }
+    } catch (err: any) { toast.error(extractApiError(err, "Failed to duplicate")); }
     finally { setDuplicating(false); }
   };
 
@@ -345,7 +345,7 @@ export default function ExplorerPage() {
         type: item.type, id: item.id, targetObjective, newName: convertName,
       });
       setOptimizationData(resp.data);
-    } catch (err: any) { toast.error(err.response?.data?.message || "Failed to analyze conversion"); }
+    } catch (err: any) { toast.error(extractApiError(err, "Failed to analyze conversion")); }
     finally { setOptimizing(false); }
   };
 
@@ -364,7 +364,7 @@ export default function ExplorerPage() {
       setPanelOpen(false);
       resetOptimization();
       fetchCampaigns();
-    } catch (err: any) { toast.error(err.response?.data?.message || "Failed to convert"); }
+    } catch (err: any) { toast.error(extractApiError(err, "Failed to convert")); }
     finally { setConverting(false); }
   };
 
@@ -411,7 +411,7 @@ export default function ExplorerPage() {
           return next;
         });
       }
-    } catch (err: any) { toast.error(err.response?.data?.message || "Delete failed"); }
+    } catch (err: any) { toast.error(extractApiError(err, "Delete failed")); }
     finally { setDeleting(false); setConfirmAction(null); }
   };
 
@@ -438,7 +438,7 @@ export default function ExplorerPage() {
         for (const key in next) next[key] = next[key].map(ad => successIds.has(ad.id) ? { ...ad, status: 'ACTIVE' } : ad);
         return next;
       });
-    } catch (err: any) { toast.error(err.response?.data?.message || "Activate failed"); }
+    } catch (err: any) { toast.error(extractApiError(err, "Activate failed")); }
     finally { setActivating(false); setConfirmAction(null); }
   };
 
@@ -465,7 +465,7 @@ export default function ExplorerPage() {
         for (const key in next) next[key] = next[key].map(ad => successIds.has(ad.id) ? { ...ad, status: 'PAUSED' } : ad);
         return next;
       });
-    } catch (err: any) { toast.error(err.response?.data?.message || "Pause failed"); }
+    } catch (err: any) { toast.error(extractApiError(err, "Pause failed")); }
     finally { setPausing(false); setConfirmAction(null); }
   };
 

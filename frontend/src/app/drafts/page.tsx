@@ -10,7 +10,7 @@ import { draftApi, adAccountApi } from "@/services/api";
 import { Edit2, Trash2, Send, Layers, Loader2, X, Pencil, Play, Pause } from "lucide-react";
 import Link from "next/link";
 import { toast } from "sonner";
-import { cn } from "@/lib/utils";
+import { cn, extractApiError } from "@/lib/utils";
 import { BulkEditPanel } from "@/components/dashboard/BulkEditPanel";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 
@@ -31,9 +31,9 @@ export default function DraftsPage() {
       setIsLoading(true);
       const response = await draftApi.listCampaigns();
       setDrafts(response.data);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Failed to fetch drafts:", error);
-      toast.error("Failed to load drafts");
+      toast.error(extractApiError(error, "Failed to load drafts"));
     } finally {
       setIsLoading(false);
     }
@@ -52,8 +52,8 @@ export default function DraftsPage() {
     try {
       await draftApi.deleteCampaign(targetId);
       toast.success("Draft deleted");
-    } catch (error) {
-      toast.error("Failed to delete draft");
+    } catch (error: any) {
+      toast.error(extractApiError(error, "Failed to delete draft"));
       setDrafts(prev);
     } finally {
       setConfirmAction(null);
@@ -89,7 +89,7 @@ export default function DraftsPage() {
       setSelectedIds(new Set());
       fetchDrafts();
     } catch (error: any) {
-      toast.error(error.response?.data?.error || "Bulk delete failed");
+      toast.error(extractApiError(error, "Bulk delete failed"));
     } finally {
       setIsBulkDeleting(false);
       setConfirmAction(null);
@@ -103,7 +103,7 @@ export default function DraftsPage() {
       await adAccountApi.bulkActivate([draft.metaId]);
       toast.success('Campaign activated on Meta');
     } catch (err: any) {
-      toast.error(err.response?.data?.message || 'Failed to activate');
+      toast.error(extractApiError(err, 'Failed to activate'));
     } finally {
       setTogglingId(null);
     }
@@ -140,7 +140,7 @@ export default function DraftsPage() {
       setSelectedIds(new Set());
       fetchDrafts();
     } catch (error: any) {
-      toast.error(error.response?.data?.error || "Bulk publish failed");
+      toast.error(extractApiError(error, "Bulk publish failed"));
     } finally {
       setIsBulkPublishing(false);
       setPublishProgress(null);
