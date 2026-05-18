@@ -37,6 +37,7 @@ export const adAccountApi = {
   getAds: (adSetId: string) => api.get(`/adaccounts/adsets/${adSetId}/ads`),
   updateName: (id: string, newName: string) => api.patch('/adaccounts/update-name', { id, newName }),
   bulkActivate: (ids: string[]) => api.post('/adaccounts/bulk-activate', { ids }),
+  bulkPause: (ids: string[]) => api.post('/adaccounts/bulk-pause', { ids }),
   bulkDelete: (ids: string[]) => api.post('/adaccounts/bulk-delete', { ids }),
 };
 

@@ -91,6 +91,7 @@ export default function ExplorerPage() {
   const [converting, setConverting] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [activating, setActivating] = useState(false);
+  const [pausing, setPausing] = useState(false);
 
   const selectedItemsList = useMemo(() => Array.from(selectedItems.values()), [selectedItems]);
   const hasCampaigns = selectedItemsList.some((item) => item.type === "CAMPAIGN");
@@ -377,7 +378,55 @@ export default function ExplorerPage() {
     finally { setActivating(false); }
   };
 
-  const isBusy = duplicating || savingDraft || optimizing || converting || deleting || activating;
+  const handleBulkPause = async () => {
+    const allIds = selectedItemsList.map(i => i.id);
+    if (allIds.length === 0) return;
+
+    const counts = {
+      CAMPAIGN: selectedItemsList.filter(i => i.type === 'CAMPAIGN').length,
+      ADSET: selectedItemsList.filter(i => i.type === 'ADSET').length,
+      AD: selectedItemsList.filter(i => i.type === 'AD').length,
+    };
+    const label = [
+      counts.CAMPAIGN > 0 && `${counts.CAMPAIGN} campaign${counts.CAMPAIGN > 1 ? 's' : ''}`,
+      counts.ADSET > 0 && `${counts.ADSET} ad set${counts.ADSET > 1 ? 's' : ''}`,
+      counts.AD > 0 && `${counts.AD} ad${counts.AD > 1 ? 's' : ''}`,
+    ].filter(Boolean).join(', ');
+
+    if (!confirm(`Pause ${label} on Meta?`)) return;
+    setPausing(true);
+    try {
+      const response = await adAccountApi.bulkPause(allIds);
+      const successIds = new Set(response.data.results.filter((r: any) => r.success).map((r: any) => r.id));
+      toast.success(`${response.data.paused} item${response.data.paused !== 1 ? 's' : ''} paused`);
+
+      setSelectedItems(new Map());
+      setPanelOpen(false);
+
+      setCampaigns(prev => prev.map(c => successIds.has(c.id) ? { ...c, status: 'PAUSED' } : c));
+      setAdSets(prev => {
+        const next = { ...prev };
+        for (const key in next) next[key] = next[key].map(as => successIds.has(as.id) ? { ...as, status: 'PAUSED' } : as);
+        return next;
+      });
+      setAds(prev => {
+        const next = { ...prev };
+        for (const key in next) next[key] = next[key].map(ad => successIds.has(ad.id) ? { ...ad, status: 'PAUSED' } : ad);
+        return next;
+      });
+    } catch (err: any) { toast.error(err.response?.data?.message || "Pause failed"); }
+    finally { setPausing(false); }
+  };
+
+  const handleSelectAll = () => {
+    const newSelected = new Map<string, { id: string; type: string; name: string }>();
+    filteredCampaigns.forEach(c => newSelected.set(c.id, { id: c.id, type: 'CAMPAIGN', name: c.name }));
+    Object.values(adSets).flat().forEach(as => newSelected.set(as.id, { id: as.id, type: 'ADSET', name: as.name }));
+    Object.values(ads).flat().forEach(ad => newSelected.set(ad.id, { id: ad.id, type: 'AD', name: ad.name }));
+    setSelectedItems(newSelected);
+  };
+
+  const isBusy = duplicating || savingDraft || optimizing || converting || deleting || activating || pausing;
 
   // ─── Inline editor ───
 
@@ -674,10 +723,18 @@ export default function ExplorerPage() {
                 {searchQuery && (
                   <Button variant="ghost" size="sm" className="text-gray-500 text-xs h-8" onClick={() => setSearchQuery("")}>Clear</Button>
                 )}
+                <Button variant="ghost" size="sm" className="text-gray-600 hover:text-gray-300 text-xs h-8 shrink-0" onClick={handleSelectAll}>
+                  Select All
+                </Button>
                 {selectedItems.size > 0 && (
-                  <span className="text-[10px] font-semibold px-2 py-1 rounded-full bg-blue-500/15 text-blue-400">
-                    {selectedItems.size} selected
-                  </span>
+                  <>
+                    <span className="text-[10px] font-semibold px-2 py-1 rounded-full bg-blue-500/15 text-blue-400">
+                      {selectedItems.size} selected
+                    </span>
+                    <Button variant="ghost" size="sm" className="text-gray-600 hover:text-gray-400 text-xs h-8 shrink-0" onClick={() => setSelectedItems(new Map())}>
+                      Clear
+                    </Button>
+                  </>
                 )}
               </div>
 
@@ -855,19 +912,27 @@ export default function ExplorerPage() {
                   </div>
                 </div>
 
-                {/* Activate + Delete buttons */}
-                <div className="px-4 pt-2 flex gap-2">
+                {/* Status + Delete buttons */}
+                <div className="px-4 pt-2 space-y-1.5">
+                  <div className="flex gap-2">
+                    <Button variant="outline" size="sm"
+                      className="flex-1 border-emerald-800/50 text-emerald-400 hover:bg-emerald-500/10 hover:text-emerald-300 gap-1.5 h-8 text-xs"
+                      onClick={handleBulkActivate} disabled={isBusy}>
+                      {activating ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Zap className="w-3.5 h-3.5" />}
+                      {activating ? "Activating..." : "Activate"}
+                    </Button>
+                    <Button variant="outline" size="sm"
+                      className="flex-1 border-amber-800/50 text-amber-400 hover:bg-amber-500/10 hover:text-amber-300 gap-1.5 h-8 text-xs"
+                      onClick={handleBulkPause} disabled={isBusy}>
+                      {pausing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Globe className="w-3.5 h-3.5" />}
+                      {pausing ? "Pausing..." : "Pause"}
+                    </Button>
+                  </div>
                   <Button variant="outline" size="sm"
-                    className="flex-1 border-emerald-800/50 text-emerald-400 hover:bg-emerald-500/10 hover:text-emerald-300 gap-2 h-8 text-xs"
-                    onClick={handleBulkActivate} disabled={isBusy}>
-                    {activating ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Zap className="w-3.5 h-3.5" />}
-                    {activating ? "Activating..." : `Activate (${selectedItemsList.length})`}
-                  </Button>
-                  <Button variant="outline" size="sm"
-                    className="flex-1 border-red-800/50 text-red-400 hover:bg-red-600/10 hover:text-red-300 gap-2 h-8 text-xs"
+                    className="w-full border-red-800/50 text-red-400 hover:bg-red-600/10 hover:text-red-300 gap-2 h-8 text-xs"
                     onClick={handleBulkDelete} disabled={isBusy}>
                     {deleting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
-                    {deleting ? "Deleting..." : `Delete (${selectedItemsList.length})`}
+                    {deleting ? "Deleting..." : `Delete (${selectedItemsList.length}) from Meta`}
                   </Button>
                 </div>
 

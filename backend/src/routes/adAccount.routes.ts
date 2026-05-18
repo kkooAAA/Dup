@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { getAdAccounts, getCampaigns, getAdSets, getAds, updateObjectName, bulkDeleteCampaigns, bulkActivateObjects } from '../controllers/adAccount.controller';
+import { getAdAccounts, getCampaigns, getAdSets, getAds, updateObjectName, bulkDeleteCampaigns, bulkActivateObjects, bulkPauseObjects } from '../controllers/adAccount.controller';
 import { authMiddleware } from '../middleware/auth.middleware';
 
 const router = Router();
@@ -12,6 +12,7 @@ router.get('/campaigns/:campaignId/adsets', getAdSets);
 router.get('/adsets/:adSetId/ads', getAds);
 router.patch('/update-name', updateObjectName);
 router.post('/bulk-activate', bulkActivateObjects);
+router.post('/bulk-pause', bulkPauseObjects);
 router.post('/bulk-delete', bulkDeleteCampaigns);
 
 export default router;
