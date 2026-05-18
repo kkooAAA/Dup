@@ -1,4 +1,4 @@
-# AdsDuplicator - Facebook Ads Structure Duplication & Management Tool
+# CloneZone - Facebook Ads Structure Duplication & Management Tool
 
 A modern full-stack web application for duplicating, converting, and managing Facebook Ads structures using the Meta Marketing API v21.0.
 

@@ -1,4 +1,4 @@
-# AdsDuplicator - Project Context
+# CloneZone - Project Context
 
 ## Architecture
 

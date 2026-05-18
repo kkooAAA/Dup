@@ -1,6 +1,6 @@
 # Meta Ad Objectives
 
-AdsDuplicator supports all 6 current Meta (ODAX) campaign objectives. Each objective determines which optimization goals, destination types, and promoted object fields are valid.
+CloneZone supports all 6 current Meta (ODAX) campaign objectives. Each objective determines which optimization goals, destination types, and promoted object fields are valid.
 
 ## The 6 Objectives
 

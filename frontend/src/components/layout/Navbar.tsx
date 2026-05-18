@@ -30,7 +30,7 @@ export const Navbar = () => {
     <nav className="h-14 border-b border-gray-800/60 bg-gray-950/80 backdrop-blur-md flex items-center justify-between px-5 sticky top-0 z-50">
       <div className="flex items-center gap-3">
         <h1 className="text-lg font-bold bg-gradient-to-r from-blue-400 to-cyan-400 bg-clip-text text-transparent">
-          AdsDuplicator
+          CloneZone
         </h1>
         {currentPage && (
           <>

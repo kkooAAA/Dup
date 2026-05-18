@@ -1,4 +1,4 @@
-# Agent Instructions for AdsDuplicator
+# Agent Instructions for CloneZone
 
 ## Critical Rule
 

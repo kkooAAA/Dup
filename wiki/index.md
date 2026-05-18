@@ -1,4 +1,4 @@
-# AdsDuplicator Wiki — Index
+# CloneZone Wiki — Index
 
 ## Architecture
 

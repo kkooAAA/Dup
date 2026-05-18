@@ -106,7 +106,7 @@ function LoginContent() {
       <div className="hidden lg:flex flex-1 flex-col justify-center px-16 xl:px-24 relative">
         <div className="max-w-md">
           <h1 className="text-5xl font-bold bg-gradient-to-r from-blue-400 via-cyan-400 to-blue-300 bg-clip-text text-transparent mb-4">
-            AdsDuplicator
+            CloneZone
           </h1>
           <p className="text-lg text-gray-400 mb-10 leading-relaxed">
             Professional Meta Ads management. Duplicate campaign structures safely and efficiently.
@@ -133,7 +133,7 @@ function LoginContent() {
           <CardHeader className="text-center space-y-1 pb-4">
             <div className="lg:hidden">
               <CardTitle className="text-2xl font-bold bg-gradient-to-r from-blue-400 to-cyan-400 bg-clip-text text-transparent">
-                AdsDuplicator
+                CloneZone
               </CardTitle>
             </div>
             <div className="hidden lg:block">
