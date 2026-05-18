@@ -4,17 +4,17 @@
     "type": "split",
     "children": [
       {
-        "id": "43e0c91a8f6b0037",
+        "id": "c09c7974d93fbb2a",
         "type": "tabs",
         "children": [
           {
-            "id": "61c8c21058ef829c",
+            "id": "565003f6c1b1f9d1",
             "type": "leaf",
             "state": {
-              "type": "graph",
+              "type": "empty",
               "state": {},
-              "icon": "lucide-git-fork",
-              "title": "Graph view"
+              "icon": "lucide-file",
+              "title": "New tab"
             }
           }
         ]
@@ -176,11 +176,17 @@
       "bases:Create new base": false
     }
   },
-  "active": "61c8c21058ef829c",
+  "active": "ddafeab052f0c1bc",
   "lastOpenFiles": [
+    "log.md",
+    "SCHEMA.md",
+    "Untitled.md",
+    "pages/services/field-optimization-engine.md",
+    "index.md",
+    "pages/services/draft-system.md",
+    "pages/architecture/tech-stack.md",
     "index.md.tmp.402423.ee5ba9fb4f14",
     "pages/testing/overview.md.tmp.402423.621e6922f8a4",
-    "index.md",
     "index.md.tmp.397488.0955d4a4f765"
   ]
 }

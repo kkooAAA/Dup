@@ -217,11 +217,11 @@ export function BulkEditPanel({
         />
       )}
 
-      {/* Panel - slides from left */}
+      {/* Panel - slides from right */}
       <div
         className={cn(
-          "fixed top-0 left-0 h-full w-[520px] max-w-[90vw] bg-gray-950 border-r border-gray-800 z-50 flex flex-col transition-transform duration-300 ease-out shadow-2xl shadow-black/50",
-          isOpen ? "translate-x-0" : "-translate-x-full"
+          "fixed top-0 right-0 h-full w-[520px] max-w-[90vw] bg-gray-950 border-l border-gray-800 z-50 flex flex-col transition-transform duration-300 ease-out shadow-2xl shadow-black/50",
+          isOpen ? "translate-x-0" : "translate-x-full"
         )}
       >
         {/* Header */}

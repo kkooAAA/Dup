@@ -877,7 +877,7 @@ export default function ExplorerPage() {
           <div className="flex flex-1 gap-4 overflow-hidden">
             {/* ─── Left: Campaign tree ─── */}
             <div className={cn(
-              "bg-gray-900/30 border border-gray-800/60 rounded-xl overflow-hidden flex flex-col transition-all",
+              "bg-gray-900/30 border border-gray-800/60 rounded-xl overflow-hidden flex flex-col",
               panelOpen ? "flex-1 min-w-0" : "w-full"
             )}>
               <div className="p-3 border-b border-gray-800/60 flex flex-col gap-1.5 bg-gray-900/50">
