@@ -90,6 +90,7 @@ export default function ExplorerPage() {
   const [savingDraft, setSavingDraft] = useState(false);
   const [converting, setConverting] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [activating, setActivating] = useState(false);
 
   const selectedItemsList = useMemo(() => Array.from(selectedItems.values()), [selectedItems]);
   const hasCampaigns = selectedItemsList.some((item) => item.type === "CAMPAIGN");
@@ -336,7 +337,47 @@ export default function ExplorerPage() {
     finally { setDeleting(false); }
   };
 
-  const isBusy = duplicating || savingDraft || optimizing || converting || deleting;
+  const handleBulkActivate = async () => {
+    const allIds = selectedItemsList.map(i => i.id);
+    if (allIds.length === 0) return;
+
+    const counts = {
+      CAMPAIGN: selectedItemsList.filter(i => i.type === 'CAMPAIGN').length,
+      ADSET: selectedItemsList.filter(i => i.type === 'ADSET').length,
+      AD: selectedItemsList.filter(i => i.type === 'AD').length,
+    };
+    const label = [
+      counts.CAMPAIGN > 0 && `${counts.CAMPAIGN} campaign${counts.CAMPAIGN > 1 ? 's' : ''}`,
+      counts.ADSET > 0 && `${counts.ADSET} ad set${counts.ADSET > 1 ? 's' : ''}`,
+      counts.AD > 0 && `${counts.AD} ad${counts.AD > 1 ? 's' : ''}`,
+    ].filter(Boolean).join(', ');
+
+    if (!confirm(`Set ${label} to ACTIVE on Meta? They will start running immediately.`)) return;
+    setActivating(true);
+    try {
+      const response = await adAccountApi.bulkActivate(allIds);
+      const successIds = new Set(response.data.results.filter((r: any) => r.success).map((r: any) => r.id));
+      toast.success(`${response.data.activated} item${response.data.activated !== 1 ? 's' : ''} activated`);
+
+      setSelectedItems(new Map());
+      setPanelOpen(false);
+
+      setCampaigns(prev => prev.map(c => successIds.has(c.id) ? { ...c, status: 'ACTIVE' } : c));
+      setAdSets(prev => {
+        const next = { ...prev };
+        for (const key in next) next[key] = next[key].map(as => successIds.has(as.id) ? { ...as, status: 'ACTIVE' } : as);
+        return next;
+      });
+      setAds(prev => {
+        const next = { ...prev };
+        for (const key in next) next[key] = next[key].map(ad => successIds.has(ad.id) ? { ...ad, status: 'ACTIVE' } : ad);
+        return next;
+      });
+    } catch (err: any) { toast.error(err.response?.data?.message || "Activate failed"); }
+    finally { setActivating(false); }
+  };
+
+  const isBusy = duplicating || savingDraft || optimizing || converting || deleting || activating;
 
   // ─── Inline editor ───
 
@@ -814,13 +855,19 @@ export default function ExplorerPage() {
                   </div>
                 </div>
 
-                {/* Delete button */}
-                <div className="px-4 pt-2">
+                {/* Activate + Delete buttons */}
+                <div className="px-4 pt-2 flex gap-2">
                   <Button variant="outline" size="sm"
-                    className="w-full border-red-800/50 text-red-400 hover:bg-red-600/10 hover:text-red-300 gap-2 h-8 text-xs"
+                    className="flex-1 border-emerald-800/50 text-emerald-400 hover:bg-emerald-500/10 hover:text-emerald-300 gap-2 h-8 text-xs"
+                    onClick={handleBulkActivate} disabled={isBusy}>
+                    {activating ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Zap className="w-3.5 h-3.5" />}
+                    {activating ? "Activating..." : `Activate (${selectedItemsList.length})`}
+                  </Button>
+                  <Button variant="outline" size="sm"
+                    className="flex-1 border-red-800/50 text-red-400 hover:bg-red-600/10 hover:text-red-300 gap-2 h-8 text-xs"
                     onClick={handleBulkDelete} disabled={isBusy}>
                     {deleting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
-                    Delete {selectedItemsList.length} from Meta
+                    {deleting ? "Deleting..." : `Delete (${selectedItemsList.length})`}
                   </Button>
                 </div>
 
