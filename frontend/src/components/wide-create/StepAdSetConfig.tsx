@@ -345,6 +345,20 @@ function AdSetDynamicField({
         </div>
       );
 
+    case "datetime":
+      return (
+        <div>
+          <Label className="text-xs text-gray-500">{field.label}</Label>
+          {field.helpText && <p className="text-[10px] text-gray-600">{field.helpText}</p>}
+          <Input
+            type="datetime-local"
+            value={value ? value.slice(0, 16) : ""}
+            onChange={(e) => onChange(e.target.value ? `${e.target.value}:00` : undefined)}
+            className="bg-gray-800 border-gray-700 mt-1"
+          />
+        </div>
+      );
+
     default:
       return (
         <div>
