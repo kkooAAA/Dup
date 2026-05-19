@@ -3,7 +3,7 @@
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { CreditCard, Globe, RefreshCcw, Loader2, ArrowRight, DollarSign } from "lucide-react";
+import { CreditCard, Globe, RefreshCcw, Loader2, ArrowRight } from "lucide-react";
 import { useAppStore } from "@/store/useAppStore";
 import { useEffect, useState } from "react";
 import { adAccountApi } from "@/services/api";
@@ -97,10 +97,6 @@ export default function DashboardPage() {
                     <div className="flex items-center gap-1.5 text-gray-500">
                       <Globe className="w-3 h-3" />
                       <span>{account.timezone_name}</span>
-                    </div>
-                    <div className="flex items-center gap-1 text-blue-400 font-semibold">
-                      <DollarSign className="w-3 h-3" />
-                      {account.currency}
                     </div>
                   </div>
                   <div className="mt-3 pt-3 border-t border-gray-800/60">
