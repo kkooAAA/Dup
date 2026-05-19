@@ -17,6 +17,17 @@ import { OBJECTIVE_LABELS } from "@/lib/meta-schema";
 import { Campaign, AdSet, Ad } from "@/types";
 
 type SortKey = 'name' | 'status' | 'objective' | 'budget' | 'created_time';
+
+const SORT_LABELS: Record<string, string> = {
+  'name:asc': 'Name A→Z',
+  'name:desc': 'Name Z→A',
+  'status:asc': 'Status',
+  'objective:asc': 'Objective',
+  'budget:desc': 'Budget ↓',
+  'budget:asc': 'Budget ↑',
+  'created_time:desc': 'Newest First',
+  'created_time:asc': 'Oldest First',
+};
 type SortDir = 'asc' | 'desc';
 
 interface CampaignTreeProps {
@@ -79,8 +90,8 @@ export function CampaignTree({
             value={`${sortKey}:${sortDir}`}
             onValueChange={(v) => { if (!v) return; const parts = v.split(':'); setSortKey(parts[0] as SortKey); setSortDir((parts[1] || 'asc') as SortDir); }}
           >
-            <SelectTrigger className="h-9 w-32 shrink-0 bg-blue-500/10 border-blue-500/20 text-blue-400 text-xs focus:ring-0">
-              <SelectValue />
+            <SelectTrigger className="h-9 w-40 shrink-0 bg-blue-500/10 border-blue-500/20 text-blue-400 text-xs focus:ring-0">
+              <SelectValue>{SORT_LABELS[`${sortKey}:${sortDir}`] || `${sortKey}:${sortDir}`}</SelectValue>
             </SelectTrigger>
             <SelectContent className="bg-gray-900 border-gray-800">
               <SelectItem value="name:asc" className="text-xs text-gray-300">Name A→Z</SelectItem>

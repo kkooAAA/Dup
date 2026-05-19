@@ -65,8 +65,8 @@ export default function ExplorerPage() {
   const [activating, setActivating] = useState(false);
   const [pausing, setPausing] = useState(false);
   const [confirmAction, setConfirmAction] = useState<'delete' | 'activate' | 'pause' | null>(null);
-  const [sortKey, setSortKey] = useState<'name' | 'status' | 'objective' | 'budget'>('name');
-  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
+  const [sortKey, setSortKey] = useState<'name' | 'status' | 'objective' | 'budget' | 'created_time'>('created_time');
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
 
   const selectedItemsList = useMemo(() => Array.from(selectedItems.values()), [selectedItems]);
   const hasCampaigns = selectedItemsList.some((item) => item.type === "CAMPAIGN");

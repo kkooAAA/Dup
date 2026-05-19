@@ -165,6 +165,51 @@ export function StepAdConfig() {
                   className="bg-gray-800 border-gray-700 mt-1"
                 />
               </div>
+              <div>
+                <Label className="text-xs text-gray-500">Headline</Label>
+                <Input
+                  value={store.defaultCreative?.object_story_spec?.link_data?.name || ""}
+                  onChange={(e) => store.setDefaultCreative({
+                    object_story_spec: {
+                      ...store.defaultCreative?.object_story_spec,
+                      link_data: {
+                        ...store.defaultCreative?.object_story_spec?.link_data,
+                        name: e.target.value,
+                      },
+                    },
+                  })}
+                  placeholder="Enter headline"
+                  className="bg-gray-800 border-gray-700 mt-1"
+                />
+              </div>
+              <div>
+                <Label className="text-xs text-gray-500">Call to Action</Label>
+                <select
+                  value={store.defaultCreative?.object_story_spec?.link_data?.call_to_action?.type || ""}
+                  onChange={(e) => store.setDefaultCreative({
+                    object_story_spec: {
+                      ...store.defaultCreative?.object_story_spec,
+                      link_data: {
+                        ...store.defaultCreative?.object_story_spec?.link_data,
+                        call_to_action: e.target.value ? { type: e.target.value } : undefined,
+                      },
+                    },
+                  })}
+                  className="w-full h-9 rounded-md bg-gray-800 border border-gray-700 text-sm text-gray-200 px-2.5 mt-1 focus:outline-none"
+                >
+                  <option value="">— None —</option>
+                  <option value="LEARN_MORE">Learn More</option>
+                  <option value="SHOP_NOW">Shop Now</option>
+                  <option value="SIGN_UP">Sign Up</option>
+                  <option value="BOOK_TRAVEL">Book Now</option>
+                  <option value="CONTACT_US">Contact Us</option>
+                  <option value="DOWNLOAD">Download</option>
+                  <option value="GET_OFFER">Get Offer</option>
+                  <option value="GET_QUOTE">Get Quote</option>
+                  <option value="SUBSCRIBE">Subscribe</option>
+                  <option value="WATCH_MORE">Watch More</option>
+                </select>
+              </div>
             </div>
           )}
         </CardContent>
@@ -223,31 +268,54 @@ export function StepAdConfig() {
       </Card>
 
       {/* Tracking (objective-specific) */}
-      {(activeObjective === "OUTCOME_SALES" || activeObjective === "OUTCOME_LEADS") && (
+      {(activeObjective === "OUTCOME_SALES" || activeObjective === "OUTCOME_LEADS" || activeObjective === "OUTCOME_APP_PROMOTION") && (
         <Card className="bg-gray-900 border-gray-800">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-gray-300">Tracking</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
             <div>
-              <Label className="text-xs text-gray-500">Tracking Specs (JSON)</Label>
+              <Label className="text-xs text-gray-500">Pixel ID</Label>
               <Input
-                value={firstAd?.fields.tracking_specs ? JSON.stringify(firstAd.fields.tracking_specs) : ""}
+                value={(() => {
+                  const specs = firstAd?.fields.tracking_specs;
+                  if (!specs) return "";
+                  const arr = Array.isArray(specs) ? specs : [];
+                  return arr[0]?.fb_pixel?.[0] || "";
+                })()}
                 onChange={(e) => {
-                  try {
-                    handleChange("tracking_specs", JSON.parse(e.target.value));
-                  } catch { /* ignore parse errors during typing */ }
+                  const v = e.target.value;
+                  handleChange("tracking_specs", v ? [{ action_type: ["offsite_conversion"], fb_pixel: [v] }] : []);
                 }}
-                placeholder='[{"action.type": ["offsite_conversion"], "fb_pixel": ["PIXEL_ID"]}]'
-                className="bg-gray-800 border-gray-700 mt-1 font-mono text-xs"
+                placeholder="Your Meta Pixel ID"
+                className="bg-gray-800 border-gray-700 mt-1"
               />
               <p className="text-[10px] text-gray-600 mt-1">
-                Required for conversion tracking. Configure in draft editor for complex setups.
+                Meta Pixel for tracking website conversion events.
               </p>
             </div>
           </CardContent>
         </Card>
       )}
+
+      {/* URL Parameters */}
+      <Card className="bg-gray-900 border-gray-800">
+        <CardHeader className="pb-2">
+          <CardTitle className="text-sm font-medium text-gray-300">URL Parameters</CardTitle>
+          <p className="text-[10px] text-gray-500">Appended to destination URLs for tracking</p>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <div>
+            <Label className="text-xs text-gray-500">URL Parameters</Label>
+            <Input
+              value={firstAd?.fields.url_parameters || ""}
+              onChange={(e) => handleChange("url_parameters", e.target.value || undefined)}
+              placeholder="utm_source=facebook&utm_medium=paid"
+              className="bg-gray-800 border-gray-700 mt-1"
+            />
+          </div>
+        </CardContent>
+      </Card>
 
       {/* App-specific */}
       {activeObjective === "OUTCOME_APP_PROMOTION" && (

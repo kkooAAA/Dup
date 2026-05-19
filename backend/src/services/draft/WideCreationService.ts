@@ -138,7 +138,7 @@ const TEMPLATE_ADSET_INHERITABLE = [
 
 // Keys that can be set at template level for ads
 const TEMPLATE_AD_INHERITABLE = [
-  'creative', 'tracking_specs',
+  'creative', 'tracking_specs', 'url_parameters',
 ];
 
 // ─── Service ───
@@ -492,6 +492,7 @@ export class WideCreationService {
 
           if (resolvedAdFields.creative) adPayload.creative = resolvedAdFields.creative;
           if (resolvedAdFields.tracking_specs) adPayload.tracking_specs = resolvedAdFields.tracking_specs;
+          if (resolvedAdFields.url_parameters) adPayload.url_parameters = resolvedAdFields.url_parameters;
 
           // Create draft ad
           const draftAd = await prisma.draftAd.create({

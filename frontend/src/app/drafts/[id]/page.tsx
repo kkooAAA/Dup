@@ -227,10 +227,13 @@ export default function DraftEditorPage({ params: paramsPromise }: { params: Pro
         {['NONE', 'CREDIT', 'EMPLOYMENT', 'HOUSING', 'ISSUES_ELECTIONS_POLITICS', 'FINANCIAL_PRODUCTS_SERVICES', 'ONLINE_GAMBLING_AND_GAMING'].map((cat) => {
           const current: string[] = editData.data?.special_ad_categories || ['NONE'];
           const checked = current.includes(cat);
+          const labelId = `special-cat-${cat}`;
           return (
-            <div key={cat} className="flex items-center gap-2">
+            <div key={cat} className="flex items-start gap-2">
               <Checkbox
+                id={labelId}
                 checked={checked}
+                className="mt-0.5 shrink-0"
                 onCheckedChange={(v) => {
                   let next = v
                     ? (cat === 'NONE' ? ['NONE'] : [...current.filter((c: string) => c !== 'NONE'), cat])
@@ -238,7 +241,9 @@ export default function DraftEditorPage({ params: paramsPromise }: { params: Pro
                   handleUpdateDataField("special_ad_categories", next.length ? next : ['NONE']);
                 }}
               />
-              <Label className="text-xs text-gray-400">{cat.replace(/_/g, ' ')}</Label>
+              <label htmlFor={labelId} className="text-xs text-gray-400 leading-normal cursor-pointer flex-1 min-w-0 break-words">
+                {cat.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
+              </label>
             </div>
           );
         })}
