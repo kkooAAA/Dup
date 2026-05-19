@@ -65,8 +65,8 @@ export default function HistoryPage() {
   return (
     <DashboardLayout>
       <div className="space-y-5">
-        <div className="flex items-center justify-between">
-          <div>
+        <div className="flex flex-wrap items-start gap-3">
+          <div className="flex-1 min-w-0">
             <h2 className="text-2xl font-bold text-gray-100">History</h2>
             <p className="text-gray-500 mt-1 text-sm">
               Audit log of all duplication actions.
@@ -77,7 +77,7 @@ export default function HistoryPage() {
               )}
             </p>
           </div>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2 shrink-0">
             <Button
               variant="outline"
               size="sm"
@@ -94,7 +94,7 @@ export default function HistoryPage() {
           </div>
         </div>
 
-        <div className="bg-gray-900/30 border border-gray-800/60 rounded-xl overflow-hidden">
+        <div className="bg-gray-900/30 border border-gray-800/60 rounded-xl">
           {loading ? (
             <div className="p-16 flex flex-col items-center justify-center text-gray-500 gap-3">
               <Loader2 className="w-6 h-6 animate-spin text-blue-500" />
@@ -107,6 +107,7 @@ export default function HistoryPage() {
               <p className="text-gray-600 text-sm mt-1">Duplication actions will appear here.</p>
             </div>
           ) : (
+            <div className="overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow className="border-gray-800/40 hover:bg-transparent">
@@ -185,6 +186,7 @@ export default function HistoryPage() {
                 ))}
               </TableBody>
             </Table>
+            </div>
           )}
         </div>
       </div>

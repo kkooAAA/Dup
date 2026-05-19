@@ -340,7 +340,7 @@ export function ActionPanel({
   );
 
   return (
-    <div className="w-[420px] shrink-0 bg-gray-900/30 border border-gray-800/60 rounded-xl flex flex-col overflow-hidden">
+    <div className="w-full lg:w-[420px] lg:shrink-0 bg-gray-900/30 border border-gray-800/60 rounded-xl flex flex-col overflow-hidden">
       <div className="p-3 border-b border-gray-800/60 bg-gray-900/50">
         <div className="flex items-center gap-2 mb-3">
           <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-blue-500/15 text-blue-400">

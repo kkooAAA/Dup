@@ -3,6 +3,8 @@ import { FacebookService } from '../facebook.service';
 import { DraftStatus } from '@prisma/client';
 import { ObjectiveConversionService } from '../objectiveConversion.service';
 
+const sleep = (ms: number) => new Promise(r => setTimeout(r, ms));
+
 export class DraftService {
   static async duplicateCampaignToDraft(campaignId: string, userId: string, accessToken: string) {
     const fbService = new FacebookService(accessToken);
@@ -38,7 +40,9 @@ export class DraftService {
     // 3. Fetch Ad Sets
     const adSets = await fbService.getAdSets(campaignId);
 
-    for (const adSet of adSets) {
+    for (let i = 0; i < adSets.length; i++) {
+      if (i > 0) await sleep(300);
+      const adSet = adSets[i];
       const draftAdSet = await prisma.draftAdSet.create({
         data: {
           userId,
@@ -136,14 +140,18 @@ export class DraftService {
       }
     }
 
-    for (const adSet of adSets) {
-      const adSetData = adSet; // getAdSets already fetches full fields
+    for (let i = 0; i < adSets.length; i++) {
+      if (i > 0) await sleep(300);
+      const adSet = adSets[i];
+      const adSetData = adSet;
+
+      // Fetch ads once, reuse for both page_id detection and draft creation
+      const ads = await fbService.getAds(adSet.id);
 
       // Try to find page_id from promoted_object or creative
       let pageId: string | undefined = adSetData.promoted_object?.page_id;
       if (!pageId) {
         try {
-          const ads = await fbService.getAds(adSet.id);
           if (ads.length > 0 && ads[0].creative?.id) {
             const creativeResp = await fbService.get(`/${ads[0].creative.id}`, {
               fields: 'object_id,actor_id,object_story_spec'
@@ -168,7 +176,7 @@ export class DraftService {
         adSetData,
         targetObjective,
         `${adSetData.name || 'Ad Set'} - Converted`,
-        'PENDING_CAMPAIGN_ID', // replaced at publish time
+        'PENDING_CAMPAIGN_ID',
         pageId
       );
 
@@ -183,14 +191,12 @@ export class DraftService {
         }
       });
 
-      // 6. Fetch and transform Ads (getAds already returns creative+tracking_specs)
-      const ads = await fbService.getAds(adSet.id);
       for (const ad of ads) {
         const transformedAd = conversionService.transformAd(
           ad,
           targetObjective,
           `${ad.name || 'Ad'} - Converted`,
-          'PENDING_ADSET_ID' // replaced at publish time
+          'PENDING_ADSET_ID'
         );
 
         await prisma.draftAd.create({

@@ -124,19 +124,19 @@ export default function WideCreatePage() {
     <DashboardLayout>
       <div className="space-y-6 max-w-7xl mx-auto">
         {/* Header */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <Grid3X3 className="w-6 h-6 text-blue-400" />
-            <div>
+        <div className="flex flex-wrap items-start gap-3">
+          <div className="flex items-center gap-3 flex-1 min-w-0">
+            <Grid3X3 className="w-6 h-6 text-blue-400 shrink-0" />
+            <div className="min-w-0">
               <h1 className="text-xl font-semibold text-gray-100">Wide Creation</h1>
               <p className="text-sm text-gray-500">
                 Generate large Campaign → Ad Set → Ad structures at scale
               </p>
             </div>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2 shrink-0">
             {totalCampaigns > 0 && (
-              <div className="flex items-center gap-2 text-xs mr-4">
+              <div className="flex flex-wrap items-center gap-2 text-xs">
                 <Badge variant="outline" className="text-blue-400 border-blue-400/30">
                   {totalCampaigns} Campaign{totalCampaigns > 1 ? "s" : ""}
                 </Badge>
@@ -160,8 +160,9 @@ export default function WideCreatePage() {
           </div>
         </div>
 
-        {/* Step indicators */}
-        <div className="flex items-center gap-1">
+        {/* Step indicators — horizontally scrollable on mobile */}
+        <div className="overflow-x-auto pb-1 -mx-1 px-1">
+        <div className="flex items-center gap-1 min-w-max">
           {STEP_LABELS.map(({ n, label }, i) => (
             <div key={n} className="flex items-center">
               <button
@@ -193,6 +194,7 @@ export default function WideCreatePage() {
             </div>
           ))}
         </div>
+        </div>
 
         {/* Step Content */}
         {store.step === 1 && <StepObjectives />}
@@ -204,7 +206,7 @@ export default function WideCreatePage() {
         {/* Navigation + Actions */}
         <Card className="bg-gray-900 border-gray-800">
           <CardContent className="p-4">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-wrap items-center gap-3 justify-between">
               <div>
                 {store.step > 1 && (
                   <Button
@@ -219,7 +221,7 @@ export default function WideCreatePage() {
                 )}
               </div>
 
-              <div className="flex items-center gap-3">
+              <div className="flex flex-wrap items-center gap-2 sm:gap-3">
                 {validation && (
                   <div className="flex items-center gap-1.5 text-xs">
                     {validation.valid ? (

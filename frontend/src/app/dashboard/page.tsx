@@ -42,8 +42,8 @@ export default function DashboardPage() {
   return (
     <DashboardLayout>
       <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <div>
+        <div className="flex flex-wrap items-start gap-3">
+          <div className="flex-1 min-w-0">
             <h2 className="text-2xl font-bold text-gray-100">Ad Accounts</h2>
             <p className="text-gray-500 mt-1 text-sm">Select an account to start managing campaigns.</p>
           </div>

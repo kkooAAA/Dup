@@ -4,6 +4,8 @@ import { READ_ONLY_FIELDS } from './draft/MetaFieldRegistry';
 const FB_API_VERSION = 'v21.0';
 const FB_BASE_URL = `https://graph.facebook.com/${FB_API_VERSION}`;
 
+const sleep = (ms: number) => new Promise(r => setTimeout(r, ms));
+
 export class FacebookService {
   private accessToken: string;
   public readonly client: ReturnType<typeof axios.create>;
@@ -16,6 +18,35 @@ export class FacebookService {
         access_token: this.accessToken,
       },
     });
+  }
+
+  private async withRetry<T>(fn: () => Promise<T>, label: string): Promise<T> {
+    const BURST_DELAYS = [5000, 15000, 30000];
+    for (let attempt = 0; attempt <= BURST_DELAYS.length; attempt++) {
+      try {
+        return await fn();
+      } catch (error: any) {
+        const errData = error.response?.data?.error;
+        const isRateLimit = errData?.code === 17 || errData?.code === 4;
+        if (isRateLimit) {
+          if (errData?.is_transient === false) {
+            // Hourly quota exceeded — no point retrying
+            throw new Error(
+              `Meta API hourly rate limit exceeded for this ad account. ` +
+              `Please wait before retrying. (${errData?.error_user_msg || errData?.message || ''})`
+            );
+          }
+          if (attempt < BURST_DELAYS.length) {
+            const delay = BURST_DELAYS[attempt];
+            console.warn(`[FacebookService] Rate limited on ${label}, retrying in ${delay / 1000}s (attempt ${attempt + 1}/${BURST_DELAYS.length})...`);
+            await sleep(delay);
+            continue;
+          }
+        }
+        throw error;
+      }
+    }
+    throw new Error(`[FacebookService] Max retries exceeded for ${label}`);
   }
 
   async get(path: string, params: any = {}) {
@@ -94,124 +125,70 @@ export class FacebookService {
 
   async getAdSets(campaignId: string) {
     let allAdSets: any[] = [];
-    let url: string | null = `/${campaignId}/adsets`;
+    let nextUrl: string | null = null;
     let isFirstPage = true;
 
-    while (url) {
-      try {
-        let response: any;
+    while (true) {
+      const pageData = await this.withRetry(async () => {
         if (isFirstPage) {
-          response = await this.client.get(url, {
+          const resp = await this.client.get(`/${campaignId}/adsets`, {
             params: {
               fields: 'name,id,status,billing_event,optimization_goal,bid_amount,daily_budget,lifetime_budget,start_time,end_time,targeting,promoted_object,attribution_spec,optimization_sub_event,destination_type,bid_strategy',
-              limit: 100
-            }
+              limit: 100,
+            },
           });
-          isFirstPage = false;
-        } else {
-          response = await axios.get(url);
+          return resp.data;
         }
-        const data = response.data;
-        if (data.data) allAdSets = [...allAdSets, ...data.data];
-        url = data.paging?.next || null;
-      } catch (error: any) {
-        const errData = error.response?.data?.error || error.response?.data;
-        console.error(`Failed to fetch ad sets page:`, errData || error.message);
-        // Retry with backoff on rate limit (code 17)
-        if (errData?.code === 17) {
-          let retrySuccess = false;
-          for (const delay of [10000, 20000]) {
-            console.warn(`[FacebookService] Rate limited fetching ad sets, retrying in ${delay / 1000}s...`);
-            await new Promise(r => setTimeout(r, delay));
-            try {
-              let retryResp: any;
-              if (isFirstPage) {
-                retryResp = await this.client.get(`/${campaignId}/adsets`, {
-                  params: {
-                    fields: 'name,id,status,billing_event,optimization_goal,bid_amount,daily_budget,lifetime_budget,start_time,end_time,targeting,promoted_object,attribution_spec,optimization_sub_event,destination_type,bid_strategy',
-                    limit: 100
-                  }
-                });
-                isFirstPage = false;
-              } else {
-                retryResp = await axios.get(url!);
-              }
-              const retryData = retryResp.data;
-              if (retryData.data) allAdSets = [...allAdSets, ...retryData.data];
-              url = retryData.paging?.next || null;
-              retrySuccess = true;
-              break;
-            } catch {
-              console.error(`[FacebookService] Rate limit retry failed (waited ${delay / 1000}s)`);
-            }
-          }
-          if (retrySuccess) continue;
-        }
-        break;
-      }
+        const resp = await axios.get(nextUrl!);
+        return resp.data;
+      }, `getAdSets(${campaignId})`);
+
+      isFirstPage = false;
+      if (pageData.data) allAdSets = [...allAdSets, ...pageData.data];
+      nextUrl = pageData.paging?.next || null;
+      if (!nextUrl) break;
+      await sleep(300);
     }
     return allAdSets;
   }
 
   async getAds(adSetId: string) {
     let allAds: any[] = [];
-    let url: string | null = `/${adSetId}/ads`;
+    let nextUrl: string | null = null;
     let isFirstPage = true;
 
-    while (url) {
-      try {
-        let response: any;
+    while (true) {
+      const pageData = await this.withRetry(async () => {
         if (isFirstPage) {
-          response = await this.client.get(url, {
+          const resp = await this.client.get(`/${adSetId}/ads`, {
             params: {
               fields: 'name,id,status,creative{id,name,object_story_spec},tracking_specs',
-              limit: 100
-            }
+              limit: 100,
+            },
           });
-          isFirstPage = false;
-        } else {
-          response = await axios.get(url);
+          return resp.data;
         }
-        const data = response.data;
-        if (data.data) allAds = [...allAds, ...data.data];
-        url = data.paging?.next || null;
-      } catch (error: any) {
-        const errData = error.response?.data?.error || error.response?.data;
-        console.error(`Failed to fetch ads page:`, errData || error.message);
-        if (errData?.code === 17) {
-          console.warn(`[FacebookService] Rate limited fetching ads, retrying in 10s...`);
-          await new Promise(r => setTimeout(r, 10000));
-          try {
-            let retryResp: any;
-            if (isFirstPage) {
-              retryResp = await this.client.get(`/${adSetId}/ads`, {
-                params: { fields: 'name,id,status,creative{id,name,object_story_spec},tracking_specs', limit: 100 }
-              });
-              isFirstPage = false;
-            } else {
-              retryResp = await axios.get(url!);
-            }
-            const retryData = retryResp.data;
-            if (retryData.data) allAds = [...allAds, ...retryData.data];
-            url = retryData.paging?.next || null;
-            continue;
-          } catch {
-            console.error(`[FacebookService] Rate limit retry failed for ads`);
-          }
-        }
-        break;
-      }
+        const resp = await axios.get(nextUrl!);
+        return resp.data;
+      }, `getAds(${adSetId})`);
+
+      isFirstPage = false;
+      if (pageData.data) allAds = [...allAds, ...pageData.data];
+      nextUrl = pageData.paging?.next || null;
+      if (!nextUrl) break;
+      await sleep(300);
     }
     return allAds;
   }
 
   async duplicateCampaign(campaignId: string, newName: string, adAccountId: string, customBudget?: string) {
     console.log(`[FacebookService] Duplicating Campaign: ${campaignId}`);
-    const original = await this.client.get(`/${campaignId}`, {
-      params: {
-        fields: 'objective,bid_strategy,buying_type,special_ad_categories,daily_budget,lifetime_budget',
-      },
-    });
+    const original = await this.withRetry(
+      () => this.client.get(`/${campaignId}`, {
+        params: { fields: 'objective,bid_strategy,buying_type,special_ad_categories,daily_budget,lifetime_budget' },
+      }),
+      `duplicateCampaign:read(${campaignId})`
+    );
 
     const data = original.data;
     let payload: any = {
@@ -223,8 +200,7 @@ export class FacebookService {
     };
 
     if (data.buying_type) payload.buying_type = data.buying_type;
-    
-    // Handle Budget for Campaign (CBO)
+
     const isCBO = !!(data.bid_strategy || data.daily_budget || data.lifetime_budget);
 
     if (customBudget && isCBO) {
@@ -234,22 +210,17 @@ export class FacebookService {
       payload.bid_strategy = data.bid_strategy;
       if (data.daily_budget) payload.daily_budget = data.daily_budget;
       if (data.lifetime_budget) payload.lifetime_budget = data.lifetime_budget;
-      
-      if (!payload.daily_budget && !payload.lifetime_budget) {
-        payload.daily_budget = "100";
-      }
+      if (!payload.daily_budget && !payload.lifetime_budget) payload.daily_budget = "100";
     } else {
       if (data.daily_budget) payload.daily_budget = data.daily_budget;
       if (data.lifetime_budget) payload.lifetime_budget = data.lifetime_budget;
     }
 
-    try {
-      const response = await this.client.post(`/${adAccountId}/campaigns`, payload);
-      return response.data;
-    } catch (error: any) {
-      console.error(`[FacebookService] Campaign Duplication Failed:`, error.response?.data || error.message);
-      throw error;
-    }
+    const response = await this.withRetry(
+      () => this.client.post(`/${adAccountId}/campaigns`, payload),
+      `duplicateCampaign:create`
+    );
+    return response.data;
   }
 
   async duplicateAdSet(adSetId: string, newName: string, campaignId: string, adAccountId: string, customBudget?: string, parentCampaignIsCBO?: boolean) {
@@ -259,9 +230,12 @@ export class FacebookService {
     let isCBO = parentCampaignIsCBO;
     if (isCBO === undefined) {
       try {
-        const campaign = await this.client.get(`/${campaignId}`, {
-          params: { fields: 'bid_strategy,daily_budget,lifetime_budget,is_adset_budget_sharing_enabled,buying_type' }
-        });
+        const campaign = await this.withRetry(
+          () => this.client.get(`/${campaignId}`, {
+            params: { fields: 'bid_strategy,daily_budget,lifetime_budget,is_adset_budget_sharing_enabled,buying_type' }
+          }),
+          `duplicateAdSet:getCampaign(${campaignId})`
+        );
         
         // is_adset_budget_sharing_enabled is the definitive flag for CBO
         isCBO = campaign.data.is_adset_budget_sharing_enabled === true || 
@@ -275,11 +249,12 @@ export class FacebookService {
       }
     }
 
-    const original = await this.client.get(`/${adSetId}`, {
-      params: {
-        fields: 'billing_event,optimization_goal,bid_amount,daily_budget,lifetime_budget,targeting,promoted_object,attribution_spec,optimization_sub_event,destination_type,bid_strategy',
-      },
-    });
+    const original = await this.withRetry(
+      () => this.client.get(`/${adSetId}`, {
+        params: { fields: 'billing_event,optimization_goal,bid_amount,daily_budget,lifetime_budget,targeting,promoted_object,attribution_spec,optimization_sub_event,destination_type,bid_strategy' },
+      }),
+      `duplicateAdSet:read(${adSetId})`
+    );
 
     const data = original.data;
     
@@ -329,38 +304,33 @@ export class FacebookService {
     };
 
     try {
-      // Try with budget if not CBO
       const payload = buildPayload(!isCBO);
-      const response = await this.client.post(`/${adAccountId}/adsets`, payload);
+      const response = await this.withRetry(
+        () => this.client.post(`/${adAccountId}/adsets`, payload),
+        `duplicateAdSet:create`
+      );
       return response.data;
     } catch (error: any) {
       const fbError = error.response?.data?.error;
-      
-      // Handle "Budget Conflict" error (subcode 1885621)
       if (fbError?.error_subcode === 1885621 || (fbError?.code === 100 && fbError?.message?.includes('budget'))) {
         console.warn(`[FacebookService] Budget conflict detected (CBO mismatch). Retrying WITHOUT budget fields...`);
-        try {
-          const retryPayload = buildPayload(false);
-          const response = await this.client.post(`/${adAccountId}/adsets`, retryPayload);
-          console.log(`[FacebookService] Retry successful! AdSet duplicated without budget.`);
-          return response.data;
-        } catch (retryError: any) {
-          console.error(`[FacebookService] Retry also failed:`, retryError.response?.data || retryError.message);
-          throw retryError;
-        }
+        const retryPayload = buildPayload(false);
+        const response = await this.withRetry(
+          () => this.client.post(`/${adAccountId}/adsets`, retryPayload),
+          `duplicateAdSet:create-noBudget`
+        );
+        return response.data;
       }
-
       console.error(`[FacebookService] AdSet Duplication Failed:`, error.response?.data || error.message);
       throw error;
     }
   }
 
   async duplicateAd(adId: string, newName: string, adSetId: string, adAccountId: string) {
-    const original = await this.client.get(`/${adId}`, {
-      params: {
-        fields: 'creative,tracking_specs',
-      },
-    });
+    const original = await this.withRetry(
+      () => this.client.get(`/${adId}`, { params: { fields: 'creative,tracking_specs' } }),
+      `duplicateAd:read(${adId})`
+    );
 
     const data = original.data;
     const payload: any = {
@@ -369,74 +339,48 @@ export class FacebookService {
       status: 'PAUSED',
       creative: { creative_id: data.creative.id },
     };
-
     if (data.tracking_specs) payload.tracking_specs = data.tracking_specs;
 
-    try {
-      const response = await this.client.post(`/${adAccountId}/ads`, payload);
-      return response.data;
-    } catch (error: any) {
-      console.error(`[FacebookService] Ad Duplication Failed:`, error.response?.data || error.message);
-      throw error;
-    }
+    const response = await this.withRetry(
+      () => this.client.post(`/${adAccountId}/ads`, payload),
+      `duplicateAd:create`
+    );
+    return response.data;
   }
 
   async duplicateAdSetDeep(adSetId: string, newName: string, campaignId: string, adAccountId: string, customBudget?: string) {
-    const [newAdSet, ads] = await Promise.all([
-      this.duplicateAdSet(adSetId, newName, campaignId, adAccountId, customBudget),
-      this.getAds(adSetId),
-    ]);
-
-    if (ads.length > 0) {
-      const BATCH = 5;
-      for (let i = 0; i < ads.length; i += BATCH) {
-        const batch = ads.slice(i, i + BATCH);
-        await Promise.all(
-          batch.map(ad =>
-            this.duplicateAd(ad.id, `${ad.name} - Copy`, newAdSet.id, adAccountId)
-              .catch(err => console.warn(`[FacebookService] Failed to dup ad ${ad.id}:`, err.message))
-          )
-        );
-      }
+    const newAdSet = await this.duplicateAdSet(adSetId, newName, campaignId, adAccountId, customBudget);
+    const ads = await this.getAds(adSetId);
+    for (let i = 0; i < ads.length; i++) {
+      if (i > 0) await sleep(200);
+      await this.duplicateAd(ads[i].id, `${ads[i].name} - Copy`, newAdSet.id, adAccountId)
+        .catch(err => console.warn(`[FacebookService] Failed to dup ad ${ads[i].id}:`, err.message));
     }
-
     return newAdSet;
   }
 
   async duplicateCampaignDeep(campaignId: string, campaignName: string, adAccountId: string, customBudget?: string) {
     const [original, adSets] = await Promise.all([
-      this.client.get(`/${campaignId}`, {
-        params: { fields: 'bid_strategy,daily_budget,lifetime_budget' }
-      }),
+      this.withRetry(
+        () => this.client.get(`/${campaignId}`, { params: { fields: 'bid_strategy,daily_budget,lifetime_budget' } }),
+        `duplicateCampaignDeep:read(${campaignId})`
+      ),
       this.getAdSets(campaignId),
     ]);
 
     const isCBO = !!(original.data.bid_strategy || original.data.daily_budget || original.data.lifetime_budget);
     const newCampaign = await this.duplicateCampaign(campaignId, campaignName, adAccountId, customBudget);
 
-    const BATCH = 3;
-    for (let i = 0; i < adSets.length; i += BATCH) {
-      const batch = adSets.slice(i, i + BATCH);
-      await Promise.all(
-        batch.map(async (adSet) => {
-          const [newAdSet, ads] = await Promise.all([
-            this.duplicateAdSet(adSet.id, `${adSet.name} - Copy`, newCampaign.id, adAccountId, customBudget, isCBO),
-            this.getAds(adSet.id),
-          ]);
-          if (ads.length > 0) {
-            const AD_BATCH = 5;
-            for (let j = 0; j < ads.length; j += AD_BATCH) {
-              const adBatch = ads.slice(j, j + AD_BATCH);
-              await Promise.all(
-                adBatch.map(ad =>
-                  this.duplicateAd(ad.id, `${ad.name} - Copy`, newAdSet.id, adAccountId)
-                    .catch(err => console.warn(`[FacebookService] Failed to dup ad ${ad.id}:`, err.message))
-                )
-              );
-            }
-          }
-        })
-      );
+    for (let i = 0; i < adSets.length; i++) {
+      if (i > 0) await sleep(400);
+      const adSet = adSets[i];
+      const newAdSet = await this.duplicateAdSet(adSet.id, `${adSet.name} - Copy`, newCampaign.id, adAccountId, customBudget, isCBO);
+      const ads = await this.getAds(adSet.id);
+      for (let j = 0; j < ads.length; j++) {
+        if (j > 0) await sleep(200);
+        await this.duplicateAd(ads[j].id, `${ads[j].name} - Copy`, newAdSet.id, adAccountId)
+          .catch(err => console.warn(`[FacebookService] Failed to dup ad ${ads[j].id}:`, err.message));
+      }
     }
 
     return newCampaign;

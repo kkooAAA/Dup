@@ -1,6 +1,8 @@
 import { Response } from 'express';
 import { AuthRequest } from '../middleware/auth.middleware';
 import { prisma } from '../prisma';
+
+const sleep = (ms: number) => new Promise(r => setTimeout(r, ms));
 import { FacebookService } from '../services/facebook.service';
 import { NamingEngine } from '../utils/namingEngine';
 import { ObjectiveConversionService } from '../services/objectiveConversion.service';
@@ -50,22 +52,18 @@ export const cleanupHistory = async (req: AuthRequest, res: Response) => {
 
     const fbService = new FacebookService(req.userAccessToken!);
 
-    const BATCH = 10;
     let deletedCount = 0;
-    for (let i = 0; i < jobs.length; i += BATCH) {
-      const batch = jobs.slice(i, i + BATCH);
-      const results = await Promise.all(
-        batch.map(async (job) => {
-          if (!job.targetId) return false;
-          const exists = await fbService.checkExistence(job.targetId);
-          return exists ? null : job.id;
-        })
-      );
-      const toDelete = results.filter((id): id is string => id !== null && id !== false);
-      if (toDelete.length > 0) {
-        await prisma.duplicateJob.deleteMany({ where: { id: { in: toDelete } } });
-        deletedCount += toDelete.length;
-      }
+    const toDelete: string[] = [];
+    for (let i = 0; i < jobs.length; i++) {
+      if (i > 0) await sleep(150);
+      const job = jobs[i];
+      if (!job.targetId) continue;
+      const exists = await fbService.checkExistence(job.targetId);
+      if (!exists) toDelete.push(job.id);
+    }
+    if (toDelete.length > 0) {
+      await prisma.duplicateJob.deleteMany({ where: { id: { in: toDelete } } });
+      deletedCount = toDelete.length;
     }
 
     res.json({ success: true, deletedCount });
@@ -300,7 +298,10 @@ export const optimizeDuplicate = async (req: AuthRequest, res: Response) => {
       const adSets = await fbService.getAdSets(id);
       const isCBO = !!(resp.data.daily_budget || resp.data.lifetime_budget);
       const adSetResults = [];
-      for (const adSet of adSets.slice(0, 5)) {
+      const previewAdSets = adSets.slice(0, 5);
+      for (let i = 0; i < previewAdSets.length; i++) {
+        if (i > 0) await sleep(200);
+        const adSet = previewAdSets[i];
         const fullAdSet = await fbService.get(`/${adSet.id}`, {
           fields: 'name,billing_event,optimization_goal,bid_amount,daily_budget,lifetime_budget,targeting,promoted_object,attribution_spec,destination_type,bid_strategy,start_time,end_time',
         });
@@ -384,7 +385,10 @@ export const optimizeConversion = async (req: AuthRequest, res: Response) => {
 
     const adSets = await fbService.getAdSets(id);
     const adSetResults = [];
-    for (const adSet of adSets.slice(0, 5)) {
+    const previewAdSets = adSets.slice(0, 5);
+    for (let i = 0; i < previewAdSets.length; i++) {
+      if (i > 0) await sleep(200);
+      const adSet = previewAdSets[i];
       const fullAdSet = await fbService.get(`/${adSet.id}`, {
         fields: 'name,billing_event,optimization_goal,bid_amount,daily_budget,lifetime_budget,targeting,promoted_object,attribution_spec,destination_type,bid_strategy,start_time,end_time',
       });

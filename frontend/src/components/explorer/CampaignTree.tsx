@@ -75,7 +75,7 @@ export function CampaignTree({
       panelOpen ? "flex-1 min-w-0" : "w-full"
     )}>
       <div className="p-3 border-b border-gray-800/60 flex flex-col gap-1.5 bg-gray-900/50">
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-2">
           <div className="relative flex-1">
             <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-gray-600" />
             <input type="text" placeholder="Search campaigns, ad sets, ads..."

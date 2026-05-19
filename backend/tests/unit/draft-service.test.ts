@@ -193,15 +193,14 @@ describe('DraftService.convertCampaignToDraft', () => {
     );
   });
 
-  it('handles error when fetching page_id from creative (getAds throws)', async () => {
+  it('handles error when fetching page_id from creative (creative fetch throws)', async () => {
     const consoleSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
     mockFbGet
-      .mockResolvedValueOnce({ data: { name: 'Camp', objective: 'OUTCOME_TRAFFIC', account_id: '123' } });
+      .mockResolvedValueOnce({ data: { name: 'Camp', objective: 'OUTCOME_TRAFFIC', account_id: '123' } })
+      .mockRejectedValueOnce(new Error('Network error')); // creative fetch throws
     mockFbGetAdSets.mockResolvedValue([{ id: 'adset-1', name: 'AS' }]);
-    // getAds throws for page_id lookup, then returns ads for transformation
-    mockFbGetAds
-      .mockRejectedValueOnce(new Error('Network error'))
-      .mockResolvedValueOnce([{ id: 'ad-1', name: 'Ad', creative: { creative_id: 'cr-1' } }]);
+    // getAds called once — returns an ad with a creative so the creative lookup is attempted
+    mockFbGetAds.mockResolvedValue([{ id: 'ad-1', name: 'Ad', creative: { id: 'cr-1' } }]);
 
     mockTransformCampaign.mockReturnValue({ name: 'Conv', objective: 'OUTCOME_LEADS' });
     mockTransformAdSet.mockReturnValue({ name: 'AS Conv' });

@@ -212,8 +212,8 @@ export default function DraftsPage() {
   return (
     <DashboardLayout>
       <div className="space-y-5">
-        <div className="flex justify-between items-center">
-          <div>
+        <div className="flex flex-wrap items-start gap-3">
+          <div className="flex-1 min-w-0">
             <h1 className="text-2xl font-bold text-gray-100">Internal Drafts</h1>
             <p className="text-gray-500 mt-1 text-sm">
               Manage and publish drafts to Meta.
@@ -227,7 +227,7 @@ export default function DraftsPage() {
               )}
             </p>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2 shrink-0">
             {publishableDrafts.length > 0 && (
               <Button variant="outline" size="sm" onClick={toggleSelectAll} disabled={isBusy} className="border-gray-800 text-xs">
                 {allSelected ? "Deselect All" : "Select All"}
@@ -275,8 +275,8 @@ export default function DraftsPage() {
 
         {/* Search & Sort */}
         {!isLoading && drafts.length > 0 && (
-          <div className="flex items-center gap-3">
-            <div className="relative flex-1">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+            <div className="relative flex-1 min-w-0">
               <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-gray-600" />
               <input
                 type="text"

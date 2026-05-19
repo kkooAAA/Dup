@@ -25,12 +25,20 @@ const menuItems = [
 
 export const Sidebar = () => {
   const pathname = usePathname();
-  const { sidebarCollapsed, toggleSidebar } = useAppStore();
+  const { sidebarCollapsed, toggleSidebar, mobileSidebarOpen, setMobileSidebarOpen } = useAppStore();
 
   return (
     <aside className={cn(
-      "sidebar-transition border-r border-gray-800/60 bg-gray-950 h-[calc(100vh-56px)] flex flex-col",
-      sidebarCollapsed ? "w-[68px]" : "w-60"
+      "sidebar-transition border-r border-gray-800/60 bg-gray-950 flex flex-col",
+      // Mobile: fixed overlay positioned below the navbar
+      "fixed top-14 left-0 bottom-0 z-40",
+      // Desktop: back in normal flex flow
+      "md:relative md:top-auto md:left-auto md:bottom-auto md:z-auto md:h-[calc(100vh-56px)]",
+      // Width
+      sidebarCollapsed ? "w-[68px]" : "w-60",
+      // Mobile open/close via translate; desktop always visible
+      mobileSidebarOpen ? "translate-x-0" : "-translate-x-full",
+      "md:translate-x-0",
     )}>
       <div className="flex-1 py-4 px-3 space-y-1">
         {menuItems.map((item) => {
@@ -40,6 +48,7 @@ export const Sidebar = () => {
               key={item.href}
               href={item.href}
               title={sidebarCollapsed ? item.label : undefined}
+              onClick={() => setMobileSidebarOpen(false)}
               className={cn(
                 "relative flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-150 text-sm font-medium group",
                 isActive

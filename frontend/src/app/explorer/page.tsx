@@ -166,7 +166,7 @@ export default function ExplorerPage() {
     try {
       const response = await adAccountApi.getCampaigns(selectedAccount!.id);
       setCampaigns(response.data);
-    } catch { toast.error("Failed to fetch campaigns"); }
+    } catch (err: any) { toast.error(extractApiError(err, "Failed to fetch campaigns")); }
     finally { setLoading(false); }
   };
 
@@ -199,7 +199,7 @@ export default function ExplorerPage() {
       newExpanded.add(campaignId);
       if (!adSets[campaignId]) {
         try { const r = await adAccountApi.getAdSets(campaignId); setAdSets(prev => ({ ...prev, [campaignId]: r.data })); }
-        catch { toast.error("Failed to fetch ad sets"); }
+        catch (err: any) { toast.error(extractApiError(err, "Failed to fetch ad sets")); }
       }
     }
     setExpandedCampaigns(newExpanded);
@@ -212,7 +212,7 @@ export default function ExplorerPage() {
       newExpanded.add(adSetId);
       if (!ads[adSetId]) {
         try { const r = await adAccountApi.getAds(adSetId); setAds(prev => ({ ...prev, [adSetId]: r.data })); }
-        catch { toast.error("Failed to fetch ads"); }
+        catch (err: any) { toast.error(extractApiError(err, "Failed to fetch ads")); }
       }
     }
     setExpandedAdSets(newExpanded);
@@ -444,14 +444,14 @@ export default function ExplorerPage() {
 
   return (
     <DashboardLayout>
-      <div className="flex flex-col h-full">
+      <div className="flex flex-col lg:h-full">
         {/* Header */}
-        <div className="flex items-center justify-between mb-5">
-          <div>
+        <div className="flex flex-wrap items-start gap-3 mb-5">
+          <div className="flex-1 min-w-0">
             <h2 className="text-2xl font-bold text-gray-100">Campaign Explorer</h2>
             <p className="text-gray-500 mt-1 text-sm">Browse and select structures to duplicate or convert.</p>
           </div>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2 shrink-0">
             <Button variant="outline" size="sm" className="gap-1.5 border-gray-800 text-gray-400 hover:text-gray-200"
               onClick={handleFullRefresh} disabled={loading}>
               <RefreshCw className={cn("w-3.5 h-3.5", loading && "animate-spin")} /> Refresh
@@ -467,7 +467,7 @@ export default function ExplorerPage() {
         </div>
 
         {!selectedAccount ? (
-          <div className="bg-gray-900/50 border border-gray-800/60 rounded-xl p-16 text-center">
+          <div className="bg-gray-900/50 border border-gray-800/60 rounded-xl p-8 sm:p-16 text-center">
             <FolderTree className="w-10 h-10 text-gray-700 mx-auto mb-3" />
             <p className="text-gray-400 font-medium">No account selected</p>
             <p className="text-gray-600 text-sm mt-1">Select an ad account from the dashboard first.</p>
@@ -476,7 +476,7 @@ export default function ExplorerPage() {
             </Button>
           </div>
         ) : (
-          <div className="flex flex-1 gap-4 overflow-hidden">
+          <div className="flex flex-col lg:flex-row flex-1 gap-4 min-h-0 lg:overflow-hidden">
             <CampaignTree
               panelOpen={panelOpen} loading={loading}
               filteredCampaigns={filteredCampaigns}

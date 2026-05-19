@@ -2,6 +2,14 @@ import { Response } from 'express';
 import { AuthRequest } from '../middleware/auth.middleware';
 import { FacebookService } from '../services/facebook.service';
 
+const sleep = (ms: number) => new Promise(r => setTimeout(r, ms));
+
+function metaResError(res: Response, error: any, fallback: string) {
+  const msg: string = error.message || fallback;
+  const status = msg.toLowerCase().includes('rate limit') ? 429 : 500;
+  return res.status(status).json({ message: msg });
+}
+
 export const getAdAccounts = async (req: AuthRequest, res: Response) => {
   try {
     const fbService = new FacebookService(req.userAccessToken!);
@@ -20,7 +28,7 @@ export const getCampaigns = async (req: AuthRequest, res: Response) => {
     const campaigns = await fbService.getCampaigns(adAccountId);
     res.json(campaigns);
   } catch (error: any) {
-    res.status(500).json({ message: 'Failed to fetch campaigns', error: error.response?.data });
+    return metaResError(res, error, 'Failed to fetch campaigns');
   }
 };
 
@@ -30,8 +38,8 @@ export const getAdSets = async (req: AuthRequest, res: Response) => {
     const fbService = new FacebookService(req.userAccessToken!);
     const adSets = await fbService.getAdSets(campaignId);
     res.json(adSets);
-  } catch (error) {
-    res.status(500).json({ message: 'Failed to fetch ad sets' });
+  } catch (error: any) {
+    return metaResError(res, error, 'Failed to fetch ad sets');
   }
 };
 
@@ -41,8 +49,8 @@ export const getAds = async (req: AuthRequest, res: Response) => {
     const fbService = new FacebookService(req.userAccessToken!);
     const ads = await fbService.getAds(adSetId);
     res.json(ads);
-  } catch (error) {
-    res.status(500).json({ message: 'Failed to fetch ads' });
+  } catch (error: any) {
+    return metaResError(res, error, 'Failed to fetch ads');
   }
 };
 
@@ -65,13 +73,14 @@ export const bulkActivateObjects = async (req: AuthRequest, res: Response) => {
   try {
     const fbService = new FacebookService(req.userAccessToken!);
     const results: { id: string; success: boolean; error?: string }[] = [];
-    for (const id of ids) {
+    for (let i = 0; i < ids.length; i++) {
+      if (i > 0) await sleep(150);
       try {
-        await fbService.client.post(`/${id}`, { status: 'ACTIVE' });
-        results.push({ id, success: true });
+        await fbService.client.post(`/${ids[i]}`, { status: 'ACTIVE' });
+        results.push({ id: ids[i], success: true });
       } catch (error: any) {
         const msg = error.response?.data?.error?.message || error.message;
-        results.push({ id, success: false, error: msg });
+        results.push({ id: ids[i], success: false, error: msg });
       }
     }
     res.json({ results, activated: results.filter(r => r.success).length });
@@ -88,13 +97,14 @@ export const bulkPauseObjects = async (req: AuthRequest, res: Response) => {
   try {
     const fbService = new FacebookService(req.userAccessToken!);
     const results: { id: string; success: boolean; error?: string }[] = [];
-    for (const id of ids) {
+    for (let i = 0; i < ids.length; i++) {
+      if (i > 0) await sleep(150);
       try {
-        await fbService.client.post(`/${id}`, { status: 'PAUSED' });
-        results.push({ id, success: true });
+        await fbService.client.post(`/${ids[i]}`, { status: 'PAUSED' });
+        results.push({ id: ids[i], success: true });
       } catch (error: any) {
         const msg = error.response?.data?.error?.message || error.message;
-        results.push({ id, success: false, error: msg });
+        results.push({ id: ids[i], success: false, error: msg });
       }
     }
     res.json({ results, paused: results.filter(r => r.success).length });
@@ -111,13 +121,14 @@ export const bulkDeleteCampaigns = async (req: AuthRequest, res: Response) => {
   try {
     const fbService = new FacebookService(req.userAccessToken!);
     const results: { id: string; success: boolean; error?: string }[] = [];
-    for (const id of ids) {
+    for (let i = 0; i < ids.length; i++) {
+      if (i > 0) await sleep(150);
       try {
-        await fbService.delete(id);
-        results.push({ id, success: true });
+        await fbService.delete(ids[i]);
+        results.push({ id: ids[i], success: true });
       } catch (error: any) {
         const msg = error.response?.data?.error?.message || error.message;
-        results.push({ id, success: false, error: msg });
+        results.push({ id: ids[i], success: false, error: msg });
       }
     }
     res.json({ results, deleted: results.filter(r => r.success).length });

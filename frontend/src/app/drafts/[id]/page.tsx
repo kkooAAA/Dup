@@ -441,23 +441,23 @@ export default function DraftEditorPage({ params: paramsPromise }: { params: Pro
   return (
     <DashboardLayout>
       <div className="flex flex-col h-full space-y-4">
-        <div className="flex justify-between items-center pb-4 border-b border-gray-800/40">
-          <div className="flex items-center gap-3">
+        <div className="flex flex-col sm:flex-row gap-3 sm:items-center justify-between pb-4 border-b border-gray-800/40">
+          <div className="flex items-center gap-3 min-w-0">
             <Link href="/drafts">
-              <Button variant="ghost" size="icon" className="h-8 w-8 text-gray-500 hover:text-gray-300">
+              <Button variant="ghost" size="icon" className="h-8 w-8 text-gray-500 hover:text-gray-300 shrink-0">
                 <ArrowLeft className="w-4 h-4" />
               </Button>
             </Link>
-            <div>
-              <h1 className="text-xl font-bold text-gray-100">{draft.name}</h1>
-              <div className="flex items-center gap-2 mt-1">
+            <div className="min-w-0">
+              <h1 className="text-xl font-bold text-gray-100 truncate">{draft.name}</h1>
+              <div className="flex flex-wrap items-center gap-2 mt-1">
                 <span className={cn("text-[10px] font-semibold px-2 py-0.5 rounded-full", statusColor)}>{draft.status}</span>
                 <span className="text-xs text-gray-600">{OBJECTIVE_LABELS[campaignObjective] || campaignObjective}</span>
-                {draft.metaId && <span className="text-[10px] text-gray-600 font-mono">Meta: {draft.metaId}</span>}
+                {draft.metaId && <span className="text-[10px] text-gray-600 font-mono hidden sm:inline">Meta: {draft.metaId}</span>}
               </div>
             </div>
           </div>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2 shrink-0">
             {(draft.status === "FAILED" || hasMetaId) && draft.status !== "PUBLISHED" && (
               <Button variant="outline" size="sm" className="gap-1.5 border-red-800 text-red-400 hover:bg-red-500/10"
                 onClick={handleCleanup} disabled={isCleaning}>
@@ -476,8 +476,8 @@ export default function DraftEditorPage({ params: paramsPromise }: { params: Pro
           </div>
         </div>
 
-        <div className="flex flex-1 gap-5 overflow-hidden">
-          <div className="w-72 border-r border-gray-800/40 overflow-y-auto pr-3">
+        <div className="flex flex-col md:flex-row flex-1 gap-5 overflow-hidden">
+          <div className="w-full md:w-72 border-b md:border-b-0 md:border-r border-gray-800/40 overflow-y-auto pr-0 md:pr-3 max-h-48 md:max-h-none pb-3 md:pb-0">
             <div className="space-y-3">
               <button
                 className={cn(
@@ -527,10 +527,10 @@ export default function DraftEditorPage({ params: paramsPromise }: { params: Pro
             </div>
           </div>
 
-          <div className="flex-1 overflow-y-auto">
+          <div className="flex-1 overflow-y-auto min-w-0">
             {editData ? (
               <div className="space-y-5 max-w-2xl">
-                <div className="flex justify-between items-center">
+                <div className="flex flex-wrap justify-between items-center gap-2">
                   <div className="flex items-center gap-2">
                     <span className="text-[10px] font-semibold px-2 py-0.5 rounded-md bg-gray-800/50 text-gray-500 uppercase tracking-wide">
                       {selectedNode?.type}
@@ -558,11 +558,11 @@ export default function DraftEditorPage({ params: paramsPromise }: { params: Pro
                 )}
 
                 <Tabs defaultValue="form" className="w-full">
-                  <TabsList className="bg-gray-900/50 border border-gray-800/60 h-9">
-                    <TabsTrigger value="form" className="text-xs">Edit Form</TabsTrigger>
-                    <TabsTrigger value="schema" className="text-xs">Full Schema</TabsTrigger>
-                    <TabsTrigger value="summary" className="text-xs">Summary</TabsTrigger>
-                    <TabsTrigger value="json" className="text-xs">Raw JSON</TabsTrigger>
+                  <TabsList className="bg-gray-900/50 border border-gray-800/60 h-9 w-full">
+                    <TabsTrigger value="form" className="text-xs flex-1">Edit Form</TabsTrigger>
+                    <TabsTrigger value="schema" className="text-xs flex-1">Full Schema</TabsTrigger>
+                    <TabsTrigger value="summary" className="text-xs flex-1">Summary</TabsTrigger>
+                    <TabsTrigger value="json" className="text-xs flex-1">Raw JSON</TabsTrigger>
                   </TabsList>
 
                   <TabsContent value="form" className="space-y-4 mt-4">
