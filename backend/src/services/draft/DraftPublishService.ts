@@ -1,6 +1,7 @@
 import { prisma } from '../../prisma';
 import { FacebookService } from '../facebook.service';
 import { DraftStatus } from '@prisma/client';
+import { withDbRetry } from '../../utils/dbRetry';
 import {
   BID_CAP_STRATEGIES,
   ATTRIBUTION_SPEC_OBJECTIVES,
@@ -21,16 +22,19 @@ export class DraftPublishService {
     }
 
     const fbService = new FacebookService(accessToken);
-    const campaign = await prisma.draftCampaign.findUnique({
-      where: { id: campaignId },
-      include: {
-        adSets: {
-          include: {
-            ads: true,
+    const campaign = await withDbRetry(
+      () => prisma.draftCampaign.findUnique({
+        where: { id: campaignId },
+        include: {
+          adSets: {
+            include: {
+              ads: true,
+            },
           },
         },
-      },
-    });
+      }),
+      'draftCampaign.findUnique',
+    );
 
     if (!campaign) throw new Error('Campaign draft not found');
 
@@ -53,10 +57,13 @@ export class DraftPublishService {
     const campaignAccountId = normalizeAccountId(campaign.adAccountId);
 
     try {
-      await prisma.draftCampaign.update({
-        where: { id: campaignId },
-        data: { status: DraftStatus.PUBLISHING },
-      });
+      await withDbRetry(
+        () => prisma.draftCampaign.update({
+          where: { id: campaignId },
+          data: { status: DraftStatus.PUBLISHING },
+        }),
+        'draftCampaign.update(PUBLISHING)',
+      );
 
       const campaignData = campaign.data as any;
       const isCBO = this.detectCBO(campaignData);
@@ -68,36 +75,51 @@ export class DraftPublishService {
         const exists = await fbService.checkExistence(metaCampaignId);
         if (!exists) {
           console.warn(`[DraftPublishService] Meta campaign ${metaCampaignId} no longer exists, will recreate`);
-          await prisma.draftCampaign.update({
-            where: { id: campaignId },
-            data: { metaId: null },
-          });
+          await withDbRetry(
+            () => prisma.draftCampaign.update({
+              where: { id: campaignId },
+              data: { metaId: null },
+            }),
+            'draftCampaign.update(clear metaId)',
+          );
           metaCampaignId = await this.createMetaCampaign(
             fbService, campaignAccountId, campaign.name, campaignData, isCBO
           );
-          await prisma.draftCampaign.update({
-            where: { id: campaignId },
-            data: { metaId: metaCampaignId },
-          });
+          await withDbRetry(
+            () => prisma.draftCampaign.update({
+              where: { id: campaignId },
+              data: { metaId: metaCampaignId },
+            }),
+            'draftCampaign.update(metaId after recreate)',
+          );
         } else {
           // Check if objective matches — objective is immutable on Meta
           const needsRecreate = await this.checkObjectiveMismatch(fbService, metaCampaignId, campaignData.objective);
           if (needsRecreate) {
             console.warn(`[DraftPublishService] Objective mismatch on ${metaCampaignId}, deleting and recreating`);
             await this.deleteMetaCampaign(fbService, metaCampaignId);
-            await prisma.draftCampaign.update({
-              where: { id: campaignId },
-              data: { metaId: null },
-            });
+            await withDbRetry(
+              () => prisma.draftCampaign.update({
+                where: { id: campaignId },
+                data: { metaId: null },
+              }),
+              'draftCampaign.update(clear metaId objective mismatch)',
+            );
             // Clear child metaIds — they were under the old campaign
             for (const adSet of campaign.adSets) {
               if (adSet.metaId) {
-                await prisma.draftAdSet.update({ where: { id: adSet.id }, data: { metaId: null } });
+                await withDbRetry(
+                  () => prisma.draftAdSet.update({ where: { id: adSet.id }, data: { metaId: null } }),
+                  'draftAdSet.update(clear metaId)',
+                );
                 adSet.metaId = null;
               }
               for (const ad of adSet.ads) {
                 if (ad.metaId) {
-                  await prisma.draftAd.update({ where: { id: ad.id }, data: { metaId: null } });
+                  await withDbRetry(
+                    () => prisma.draftAd.update({ where: { id: ad.id }, data: { metaId: null } }),
+                    'draftAd.update(clear metaId)',
+                  );
                   ad.metaId = null;
                 }
               }
@@ -105,10 +127,13 @@ export class DraftPublishService {
             metaCampaignId = await this.createMetaCampaign(
               fbService, campaignAccountId, campaign.name, campaignData, isCBO
             );
-            await prisma.draftCampaign.update({
-              where: { id: campaignId },
-              data: { metaId: metaCampaignId },
-            });
+            await withDbRetry(
+              () => prisma.draftCampaign.update({
+                where: { id: campaignId },
+                data: { metaId: metaCampaignId },
+              }),
+              'draftCampaign.update(metaId after objective recreate)',
+            );
           } else {
             await this.updateMetaCampaign(fbService, metaCampaignId, campaign.name, campaignData, isCBO);
           }
@@ -117,17 +142,23 @@ export class DraftPublishService {
         metaCampaignId = await this.createMetaCampaign(
           fbService, campaignAccountId, campaign.name, campaignData, isCBO
         );
-        await prisma.draftCampaign.update({
-          where: { id: campaignId },
-          data: { metaId: metaCampaignId },
-        });
+        await withDbRetry(
+          () => prisma.draftCampaign.update({
+            where: { id: campaignId },
+            data: { metaId: metaCampaignId },
+          }),
+          'draftCampaign.update(metaId fresh create)',
+        );
       }
 
       for (const adSet of campaign.adSets) {
-        await prisma.draftAdSet.update({
-          where: { id: adSet.id },
-          data: { status: DraftStatus.PUBLISHING },
-        });
+        await withDbRetry(
+          () => prisma.draftAdSet.update({
+            where: { id: adSet.id },
+            data: { status: DraftStatus.PUBLISHING },
+          }),
+          'draftAdSet.update(PUBLISHING)',
+        );
 
         const adSetAccountId = normalizeAccountId(adSet.adAccountId);
 
@@ -136,17 +167,23 @@ export class DraftPublishService {
           const exists = await fbService.checkExistence(adSet.metaId);
           if (!exists) {
             console.warn(`[DraftPublishService] Meta ad set ${adSet.metaId} no longer exists, will recreate`);
-            await prisma.draftAdSet.update({
-              where: { id: adSet.id },
-              data: { metaId: null },
-            });
+            await withDbRetry(
+              () => prisma.draftAdSet.update({
+                where: { id: adSet.id },
+                data: { metaId: null },
+              }),
+              'draftAdSet.update(clear metaId)',
+            );
             metaAdSetId = await this.createMetaAdSet(
               fbService, adSetAccountId, adSet, metaCampaignId, campaignData, isCBO
             );
-            await prisma.draftAdSet.update({
-              where: { id: adSet.id },
-              data: { metaId: metaAdSetId },
-            });
+            await withDbRetry(
+              () => prisma.draftAdSet.update({
+                where: { id: adSet.id },
+                data: { metaId: metaAdSetId },
+              }),
+              'draftAdSet.update(metaId after recreate)',
+            );
           } else {
             metaAdSetId = adSet.metaId;
             await this.updateMetaAdSet(fbService, metaAdSetId, adSet, campaignData, isCBO);
@@ -155,22 +192,31 @@ export class DraftPublishService {
           metaAdSetId = await this.createMetaAdSet(
             fbService, adSetAccountId, adSet, metaCampaignId, campaignData, isCBO
           );
-          await prisma.draftAdSet.update({
-            where: { id: adSet.id },
-            data: { metaId: metaAdSetId },
-          });
+          await withDbRetry(
+            () => prisma.draftAdSet.update({
+              where: { id: adSet.id },
+              data: { metaId: metaAdSetId },
+            }),
+            'draftAdSet.update(metaId fresh create)',
+          );
         }
 
-        await prisma.draftAdSet.update({
-          where: { id: adSet.id },
-          data: { status: DraftStatus.PUBLISHED },
-        });
+        await withDbRetry(
+          () => prisma.draftAdSet.update({
+            where: { id: adSet.id },
+            data: { status: DraftStatus.PUBLISHED },
+          }),
+          'draftAdSet.update(PUBLISHED)',
+        );
 
         for (const ad of adSet.ads) {
-          await prisma.draftAd.update({
-            where: { id: ad.id },
-            data: { status: DraftStatus.PUBLISHING },
-          });
+          await withDbRetry(
+            () => prisma.draftAd.update({
+              where: { id: ad.id },
+              data: { status: DraftStatus.PUBLISHING },
+            }),
+            'draftAd.update(PUBLISHING)',
+          );
 
           const adAccountId = normalizeAccountId(ad.adAccountId);
 
@@ -179,66 +225,93 @@ export class DraftPublishService {
             const exists = await fbService.checkExistence(ad.metaId);
             if (!exists) {
               console.warn(`[DraftPublishService] Meta ad ${ad.metaId} no longer exists, will recreate`);
-              await prisma.draftAd.update({
-                where: { id: ad.id },
-                data: { metaId: null },
-              });
+              await withDbRetry(
+                () => prisma.draftAd.update({
+                  where: { id: ad.id },
+                  data: { metaId: null },
+                }),
+                'draftAd.update(clear metaId)',
+              );
               metaAdId = await this.createMetaAd(fbService, adAccountId, ad, metaAdSetId, adSet);
-              await prisma.draftAd.update({
-                where: { id: ad.id },
-                data: { metaId: metaAdId },
-              });
+              await withDbRetry(
+                () => prisma.draftAd.update({
+                  where: { id: ad.id },
+                  data: { metaId: metaAdId },
+                }),
+                'draftAd.update(metaId after recreate)',
+              );
             } else {
               metaAdId = ad.metaId;
             }
           } else {
             metaAdId = await this.createMetaAd(fbService, adAccountId, ad, metaAdSetId, adSet);
-            await prisma.draftAd.update({
-              where: { id: ad.id },
-              data: { metaId: metaAdId },
-            });
+            await withDbRetry(
+              () => prisma.draftAd.update({
+                where: { id: ad.id },
+                data: { metaId: metaAdId },
+              }),
+              'draftAd.update(metaId fresh create)',
+            );
           }
 
-          await prisma.draftAd.update({
-            where: { id: ad.id },
-            data: { status: DraftStatus.PUBLISHED },
-          });
+          await withDbRetry(
+            () => prisma.draftAd.update({
+              where: { id: ad.id },
+              data: { status: DraftStatus.PUBLISHED },
+            }),
+            'draftAd.update(PUBLISHED)',
+          );
         }
       }
 
-      await prisma.draftCampaign.update({
-        where: { id: campaignId },
-        data: { status: DraftStatus.PUBLISHED },
-      });
+      await withDbRetry(
+        () => prisma.draftCampaign.update({
+          where: { id: campaignId },
+          data: { status: DraftStatus.PUBLISHED },
+        }),
+        'draftCampaign.update(PUBLISHED)',
+      );
 
       return { success: true, metaCampaignId };
     } catch (error: any) {
       console.error('Publishing failed:', error.message);
 
-      await prisma.draftCampaign.update({
-        where: { id: campaignId },
-        data: { status: DraftStatus.FAILED },
-      });
-      await prisma.draftAdSet.updateMany({
-        where: { draftCampaignId: campaignId, status: DraftStatus.PUBLISHING },
-        data: { status: DraftStatus.FAILED },
-      });
+      await withDbRetry(
+        () => prisma.draftCampaign.update({
+          where: { id: campaignId },
+          data: { status: DraftStatus.FAILED },
+        }),
+        'draftCampaign.update(FAILED)',
+      );
+      await withDbRetry(
+        () => prisma.draftAdSet.updateMany({
+          where: { draftCampaignId: campaignId, status: DraftStatus.PUBLISHING },
+          data: { status: DraftStatus.FAILED },
+        }),
+        'draftAdSet.updateMany(FAILED)',
+      );
       const adSetIds = campaign.adSets.map((s) => s.id);
       if (adSetIds.length > 0) {
-        await prisma.draftAd.updateMany({
-          where: { draftAdSetId: { in: adSetIds }, status: DraftStatus.PUBLISHING },
-          data: { status: DraftStatus.FAILED },
-        });
+        await withDbRetry(
+          () => prisma.draftAd.updateMany({
+            where: { draftAdSetId: { in: adSetIds }, status: DraftStatus.PUBLISHING },
+            data: { status: DraftStatus.FAILED },
+          }),
+          'draftAd.updateMany(FAILED)',
+        );
       }
 
-      await prisma.draftPublishLog.create({
-        data: {
-          draftId: campaignId,
-          draftType: 'CAMPAIGN',
-          status: 'FAILED',
-          error: error.message,
-        },
-      });
+      await withDbRetry(
+        () => prisma.draftPublishLog.create({
+          data: {
+            draftId: campaignId,
+            draftType: 'CAMPAIGN',
+            status: 'FAILED',
+            error: error.message,
+          },
+        }),
+        'draftPublishLog.create',
+      );
 
       throw error;
     }
@@ -646,10 +719,13 @@ export class DraftPublishService {
 
   static async cleanupOrphanedMetaObjects(campaignId: string, accessToken: string): Promise<{ deleted: string[] }> {
     const fbService = new FacebookService(accessToken);
-    const campaign = await prisma.draftCampaign.findUnique({
-      where: { id: campaignId },
-      include: { adSets: { include: { ads: true } } },
-    });
+    const campaign = await withDbRetry(
+      () => prisma.draftCampaign.findUnique({
+        where: { id: campaignId },
+        include: { adSets: { include: { ads: true } } },
+      }),
+      'draftCampaign.findUnique(cleanup)',
+    );
 
     if (!campaign) throw new Error('Draft not found');
     const deleted: string[] = [];
@@ -661,7 +737,10 @@ export class DraftPublishService {
             await fbService.client.post(`/${ad.metaId}`, { status: 'DELETED' });
             deleted.push(`ad:${ad.metaId}`);
           } catch { /* already gone */ }
-          await prisma.draftAd.update({ where: { id: ad.id }, data: { metaId: null, status: DraftStatus.DRAFT } });
+          await withDbRetry(
+            () => prisma.draftAd.update({ where: { id: ad.id }, data: { metaId: null, status: DraftStatus.DRAFT } }),
+            'draftAd.update(cleanup)',
+          );
         }
       }
       if (adSet.metaId) {
@@ -669,7 +748,10 @@ export class DraftPublishService {
           await fbService.client.post(`/${adSet.metaId}`, { status: 'DELETED' });
           deleted.push(`adset:${adSet.metaId}`);
         } catch { /* already gone */ }
-        await prisma.draftAdSet.update({ where: { id: adSet.id }, data: { metaId: null, status: DraftStatus.DRAFT } });
+        await withDbRetry(
+          () => prisma.draftAdSet.update({ where: { id: adSet.id }, data: { metaId: null, status: DraftStatus.DRAFT } }),
+          'draftAdSet.update(cleanup)',
+        );
       }
     }
 
@@ -678,7 +760,10 @@ export class DraftPublishService {
         await fbService.client.post(`/${campaign.metaId}`, { status: 'DELETED' });
         deleted.push(`campaign:${campaign.metaId}`);
       } catch { /* already gone */ }
-      await prisma.draftCampaign.update({ where: { id: campaignId }, data: { metaId: null, status: DraftStatus.DRAFT } });
+      await withDbRetry(
+        () => prisma.draftCampaign.update({ where: { id: campaignId }, data: { metaId: null, status: DraftStatus.DRAFT } }),
+        'draftCampaign.update(cleanup)',
+      );
     }
 
     return { deleted };
