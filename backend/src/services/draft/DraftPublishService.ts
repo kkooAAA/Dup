@@ -470,7 +470,12 @@ export class DraftPublishService {
     // FIX: Use shared sanitizePromotedObject and validate required fields
     const cleanPromotedObject = sanitizePromotedObject(adSetData.promoted_object);
     const requiredPromotedFields = PROMOTED_OBJECT_REQUIREMENTS[campaignObjective] || [];
-    if (requiredPromotedFields.length > 0 && cleanPromotedObject) {
+    if (requiredPromotedFields.length > 0) {
+      if (!cleanPromotedObject) {
+        throw new Error(
+          `promoted_object with ${requiredPromotedFields.join(' or ')} is required for ${campaignObjective}`
+        );
+      }
       const hasRequired = requiredPromotedFields.some((f: string) => cleanPromotedObject[f]);
       if (!hasRequired) {
         throw new Error(
