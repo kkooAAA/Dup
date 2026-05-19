@@ -16,7 +16,7 @@ import { InlineEditor } from "@/components/explorer/InlineEditor";
 import { OBJECTIVE_LABELS } from "@/lib/meta-schema";
 import { Campaign, AdSet, Ad } from "@/types";
 
-type SortKey = 'name' | 'status' | 'objective' | 'budget';
+type SortKey = 'name' | 'status' | 'objective' | 'budget' | 'created_time';
 type SortDir = 'asc' | 'desc';
 
 interface CampaignTreeProps {
@@ -89,6 +89,8 @@ export function CampaignTree({
               <SelectItem value="objective:asc" className="text-xs text-gray-300">Objective</SelectItem>
               <SelectItem value="budget:desc" className="text-xs text-gray-300">Budget ↓</SelectItem>
               <SelectItem value="budget:asc" className="text-xs text-gray-300">Budget ↑</SelectItem>
+              <SelectItem value="created_time:desc" className="text-xs text-gray-300">Newest First</SelectItem>
+              <SelectItem value="created_time:asc" className="text-xs text-gray-300">Oldest First</SelectItem>
             </SelectContent>
           </Select>
           <Button variant="ghost" size="sm" className="text-gray-600 hover:text-gray-300 text-xs h-8 shrink-0" onClick={handleSelectAll}>

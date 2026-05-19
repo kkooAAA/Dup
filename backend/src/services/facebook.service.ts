@@ -86,7 +86,7 @@ export class FacebookService {
   async getCampaigns(adAccountId: string) {
     const response = await this.client.get(`/${adAccountId}/campaigns`, {
       params: {
-        fields: 'name,id,status,objective,bid_strategy,daily_budget,lifetime_budget,start_time,stop_time,buying_type,special_ad_categories',
+        fields: 'name,id,status,objective,bid_strategy,daily_budget,lifetime_budget,start_time,stop_time,created_time,buying_type,special_ad_categories',
       },
     });
     return response.data.data;

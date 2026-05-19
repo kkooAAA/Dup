@@ -149,6 +149,10 @@ export default function ExplorerPage() {
           va = parseFloat((a as any).daily_budget || (a as any).lifetime_budget || '0');
           vb = parseFloat((b as any).daily_budget || (b as any).lifetime_budget || '0');
           break;
+        case 'created_time':
+          va = a.created_time || '';
+          vb = b.created_time || '';
+          break;
         default: va = a.name.toLowerCase(); vb = b.name.toLowerCase();
       }
       if (va < vb) return sortDir === 'asc' ? -1 : 1;

@@ -20,6 +20,7 @@ export interface Campaign {
   objective: string;
   daily_budget?: string;
   lifetime_budget?: string;
+  created_time?: string;
 }
 
 export interface AdSet {
