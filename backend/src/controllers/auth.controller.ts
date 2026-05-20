@@ -45,7 +45,7 @@ export const loginWithFacebook = async (req: Request, res: Response) => {
     } else {
       user = await withRetry(() => prisma.user.update({
         where: { id: user!.id },
-        data: { accessToken: tokenToStore },
+        data: { name, email, accessToken: tokenToStore },
       }));
     }
 

@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { draftApi, adAccountApi } from "@/services/api";
-import { Edit2, Trash2, Send, Layers, Loader2, X, Pencil, Play, Pause, Search } from "lucide-react";
+import { Edit2, Trash2, Send, Layers, Loader2, X, Pencil, Play, Pause, Search, Download, Upload } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import Link from "next/link";
 import { toast } from "sonner";
@@ -31,6 +31,8 @@ export default function DraftsPage() {
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [sortKey, setSortKey] = useState<'date' | 'name' | 'status' | 'objective'>('date');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
+  const [exportingId, setExportingId] = useState<string | null>(null);
+  const [isImporting, setIsImporting] = useState(false);
   const fetchDrafts = async () => {
     try {
       setIsLoading(true);
@@ -158,6 +160,56 @@ export default function DraftsPage() {
     }
   };
 
+  const handleExport = async (id: string, name: string) => {
+    setExportingId(id);
+    try {
+      const res = await draftApi.exportCampaign(id);
+      const blob = new Blob([JSON.stringify(res.data, null, 2)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${name.replace(/[^a-zA-Z0-9_-]/g, "_")}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+      toast.success("Draft exported");
+    } catch (err: any) {
+      toast.error(extractApiError(err, "Failed to export draft"));
+    } finally {
+      setExportingId(null);
+    }
+  };
+
+  const handleImport = () => {
+    const input = document.createElement("input");
+    input.type = "file";
+    input.accept = ".json";
+    input.onchange = async (e) => {
+      const file = (e.target as HTMLInputElement).files?.[0];
+      if (!file) return;
+      setIsImporting(true);
+      try {
+        const text = await file.text();
+        const exported = JSON.parse(text);
+        if (!exported?.campaign) {
+          toast.error("Invalid file: missing campaign data");
+          return;
+        }
+        await draftApi.importCampaign(exported);
+        toast.success("Draft imported successfully");
+        fetchDrafts();
+      } catch (err: any) {
+        if (err instanceof SyntaxError) {
+          toast.error("Invalid JSON file");
+        } else {
+          toast.error(extractApiError(err, "Failed to import draft"));
+        }
+      } finally {
+        setIsImporting(false);
+      }
+    };
+    input.click();
+  };
+
   const getStatusBadge = (status: string) => {
     const styles: Record<string, string> = {
       DRAFT: "bg-gray-800/50 text-gray-400 border-gray-700",
@@ -228,6 +280,16 @@ export default function DraftsPage() {
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-2 shrink-0">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleImport}
+              disabled={isImporting || isBusy}
+              className="gap-1.5 border-gray-800 text-gray-400 hover:text-gray-200 text-xs"
+            >
+              {isImporting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Upload className="w-3.5 h-3.5" />}
+              Import
+            </Button>
             {publishableDrafts.length > 0 && (
               <Button variant="outline" size="sm" onClick={toggleSelectAll} disabled={isBusy} className="border-gray-800 text-xs">
                 {allSelected ? "Deselect All" : "Select All"}
@@ -396,6 +458,18 @@ export default function DraftsPage() {
                             </Button>
                           </>
                         )}
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7"
+                          onClick={() => handleExport(draft.id, draft.name)}
+                          disabled={exportingId === draft.id}
+                          title="Export draft"
+                        >
+                          {exportingId === draft.id
+                            ? <Loader2 className="w-3.5 h-3.5 animate-spin text-gray-500" />
+                            : <Download className="w-3.5 h-3.5 text-gray-600 hover:text-blue-400" />}
+                        </Button>
                         <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => { setDeleteTargetId(draft.id); setConfirmAction('delete'); }} disabled={isBusy}>
                           <Trash2 className="w-3.5 h-3.5 text-gray-600 hover:text-red-400" />
                         </Button>

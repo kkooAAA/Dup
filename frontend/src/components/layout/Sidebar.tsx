@@ -11,6 +11,7 @@ import {
   PanelLeftOpen,
   Zap,
   Grid3X3,
+  Settings,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAppStore } from "@/store/useAppStore";
@@ -21,6 +22,7 @@ const menuItems = [
   { icon: Grid3X3, label: "Wide Create", href: "/wide-create" },
   { icon: Layers, label: "Drafts", href: "/drafts" },
   { icon: History, label: "History", href: "/history" },
+  { icon: Settings, label: "Settings", href: "/settings" },
 ];
 
 export const Sidebar = () => {

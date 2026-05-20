@@ -102,6 +102,16 @@ export const draftApi = {
     api.post('/drafts/bulk-edit/apply', { draftIds, fieldUpdates, level }),
   getFormSchema: (entityType: string, context?: any) =>
     api.post('/drafts/form-schema', { entityType, context }),
+  exportCampaign: (id: string) => api.get(`/drafts/campaigns/${id}/export`),
+  importCampaign: (exported: any, adAccountId?: string) =>
+    api.post('/drafts/import', { exported, adAccountId }),
+};
+
+export const userApi = {
+  getProfile: () => api.get('/user/profile'),
+  getTokenStatus: () => api.get('/user/token-status'),
+  getStats: () => api.get('/user/stats'),
+  deleteAccount: () => api.delete('/user/account'),
 };
 
 export default api;

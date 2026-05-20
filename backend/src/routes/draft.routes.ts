@@ -22,6 +22,8 @@ router.post('/bulk-edit/schema', DraftController.bulkEditSchema);
 router.post('/bulk-edit/validate', DraftController.bulkEditValidate);
 router.post('/bulk-edit/apply', DraftController.bulkEditApply);
 router.post('/form-schema', DraftController.getFormSchema);
+router.get('/campaigns/:id/export', DraftController.exportCampaign);
+router.post('/import', DraftController.importCampaign);
 router.post('/campaigns/:id/validate', DraftController.validateDraft);
 router.post('/campaigns/:id/publish', DraftController.publishDraft);
 router.post('/campaigns/:id/cleanup', DraftController.cleanupMetaObjects);

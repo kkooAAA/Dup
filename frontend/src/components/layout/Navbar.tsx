@@ -18,6 +18,7 @@ const pageTitles: Record<string, string> = {
   "/explorer": "Explorer",
   "/drafts": "Drafts",
   "/history": "History",
+  "/settings": "Settings",
 };
 
 export const Navbar = () => {

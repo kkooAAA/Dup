@@ -397,6 +397,127 @@ export class DraftController {
     }
   }
 
+  static async exportCampaign(req: Request, res: Response) {
+    try {
+      const id = req.params.id as string;
+      const { userId } = req as AuthRequest;
+
+      const campaign = await prisma.draftCampaign.findFirst({
+        where: { id, userId },
+        include: {
+          adSets: {
+            include: { ads: true },
+          },
+        },
+      });
+
+      if (!campaign) return res.status(404).json({ error: 'Draft not found' });
+
+      const exported = {
+        version: 1,
+        exportedAt: new Date().toISOString(),
+        campaign: {
+          name: campaign.name,
+          objective: campaign.objective,
+          adAccountId: campaign.adAccountId,
+          data: campaign.data,
+          adSets: campaign.adSets.map((adSet) => ({
+            name: adSet.name,
+            data: adSet.data,
+            ads: adSet.ads.map((ad) => ({
+              name: ad.name,
+              data: ad.data,
+            })),
+          })),
+        },
+      };
+
+      res.json(exported);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  }
+
+  static async importCampaign(req: Request, res: Response) {
+    try {
+      const { userId } = req as AuthRequest;
+      const { exported, adAccountId } = req.body as {
+        exported: {
+          version: number;
+          campaign: {
+            name: string;
+            objective: string;
+            adAccountId: string;
+            data: any;
+            adSets: Array<{
+              name: string;
+              data: any;
+              ads: Array<{ name: string; data: any }>;
+            }>;
+          };
+        };
+        adAccountId?: string;
+      };
+
+      if (!exported?.campaign) {
+        return res.status(400).json({ error: 'Invalid export format' });
+      }
+
+      const targetAccountId = adAccountId || exported.campaign.adAccountId;
+      const { campaign: src } = exported;
+
+      const campaign = await prisma.draftCampaign.create({
+        data: {
+          userId: userId!,
+          adAccountId: targetAccountId,
+          name: src.name,
+          objective: src.objective || null,
+          data: src.data || {},
+          status: 'DRAFT',
+        },
+      });
+
+      for (const srcAdSet of src.adSets || []) {
+        const adSet = await prisma.draftAdSet.create({
+          data: {
+            draftCampaignId: campaign.id,
+            userId: userId!,
+            adAccountId: targetAccountId,
+            name: srcAdSet.name,
+            data: srcAdSet.data || {},
+            status: 'DRAFT',
+          },
+        });
+
+        for (const srcAd of srcAdSet.ads || []) {
+          await prisma.draftAd.create({
+            data: {
+              draftAdSetId: adSet.id,
+              userId: userId!,
+              adAccountId: targetAccountId,
+              name: srcAd.name,
+              data: srcAd.data || {},
+              status: 'DRAFT',
+            },
+          });
+        }
+      }
+
+      const result = await prisma.draftCampaign.findUnique({
+        where: { id: campaign.id },
+        include: {
+          adSets: { include: { ads: true } },
+          _count: { select: { adSets: true } },
+        },
+      });
+
+      res.json(result);
+    } catch (error: any) {
+      console.error('[DraftController] Error in importCampaign:', error);
+      res.status(500).json({ error: error.message });
+    }
+  }
+
   static async getFormSchema(req: Request, res: Response) {
     try {
       const { entityType, context } = req.body as {
