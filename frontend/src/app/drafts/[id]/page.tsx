@@ -470,10 +470,21 @@ export default function DraftEditorPage({ params: paramsPromise }: { params: Pro
         onChange={(v) => handleUpdateCreativeLinkData("name", v)}
         placeholder="Enter headline" />
 
+      <MetaField label="Description"
+        value={editData.data?.creative?.object_story_spec?.link_data?.description || ""}
+        onChange={(v) => handleUpdateCreativeLinkData("description", v)}
+        placeholder="Additional description text below the headline" />
+
       <MetaField label="Destination URL"
         value={editData.data?.creative?.object_story_spec?.link_data?.link || ""}
         onChange={(v) => handleUpdateCreativeLinkData("link", v)}
         placeholder="https://example.com" />
+
+      <MetaField label="Image Hash"
+        value={editData.data?.creative?.object_story_spec?.link_data?.image_hash || ""}
+        onChange={(v) => handleUpdateCreativeLinkData("image_hash", v)}
+        placeholder="Enter image hash from Meta ad account"
+        hint="Upload images via Meta Business Suite, then paste the hash here" />
 
       <MetaField label="Call to Action" type="enum"
         value={editData.data?.creative?.object_story_spec?.link_data?.call_to_action?.type || ""}
