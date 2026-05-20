@@ -51,6 +51,7 @@ import templateRoutes from './routes/template.routes';
 import draftRoutes from './routes/draft.routes';
 import wideCreationRoutes from './routes/wideCreation.routes';
 import userRoutes from './routes/user.routes';
+import uploadRoutes from './routes/upload.routes';
 
 app.use('/api/auth', authRoutes);
 app.use('/api/adaccounts', adAccountRoutes);
@@ -59,6 +60,7 @@ app.use('/api/templates', templateRoutes);
 app.use('/api/drafts', draftRoutes);
 app.use('/api/wide-creation', wideCreationRoutes);
 app.use('/api/user', userRoutes);
+app.use('/api/uploads', uploadRoutes);
 
 // Catch-all for 404s
 app.use((req, res) => {

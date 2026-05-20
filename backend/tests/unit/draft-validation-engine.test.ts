@@ -58,7 +58,7 @@ describe('DraftValidationEngine.validateCampaign', () => {
     const errors = await DraftValidationEngine.validateCampaign(
       makeCampaign({ data: { objective: 'INVALID_OBJ' } })
     );
-    expect(errors.some(e => e.field === 'objective' && e.message.includes('Unknown'))).toBe(true);
+    expect(errors.some(e => e.field === 'objective' && e.message.includes('not a recognized'))).toBe(true);
   });
 
   it('rejects both daily_budget and lifetime_budget', async () => {
@@ -155,7 +155,7 @@ describe('DraftValidationEngine.validateAdSet', () => {
       makeAdSet({ data: { billing_event: 'IMPRESSIONS', optimization_goal: 'APP_INSTALLS', targeting: {} } }),
       'OUTCOME_TRAFFIC'
     );
-    expect(errors.some(e => e.field === 'optimization_goal' && e.message.includes('not valid'))).toBe(true);
+    expect(errors.some(e => e.field === 'optimization_goal' && e.message.includes('not available'))).toBe(true);
   });
 
   it('accepts valid optimization_goal for objective', async () => {
@@ -204,7 +204,7 @@ describe('DraftValidationEngine.validateAdSet', () => {
       }),
       'OUTCOME_LEADS'
     );
-    expect(errors.some(e => e.field === 'promoted_object' && e.message.includes('must include'))).toBe(true);
+    expect(errors.some(e => e.field === 'promoted_object' && e.message.includes('missing'))).toBe(true);
   });
 
   it('accepts valid promoted_object', async () => {
@@ -354,7 +354,7 @@ describe('DraftValidationEngine.validateAd', () => {
     const errors = await DraftValidationEngine.validateAd(
       makeAd({ data: { creative: { some_field: 'value' } } })
     );
-    expect(errors.some(e => e.field === 'creative' && e.message.includes('creative_id'))).toBe(true);
+    expect(errors.some(e => e.field === 'creative' && e.message.includes('incomplete'))).toBe(true);
   });
 
   it('accepts creative with id', async () => {
@@ -362,6 +362,89 @@ describe('DraftValidationEngine.validateAd', () => {
       makeAd({ data: { creative: { id: '123' } } })
     );
     expect(errors).toHaveLength(0);
+  });
+
+  it('accepts ad with video_data and video_id', async () => {
+    const errors = await DraftValidationEngine.validateAd(
+      makeAd({ data: { creative: { object_story_spec: { page_id: '111', video_data: { video_id: '456' } } } } })
+    );
+    expect(errors.filter(e => e.severity === 'error')).toHaveLength(0);
+  });
+
+  it('rejects video_data without video_id', async () => {
+    const errors = await DraftValidationEngine.validateAd(
+      makeAd({ data: { creative: { object_story_spec: { page_id: '111', video_data: { message: 'hello' } } } } })
+    );
+    expect(errors.some(e => e.field === 'creative.video_data.video_id')).toBe(true);
+  });
+
+  it('accepts ad with photo_data and image_hash', async () => {
+    const errors = await DraftValidationEngine.validateAd(
+      makeAd({ data: { creative: { object_story_spec: { page_id: '111', photo_data: { image_hash: 'abc123' } } } } })
+    );
+    expect(errors.filter(e => e.severity === 'error')).toHaveLength(0);
+  });
+
+  it('rejects photo_data without image_hash', async () => {
+    const errors = await DraftValidationEngine.validateAd(
+      makeAd({ data: { creative: { object_story_spec: { page_id: '111', photo_data: { message: 'hello' } } } } })
+    );
+    expect(errors.some(e => e.field === 'creative.photo_data.image_hash')).toBe(true);
+  });
+
+  it('accepts carousel with 2+ valid cards', async () => {
+    const errors = await DraftValidationEngine.validateAd(
+      makeAd({ data: { creative: { object_story_spec: { page_id: '111', link_data: {
+        message: 'hi', child_attachments: [{ link: 'https://a.com' }, { link: 'https://b.com' }],
+      } } } } })
+    );
+    expect(errors.filter(e => e.severity === 'error')).toHaveLength(0);
+  });
+
+  it('rejects carousel with fewer than 2 cards', async () => {
+    const errors = await DraftValidationEngine.validateAd(
+      makeAd({ data: { creative: { object_story_spec: { page_id: '111', link_data: {
+        child_attachments: [{ link: 'https://a.com' }],
+      } } } } })
+    );
+    expect(errors.some(e => e.field === 'creative.child_attachments' && e.message.includes('at least 2'))).toBe(true);
+  });
+
+  it('rejects carousel card missing link', async () => {
+    const errors = await DraftValidationEngine.validateAd(
+      makeAd({ data: { creative: { object_story_spec: { page_id: '111', link_data: {
+        child_attachments: [{ link: 'https://a.com' }, { name: 'no link' }],
+      } } } } })
+    );
+    expect(errors.some(e => e.field === 'creative.child_attachments[1].link')).toBe(true);
+  });
+
+  it('accepts ad with asset_feed_spec', async () => {
+    const errors = await DraftValidationEngine.validateAd(
+      makeAd({ data: { creative: { asset_feed_spec: { images: [{ hash: 'x' }], bodies: [{ text: 'y' }] } } } })
+    );
+    expect(errors.filter(e => e.severity === 'error')).toHaveLength(0);
+  });
+
+  it('rejects asset_feed_spec without images or videos', async () => {
+    const errors = await DraftValidationEngine.validateAd(
+      makeAd({ data: { creative: { asset_feed_spec: { bodies: [{ text: 'y' }] } } } })
+    );
+    expect(errors.some(e => e.field === 'creative.asset_feed_spec' && e.severity === 'error')).toBe(true);
+  });
+
+  it('warns when asset_feed_spec has no bodies', async () => {
+    const errors = await DraftValidationEngine.validateAd(
+      makeAd({ data: { creative: { asset_feed_spec: { images: [{ hash: 'x' }] } } } })
+    );
+    expect(errors.some(e => e.field === 'creative.asset_feed_spec.bodies' && e.severity === 'warning')).toBe(true);
+  });
+
+  it('warns when page_id is missing from object_story_spec', async () => {
+    const errors = await DraftValidationEngine.validateAd(
+      makeAd({ data: { creative: { object_story_spec: { link_data: { message: 'hi' } } } } })
+    );
+    expect(errors.some(e => e.field === 'creative.page_id' && e.severity === 'warning')).toBe(true);
   });
 });
 
@@ -445,6 +528,137 @@ describe('DraftValidationEngine.validateFullDraft', () => {
     };
     const result = await DraftValidationEngine.validateFullDraft(campaign);
     expect(result.isValid).toBe(true);
+  });
+});
+
+describe('DraftValidationEngine — new validation cases', () => {
+  // Campaign: CBO enabled but no budget
+  it('errors when CBO is enabled but no campaign budget set', async () => {
+    const errors = await DraftValidationEngine.validateCampaign(
+      makeCampaign({ data: { objective: 'OUTCOME_TRAFFIC', is_adset_budget_sharing_enabled: true } })
+    );
+    expect(errors.some(e => e.field === 'budget' && e.message.includes('Campaign Budget Optimization'))).toBe(true);
+  });
+
+  // Campaign: start_time after stop_time
+  it('errors when campaign start_time is after stop_time', async () => {
+    const errors = await DraftValidationEngine.validateCampaign(
+      makeCampaign({ data: { objective: 'OUTCOME_TRAFFIC', start_time: '2026-06-01T00:00:00', stop_time: '2026-05-01T00:00:00' } })
+    );
+    expect(errors.some(e => e.field === 'stop_time' && e.message.includes('after the start'))).toBe(true);
+  });
+
+  it('no error when campaign times are in order', async () => {
+    const errors = await DraftValidationEngine.validateCampaign(
+      makeCampaign({ data: { objective: 'OUTCOME_TRAFFIC', start_time: '2026-05-01T00:00:00', stop_time: '2026-06-01T00:00:00' } })
+    );
+    expect(errors.some(e => e.field === 'stop_time')).toBe(false);
+  });
+
+  // Ad set: start_time after end_time
+  it('errors when ad set start_time is after end_time', async () => {
+    const errors = await DraftValidationEngine.validateAdSet(
+      makeAdSet({
+        data: {
+          billing_event: 'IMPRESSIONS', optimization_goal: 'LINK_CLICKS',
+          targeting: { geo_locations: { countries: ['US'] } },
+          start_time: '2026-06-01T00:00:00', end_time: '2026-05-01T00:00:00',
+        },
+      })
+    );
+    expect(errors.some(e => e.field === 'end_time' && e.message.includes('after the start'))).toBe(true);
+  });
+
+  // Ad set: missing geo_locations
+  it('warns when targeting has no geo_locations', async () => {
+    const errors = await DraftValidationEngine.validateAdSet(
+      makeAdSet({
+        data: {
+          billing_event: 'IMPRESSIONS', optimization_goal: 'LINK_CLICKS',
+          targeting: { age_min: 18 },
+        },
+      })
+    );
+    expect(errors.some(e => e.field === 'targeting' && e.message.includes('location'))).toBe(true);
+  });
+
+  it('no geo warning when targeting has countries', async () => {
+    const errors = await DraftValidationEngine.validateAdSet(
+      makeAdSet({
+        data: {
+          billing_event: 'IMPRESSIONS', optimization_goal: 'LINK_CLICKS',
+          targeting: { geo_locations: { countries: ['US'] } },
+        },
+      })
+    );
+    expect(errors.some(e => e.field === 'targeting' && e.message.includes('location'))).toBe(false);
+  });
+
+  // Ad: link_data missing destination URL
+  it('errors when link ad has no destination URL', async () => {
+    const errors = await DraftValidationEngine.validateAd(
+      makeAd({ data: { creative: { object_story_spec: { page_id: '111', link_data: { message: 'Hello' } } } } })
+    );
+    expect(errors.some(e => e.field === 'creative.link_data.link' && e.message.includes('destination URL'))).toBe(true);
+  });
+
+  it('no link error when link_data has a link', async () => {
+    const errors = await DraftValidationEngine.validateAd(
+      makeAd({ data: { creative: { object_story_spec: { page_id: '111', link_data: { link: 'https://example.com', message: 'Hello' } } } } })
+    );
+    expect(errors.some(e => e.field === 'creative.link_data.link')).toBe(false);
+  });
+
+  // Full draft: campaign with no ad sets
+  it('warns when campaign has empty adSets array', async () => {
+    const campaign = { ...makeCampaign(), adSets: [] };
+    const result = await DraftValidationEngine.validateFullDraft(campaign);
+    expect(result.campaignErrors.some(e => e.field === 'adSets' && e.message.includes('no ad sets'))).toBe(true);
+  });
+
+  // Full draft: ad set with no ads
+  it('warns when ad set has empty ads array', async () => {
+    const campaign = {
+      ...makeCampaign(),
+      adSets: [{ ...makeAdSet(), ads: [] }],
+    };
+    const result = await DraftValidationEngine.validateFullDraft(campaign);
+    const adSetErrors = Object.values(result.adSetErrors).flat();
+    expect(adSetErrors.some(e => e.field === 'ads' && e.message.includes('no ads'))).toBe(true);
+  });
+
+  // Friendly message content checks
+  it('uses friendly names in optimization_goal error', async () => {
+    const errors = await DraftValidationEngine.validateAdSet(
+      makeAdSet({ data: { billing_event: 'IMPRESSIONS', optimization_goal: 'APP_INSTALLS', targeting: {} } }),
+      'OUTCOME_TRAFFIC'
+    );
+    const msg = errors.find(e => e.field === 'optimization_goal')?.message || '';
+    expect(msg).toContain('App Installs');
+    expect(msg).toContain('Traffic');
+  });
+
+  it('uses friendly names in promoted_object error', async () => {
+    const errors = await DraftValidationEngine.validateAdSet(
+      makeAdSet({ data: { billing_event: 'IMPRESSIONS', optimization_goal: 'LEAD_GENERATION', targeting: {} } }),
+      'OUTCOME_LEADS'
+    );
+    const msg = errors.find(e => e.field === 'promoted_object')?.message || '';
+    expect(msg).toContain('Facebook Page');
+    expect(msg).toContain('Leads');
+  });
+
+  it('uses friendly names in bid_strategy error', async () => {
+    const errors = await DraftValidationEngine.validateAdSet(
+      makeAdSet({
+        data: { billing_event: 'IMPRESSIONS', optimization_goal: 'LINK_CLICKS', targeting: {}, bid_strategy: 'COST_CAP' },
+      }),
+      'OUTCOME_TRAFFIC',
+      false
+    );
+    const msg = errors.find(e => e.field === 'bid_amount')?.message || '';
+    expect(msg).toContain('Cost Per Result Goal');
+    expect(msg).toContain('Highest Volume');
   });
 });
 

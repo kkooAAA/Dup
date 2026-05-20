@@ -7,6 +7,8 @@ import {
   BID_CAP_STRATEGIES,
   IMMUTABLE_CAMPAIGN_FIELDS,
   IMMUTABLE_ADSET_FIELDS,
+  OPTIMIZATION_GOAL_LABELS,
+  DESTINATION_TYPE_LABELS,
 } from './MetaFieldRegistry';
 
 export interface ValidationError {
@@ -15,22 +17,54 @@ export interface ValidationError {
   severity: 'error' | 'warning';
 }
 
+// ─── Friendly label helpers ───
+
+const OBJECTIVE_LABELS: Record<string, string> = {
+  OUTCOME_AWARENESS: 'Awareness', OUTCOME_TRAFFIC: 'Traffic',
+  OUTCOME_ENGAGEMENT: 'Engagement', OUTCOME_LEADS: 'Leads',
+  OUTCOME_SALES: 'Sales', OUTCOME_APP_PROMOTION: 'App Promotion',
+};
+
+const BID_STRATEGY_LABELS: Record<string, string> = {
+  LOWEST_COST_WITHOUT_CAP: 'Highest Volume',
+  LOWEST_COST_WITH_BID_CAP: 'Bid Cap',
+  COST_CAP: 'Cost Per Result Goal',
+  LOWEST_COST_WITH_MIN_ROAS: 'ROAS Goal',
+};
+
+const PROMOTED_OBJECT_FIELD_LABELS: Record<string, string> = {
+  pixel_id: 'Meta Pixel', page_id: 'Facebook Page', application_id: 'App ID',
+};
+
+const FIELD_LABELS: Record<string, string> = {
+  buying_type: 'Buying Type', objective: 'Objective',
+  destination_type: 'Destination Type', promoted_object: 'Promoted Object',
+  is_dynamic_creative: 'Dynamic Creative', campaign_id: 'Campaign',
+};
+
+function labelObj(obj: string): string { return OBJECTIVE_LABELS[obj] || obj; }
+function labelGoal(g: string): string { return OPTIMIZATION_GOAL_LABELS[g] || g; }
+function labelDest(d: string): string { return DESTINATION_TYPE_LABELS[d] || d; }
+function labelBid(b: string): string { return BID_STRATEGY_LABELS[b] || b; }
+function labelField(f: string): string { return FIELD_LABELS[f] || f.replace(/_/g, ' '); }
+function labelPromoted(f: string): string { return PROMOTED_OBJECT_FIELD_LABELS[f] || f; }
+
 export class DraftValidationEngine {
   static async validateCampaign(campaign: DraftCampaign): Promise<ValidationError[]> {
     const errors: ValidationError[] = [];
     const data = campaign.data as any;
 
     if (!campaign.name) {
-      errors.push({ field: 'name', message: 'Campaign name is required', severity: 'error' });
+      errors.push({ field: 'name', message: 'Campaign name is required.', severity: 'error' });
     }
 
     const objective = data.objective || campaign.objective;
     if (!objective) {
-      errors.push({ field: 'objective', message: 'Objective is required', severity: 'error' });
+      errors.push({ field: 'objective', message: 'Campaign objective is required.', severity: 'error' });
     }
 
     if (!VALID_OPTIMIZATION_GOALS[objective] && objective) {
-      errors.push({ field: 'objective', message: `Unknown objective: ${objective}`, severity: 'error' });
+      errors.push({ field: 'objective', message: `"${objective}" is not a recognized campaign objective.`, severity: 'error' });
     }
 
     const hasDailyBudget = data.daily_budget && Number(data.daily_budget) > 0;
@@ -38,7 +72,7 @@ export class DraftValidationEngine {
     if (hasDailyBudget && hasLifetimeBudget) {
       errors.push({
         field: 'budget',
-        message: 'Cannot set both daily_budget and lifetime_budget on a campaign',
+        message: 'Choose either Daily Budget or Lifetime Budget — you cannot use both at the same time.',
         severity: 'error',
       });
     }
@@ -47,10 +81,20 @@ export class DraftValidationEngine {
       if (!data.bid_amount && !data.bid_constraints) {
         errors.push({
           field: 'bid_strategy',
-          message: `${data.bid_strategy} requires a bid amount. Set a bid amount or switch to Lowest Cost.`,
+          message: `${labelBid(data.bid_strategy)} requires a bid amount. Set a bid amount or switch to Highest Volume.`,
           severity: 'error',
         });
       }
+    }
+
+    // CBO enabled but no campaign budget
+    const isCBO = hasDailyBudget || hasLifetimeBudget;
+    if (!isCBO && data.is_adset_budget_sharing_enabled === true) {
+      errors.push({
+        field: 'budget',
+        message: 'Campaign Budget Optimization is enabled but no campaign budget is set. Add a Daily or Lifetime Budget.',
+        severity: 'error',
+      });
     }
 
     // special_ad_categories: NONE must not coexist with real categories
@@ -64,13 +108,26 @@ export class DraftValidationEngine {
       });
     }
 
+    // start_time after stop_time
+    if (data.start_time && data.stop_time) {
+      const start = new Date(data.start_time).getTime();
+      const stop = new Date(data.stop_time).getTime();
+      if (!isNaN(start) && !isNaN(stop) && start >= stop) {
+        errors.push({
+          field: 'stop_time',
+          message: 'Campaign end time must be after the start time.',
+          severity: 'error',
+        });
+      }
+    }
+
     if (campaign.metaId) {
       for (const field of IMMUTABLE_CAMPAIGN_FIELDS) {
         if (data[`_original_${field}`] !== undefined &&
             JSON.stringify(data[field]) !== JSON.stringify(data[`_original_${field}`])) {
           errors.push({
             field,
-            message: `${field} is immutable after publishing. Current Meta value will be kept. To change it, delete the Meta objects and re-publish.`,
+            message: `${labelField(field)} cannot be changed after publishing. The current Meta value will be kept. To change it, delete and re-publish.`,
             severity: 'warning',
           });
         }
@@ -85,19 +142,19 @@ export class DraftValidationEngine {
     const data = adSet.data as any;
 
     if (!adSet.name) {
-      errors.push({ field: 'name', message: 'Ad Set name is required', severity: 'error' });
+      errors.push({ field: 'name', message: 'Ad Set name is required.', severity: 'error' });
     }
 
     if (!data.billing_event) {
-      errors.push({ field: 'billing_event', message: 'Billing event is required', severity: 'error' });
+      errors.push({ field: 'billing_event', message: 'Billing event is required.', severity: 'error' });
     }
 
     if (!data.optimization_goal) {
-      errors.push({ field: 'optimization_goal', message: 'Optimization goal is required', severity: 'error' });
+      errors.push({ field: 'optimization_goal', message: 'Optimization goal is required.', severity: 'error' });
     }
 
     if (!data.targeting) {
-      errors.push({ field: 'targeting', message: 'Targeting is required', severity: 'error' });
+      errors.push({ field: 'targeting', message: 'Targeting is required. Add at least a country or region.', severity: 'error' });
     }
 
     if (campaignObjective && data.optimization_goal) {
@@ -105,7 +162,7 @@ export class DraftValidationEngine {
       if (validGoals && !validGoals.includes(data.optimization_goal)) {
         errors.push({
           field: 'optimization_goal',
-          message: `${data.optimization_goal} is not valid for ${campaignObjective}. Valid options: ${validGoals.join(', ')}`,
+          message: `"${labelGoal(data.optimization_goal)}" is not available for ${labelObj(campaignObjective)} campaigns. Choose from: ${validGoals.map(g => labelGoal(g)).join(', ')}.`,
           severity: 'error',
         });
       }
@@ -116,7 +173,7 @@ export class DraftValidationEngine {
       if (validDestinations && !validDestinations.includes(data.destination_type)) {
         errors.push({
           field: 'destination_type',
-          message: `${data.destination_type} is not valid for ${campaignObjective}. Valid options: ${validDestinations.join(', ')}`,
+          message: `"${labelDest(data.destination_type)}" is not available for ${labelObj(campaignObjective)} campaigns. Choose from: ${validDestinations.map(d => labelDest(d)).join(', ')}.`,
           severity: 'error',
         });
       }
@@ -125,10 +182,11 @@ export class DraftValidationEngine {
     if (campaignObjective) {
       const requiredFields = PROMOTED_OBJECT_REQUIREMENTS[campaignObjective] || [];
       if (requiredFields.length > 0) {
+        const friendlyFields = requiredFields.map((f: string) => labelPromoted(f)).join(' or ');
         if (!data.promoted_object) {
           errors.push({
             field: 'promoted_object',
-            message: `promoted_object with ${requiredFields.join(' or ')} is required for ${campaignObjective}`,
+            message: `${labelObj(campaignObjective)} campaigns require a ${friendlyFields} in Promoted Object.`,
             severity: 'error',
           });
         } else {
@@ -136,7 +194,7 @@ export class DraftValidationEngine {
           if (!hasRequired) {
             errors.push({
               field: 'promoted_object',
-              message: `promoted_object must include ${requiredFields.join(' or ')} for ${campaignObjective}`,
+              message: `Promoted Object is missing a ${friendlyFields}, which is required for ${labelObj(campaignObjective)} campaigns.`,
               severity: 'error',
             });
           }
@@ -148,7 +206,7 @@ export class DraftValidationEngine {
       if (!data.bid_amount && !data.bid_constraints) {
         errors.push({
           field: 'bid_amount',
-          message: `${data.bid_strategy} requires bid_amount or bid_constraints`,
+          message: `${labelBid(data.bid_strategy)} strategy requires a bid amount. Set a bid amount or switch to Highest Volume.`,
           severity: 'error',
         });
       }
@@ -158,7 +216,7 @@ export class DraftValidationEngine {
       if (!ATTRIBUTION_SPEC_OBJECTIVES.has(campaignObjective)) {
         errors.push({
           field: 'attribution_spec',
-          message: `attribution_spec is not supported for ${campaignObjective} and will be rejected by Meta`,
+          message: `Attribution settings are not supported for ${labelObj(campaignObjective)} campaigns and will be removed by Meta.`,
           severity: 'warning',
         });
       }
@@ -178,14 +236,14 @@ export class DraftValidationEngine {
       if (!hasDailyBudget && !hasLifetimeBudget) {
         errors.push({
           field: 'budget',
-          message: 'Ad set budget (daily or lifetime) is required for non-CBO campaigns',
+          message: 'Ad set needs a Daily or Lifetime Budget when Campaign Budget Optimization is off.',
           severity: 'warning',
         });
       }
       if (hasDailyBudget && hasLifetimeBudget) {
         errors.push({
           field: 'budget',
-          message: 'Cannot set both daily_budget and lifetime_budget on an ad set',
+          message: 'Choose either Daily Budget or Lifetime Budget — you cannot use both on an ad set.',
           severity: 'error',
         });
       }
@@ -231,6 +289,19 @@ export class DraftValidationEngine {
       }
     }
 
+    // Missing geo targeting
+    if (data.targeting && typeof data.targeting === 'object') {
+      const geo = data.targeting.geo_locations;
+      const hasGeo = geo && (geo.countries?.length || geo.regions?.length || geo.cities?.length || geo.zips?.length || geo.location_types?.length);
+      if (!hasGeo) {
+        errors.push({
+          field: 'targeting',
+          message: 'No location targeting set. Add at least one country, region, or city.',
+          severity: 'warning',
+        });
+      }
+    }
+
     const geoCountries: string[] = targeting.geo_locations?.countries || [];
     if (geoCountries.includes('TH') && targeting.age_min && targeting.age_min < 20) {
       errors.push({
@@ -244,9 +315,22 @@ export class DraftValidationEngine {
     if (!isCBO && data.lifetime_budget && Number(data.lifetime_budget) > 0 && !data.end_time) {
       errors.push({
         field: 'end_time',
-        message: 'Lifetime budget requires an end time to be set.',
+        message: 'Lifetime Budget requires an end date. Set an end time for this ad set.',
         severity: 'error',
       });
+    }
+
+    // start_time after end_time
+    if (data.start_time && data.end_time) {
+      const start = new Date(data.start_time).getTime();
+      const end = new Date(data.end_time).getTime();
+      if (!isNaN(start) && !isNaN(end) && start >= end) {
+        errors.push({
+          field: 'end_time',
+          message: 'Ad set end time must be after the start time.',
+          severity: 'error',
+        });
+      }
     }
 
     if (adSet.metaId) {
@@ -256,7 +340,7 @@ export class DraftValidationEngine {
             JSON.stringify(data[field]) !== JSON.stringify(data[`_original_${field}`])) {
           errors.push({
             field,
-            message: `${field} is immutable after publishing and cannot be updated on Meta`,
+            message: `${labelField(field)} cannot be changed after publishing. The current Meta value will be kept.`,
             severity: 'warning',
           });
         }
@@ -271,13 +355,73 @@ export class DraftValidationEngine {
     const data = ad.data as any;
 
     if (!ad.name) {
-      errors.push({ field: 'name', message: 'Ad name is required', severity: 'error' });
+      errors.push({ field: 'name', message: 'Ad name is required.', severity: 'error' });
     }
 
     if (!data.creative) {
-      errors.push({ field: 'creative', message: 'Creative is required', severity: 'error' });
-    } else if (!data.creative.id && !data.creative.creative_id && !data.creative.object_story_spec) {
-      errors.push({ field: 'creative', message: 'Creative must have a creative_id or object_story_spec', severity: 'error' });
+      errors.push({ field: 'creative', message: 'Ad creative is required. Set up a creative with an image, video, or Creative ID.', severity: 'error' });
+      return errors;
+    }
+
+    const hasCreativeId = data.creative.id || data.creative.creative_id;
+    const oss = data.creative.object_story_spec;
+    const hasAssetFeed = data.creative.asset_feed_spec;
+
+    if (!hasCreativeId && !oss && !hasAssetFeed) {
+      errors.push({ field: 'creative', message: 'Ad creative is incomplete. Add an image/video, set up a creative, or provide a Creative ID.', severity: 'error' });
+      return errors;
+    }
+
+    if (oss && !hasCreativeId) {
+      const hasLinkData = oss.link_data && Object.keys(oss.link_data).length > 0;
+      const hasVideoData = oss.video_data && Object.keys(oss.video_data).length > 0;
+      const hasPhotoData = oss.photo_data && Object.keys(oss.photo_data).length > 0;
+
+      if (!hasLinkData && !hasVideoData && !hasPhotoData) {
+        errors.push({ field: 'creative', message: 'Creative is missing content. Choose a type (Link, Video, Photo, or Carousel) and fill in the required fields.', severity: 'error' });
+      }
+
+      if (hasVideoData && !oss.video_data.video_id) {
+        errors.push({ field: 'creative.video_data.video_id', message: 'Video ad requires a Video ID. Upload a video or paste an existing Video ID.', severity: 'error' });
+      }
+
+      if (hasPhotoData && !oss.photo_data.image_hash) {
+        errors.push({ field: 'creative.photo_data.image_hash', message: 'Photo ad requires an image. Upload an image or paste an existing Image Hash.', severity: 'error' });
+      }
+
+      if (hasLinkData) {
+        // Single link ad: needs destination URL
+        if (!oss.link_data.child_attachments && !oss.link_data.link) {
+          errors.push({ field: 'creative.link_data.link', message: 'Link ad requires a destination URL.', severity: 'error' });
+        }
+
+        if (oss.link_data.child_attachments) {
+          const cards = oss.link_data.child_attachments;
+          if (!Array.isArray(cards) || cards.length < 2) {
+            errors.push({ field: 'creative.child_attachments', message: 'Carousel ads require at least 2 cards.', severity: 'error' });
+          } else {
+            cards.forEach((card: any, i: number) => {
+              if (!card.link) {
+                errors.push({ field: `creative.child_attachments[${i}].link`, message: `Carousel card ${i + 1} is missing a destination URL.`, severity: 'error' });
+              }
+            });
+          }
+        }
+      }
+
+      if (!oss.page_id) {
+        errors.push({ field: 'creative.page_id', message: 'Facebook Page is recommended — it will be auto-resolved from the ad set if possible.', severity: 'warning' });
+      }
+    }
+
+    if (hasAssetFeed) {
+      const afs = data.creative.asset_feed_spec;
+      if (!afs.images?.length && !afs.videos?.length) {
+        errors.push({ field: 'creative.asset_feed_spec', message: 'Dynamic creative requires at least one image or video.', severity: 'error' });
+      }
+      if (!afs.bodies?.length) {
+        errors.push({ field: 'creative.asset_feed_spec.bodies', message: 'Dynamic creative should have at least one body text.', severity: 'warning' });
+      }
     }
 
     return errors;
@@ -299,6 +443,14 @@ export class DraftValidationEngine {
       const campaignData = campaign.data as any;
       const campaignObjective = campaignData?.objective || campaign.objective;
       const isCBO = !!(campaignData.daily_budget || campaignData.lifetime_budget);
+
+      if (campaign.adSets.length === 0) {
+        campaignErrors.push({
+          field: 'adSets',
+          message: 'Campaign has no ad sets. Add at least one ad set before publishing.',
+          severity: 'warning',
+        });
+      }
 
       // Cross-validate: special_ad_category_country must cover ad set targeting countries
       const cats: string[] = campaignData.special_ad_categories || [];
@@ -326,10 +478,18 @@ export class DraftValidationEngine {
         if (errors.some(e => e.severity === 'error')) isValid = false;
 
         if (adSet.ads) {
+          if (adSet.ads.length === 0) {
+            errors.push({
+              field: 'ads',
+              message: `Ad set "${adSet.name}" has no ads. Add at least one ad before publishing.`,
+              severity: 'warning',
+            });
+          }
+
           for (const ad of adSet.ads) {
-            const errors = await this.validateAd(ad);
-            adErrors[ad.id] = errors;
-            if (errors.some(e => e.severity === 'error')) isValid = false;
+            const adValidationErrors = await this.validateAd(ad);
+            adErrors[ad.id] = adValidationErrors;
+            if (adValidationErrors.some(e => e.severity === 'error')) isValid = false;
           }
         }
       }

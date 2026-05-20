@@ -1,4 +1,5 @@
 import axios from 'axios';
+import FormData from 'form-data';
 import { READ_ONLY_FIELDS } from './draft/MetaFieldRegistry';
 
 const FB_API_VERSION = 'v21.0';
@@ -162,7 +163,7 @@ export class FacebookService {
         if (isFirstPage) {
           const resp = await this.client.get(`/${adSetId}/ads`, {
             params: {
-              fields: 'name,id,status,creative{id,name,object_story_spec},tracking_specs',
+              fields: 'name,id,status,creative{id,name,object_story_spec,asset_feed_spec,platform_customizations},tracking_specs',
               limit: 100,
             },
           });
@@ -397,5 +398,25 @@ export class FacebookService {
       console.error(`[FacebookService] Update Name Failed:`, error.response?.data || error.message);
       throw error;
     }
+  }
+
+  async uploadImage(adAccountId: string, fileBuffer: Buffer, filename: string): Promise<string> {
+    const form = new FormData();
+    form.append('filename', fileBuffer, { filename });
+    const resp = await this.client.post(`/${adAccountId}/adimages`, form, {
+      headers: form.getHeaders(),
+    });
+    const images = resp.data.images;
+    const key = Object.keys(images)[0];
+    return images[key].hash;
+  }
+
+  async uploadVideo(adAccountId: string, fileBuffer: Buffer, filename: string): Promise<string> {
+    const form = new FormData();
+    form.append('source', fileBuffer, { filename });
+    const resp = await this.client.post(`/${adAccountId}/advideos`, form, {
+      headers: form.getHeaders(),
+    });
+    return resp.data.id;
   }
 }

@@ -627,6 +627,12 @@ export class DraftPublishService {
       }
       if (adSetData.start_time) adSetPayload.start_time = adSetData.start_time;
       if (adSetData.end_time) adSetPayload.end_time = adSetData.end_time;
+    } else {
+      // CBO: campaign owns the budget, but bid_amount still applies at ad set level
+      const campBidStrategy = campaignData.bid_strategy;
+      if (campBidStrategy && BID_CAP_STRATEGIES.has(campBidStrategy)) {
+        adSetPayload.bid_amount = String(adSetData.bid_amount || campaignData.bid_amount);
+      }
     }
 
     console.log(`[DraftPublishService] Creating ad set ${adSet.id}:`, JSON.stringify(adSetPayload));
@@ -723,6 +729,11 @@ export class DraftPublishService {
       }
       if (adSetData.start_time) updatePayload.start_time = adSetData.start_time;
       if (adSetData.end_time) updatePayload.end_time = adSetData.end_time;
+    } else {
+      const campBidStrategy = campaignData.bid_strategy;
+      if (campBidStrategy && BID_CAP_STRATEGIES.has(campBidStrategy)) {
+        updatePayload.bid_amount = String(adSetData.bid_amount || campaignData.bid_amount);
+      }
     }
 
     const { cleaned, stripped } = stripImmutableFields('adSet', updatePayload);
@@ -752,17 +763,17 @@ export class DraftPublishService {
 
     const creativeId = adData.creative?.creative_id || adData.creative?.id;
     const hasInlineCreative = adData.creative?.object_story_spec;
+    const hasAssetFeed = adData.creative?.asset_feed_spec;
 
-    if (!creativeId && !hasInlineCreative) {
+    if (!creativeId && !hasInlineCreative && !hasAssetFeed) {
       throw new Error(`Ad "${ad.name}" is missing creative_id or object_story_spec — cannot publish without a creative`);
     }
 
     let creative: any;
     if (creativeId) {
       creative = { creative_id: String(creativeId) };
-    } else {
+    } else if (hasInlineCreative) {
       const storySpec = { ...adData.creative.object_story_spec };
-      // Meta requires page_id in object_story_spec
       if (!storySpec.page_id) {
         const pageId = adSet?.data?.promoted_object?.page_id
           || adSet?.data?.page_id
@@ -772,7 +783,17 @@ export class DraftPublishService {
         }
       }
       creative = { object_story_spec: storySpec };
+    } else {
+      creative = {};
     }
+
+    if (adData.creative?.platform_customizations) {
+      creative.platform_customizations = adData.creative.platform_customizations;
+    }
+    if (adData.creative?.asset_feed_spec) {
+      creative.asset_feed_spec = adData.creative.asset_feed_spec;
+    }
+    delete creative.creative_type;
 
     const adPayload: any = {
       name: ad.name,

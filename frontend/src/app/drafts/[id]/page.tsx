@@ -8,14 +8,14 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { draftApi } from "@/services/api";
+import { draftApi, uploadApi } from "@/services/api";
 import {
   Save, Send, ShieldCheck, AlertTriangle, FileText, Layers,
-  Megaphone, Loader2, ArrowLeft, Trash2,
+  Megaphone, Loader2, ArrowLeft, Trash2, Upload,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
-import { cn } from "@/lib/utils";
+import { cn, extractApiError } from "@/lib/utils";
 import Link from "next/link";
 import { MetaField } from "@/components/meta/MetaField";
 import { MetaForm } from "@/components/meta/MetaForm";
@@ -79,6 +79,44 @@ function DateTimeInput({ label, value, onChange }: { label: string; value: strin
         </select>
       </div>
     </div>
+  );
+}
+
+function UploadButton({ type, adAccountId, onUploaded }: { type: "image" | "video"; adAccountId?: string; onUploaded: (value: string) => void }) {
+  const [uploading, setUploading] = useState(false);
+  const accept = type === "image" ? "image/jpeg,image/png,image/gif,image/webp" : "video/mp4,video/quicktime,video/x-msvideo,video/webm";
+
+  const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !adAccountId) return;
+    setUploading(true);
+    try {
+      const resp = type === "image"
+        ? await uploadApi.uploadImage(file, adAccountId)
+        : await uploadApi.uploadVideo(file, adAccountId);
+      onUploaded(type === "image" ? resp.data.hash : resp.data.videoId);
+      toast.success(`${type === "image" ? "Image" : "Video"} uploaded successfully`);
+    } catch (err: any) {
+      toast.error(extractApiError(err, `${type} upload failed`));
+    } finally {
+      setUploading(false);
+      e.target.value = "";
+    }
+  };
+
+  const disabled = !adAccountId || uploading;
+
+  return (
+    <label className={cn(
+      "inline-flex items-center gap-1.5 text-[11px] px-2 py-1 rounded border cursor-pointer mt-1",
+      disabled
+        ? "text-gray-600 border-gray-800 cursor-not-allowed"
+        : "text-blue-400 border-blue-500/30 hover:bg-blue-500/10 hover:text-blue-300"
+    )}>
+      {uploading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Upload className="w-3.5 h-3.5" />}
+      {uploading ? "Uploading..." : `Upload ${type}`}
+      <input type="file" accept={accept} onChange={handleUpload} className="hidden" disabled={disabled} />
+    </label>
   );
 }
 
@@ -269,6 +307,12 @@ export default function DraftEditorPage({ params: paramsPromise }: { params: Pro
       <MetaField label="Bid Strategy" value={editData.data?.bid_strategy || ""} type="enum"
         options={BID_STRATEGIES} onChange={(v) => handleUpdateDataField("bid_strategy", v)} />
 
+      {["COST_CAP", "LOWEST_COST_WITH_BID_CAP", "BID_CAP"].includes(editData.data?.bid_strategy || "") && (
+        <MetaField label="Bid Amount" value={editData.data?.bid_amount} type="number" isBudget
+          onChange={(v) => handleUpdateDataField("bid_amount", v)}
+          hint="Required for Bid Cap / Cost Cap strategies (in cents, e.g. 500 = $5.00)" />
+      )}
+
       <div className="flex items-center gap-2 py-1">
         <Checkbox
           checked={!!editData.data?.is_adset_budget_sharing_enabled}
@@ -438,6 +482,150 @@ export default function DraftEditorPage({ params: paramsPromise }: { params: Pro
     { value: "WATCH_MORE", label: "Watch More" },
   ];
 
+  const CREATIVE_TYPES = [
+    { value: "link", label: "Link Ad" },
+    { value: "video", label: "Video Ad" },
+    { value: "photo", label: "Photo Ad" },
+    { value: "carousel", label: "Carousel Ad" },
+  ];
+
+  const getCreativeType = (): string => {
+    const ct = editData?.data?.creative?.creative_type;
+    if (ct) return ct;
+    const oss = editData?.data?.creative?.object_story_spec;
+    if (!oss) return "link";
+    if (oss.video_data && Object.keys(oss.video_data).length > 0) return "video";
+    if (oss.photo_data && Object.keys(oss.photo_data).length > 0) return "photo";
+    if (oss.link_data?.child_attachments?.length > 0) return "carousel";
+    return "link";
+  };
+
+  const handleSetCreativeType = (type: string) => {
+    const oss = editData.data?.creative?.object_story_spec || {};
+    setEditData({
+      ...editData,
+      data: {
+        ...editData.data,
+        creative: {
+          ...editData.data?.creative,
+          creative_type: type,
+          object_story_spec: { page_id: oss.page_id },
+        },
+      },
+    });
+    setIsDirty(true);
+  };
+
+  const handleUpdateCreativeVideoData = (field: string, value: any) => {
+    setEditData({
+      ...editData,
+      data: {
+        ...editData.data,
+        creative: {
+          ...editData.data?.creative,
+          object_story_spec: {
+            ...editData.data?.creative?.object_story_spec,
+            video_data: { ...editData.data?.creative?.object_story_spec?.video_data, [field]: value },
+          },
+        },
+      },
+    });
+    setIsDirty(true);
+  };
+
+  const handleUpdateCreativePhotoData = (field: string, value: any) => {
+    setEditData({
+      ...editData,
+      data: {
+        ...editData.data,
+        creative: {
+          ...editData.data?.creative,
+          object_story_spec: {
+            ...editData.data?.creative?.object_story_spec,
+            photo_data: { ...editData.data?.creative?.object_story_spec?.photo_data, [field]: value },
+          },
+        },
+      },
+    });
+    setIsDirty(true);
+  };
+
+  const handleUpdateVideoCTA = (field: string, value: any) => {
+    const vd = editData.data?.creative?.object_story_spec?.video_data || {};
+    const cta = vd.call_to_action || {};
+    const ctaValue = cta.value || {};
+    let newCta: any;
+    if (field === "type") {
+      newCta = { ...cta, type: value };
+    } else if (field === "link") {
+      newCta = { ...cta, value: { ...ctaValue, link: value } };
+    }
+    handleUpdateCreativeVideoData("call_to_action", newCta);
+  };
+
+  const handleUpdateCarouselCard = (index: number, field: string, value: any) => {
+    const cards = [...(editData.data?.creative?.object_story_spec?.link_data?.child_attachments || [])];
+    cards[index] = { ...(cards[index] || {}), [field]: value };
+    setEditData({
+      ...editData,
+      data: {
+        ...editData.data,
+        creative: {
+          ...editData.data?.creative,
+          object_story_spec: {
+            ...editData.data?.creative?.object_story_spec,
+            link_data: { ...editData.data?.creative?.object_story_spec?.link_data, child_attachments: cards },
+          },
+        },
+      },
+    });
+    setIsDirty(true);
+  };
+
+  const handleAddCarouselCard = () => {
+    const cards = [...(editData.data?.creative?.object_story_spec?.link_data?.child_attachments || [])];
+    if (cards.length >= 10) return;
+    cards.push({ link: "", name: "", description: "", image_hash: "" });
+    setEditData({
+      ...editData,
+      data: {
+        ...editData.data,
+        creative: {
+          ...editData.data?.creative,
+          object_story_spec: {
+            ...editData.data?.creative?.object_story_spec,
+            link_data: { ...editData.data?.creative?.object_story_spec?.link_data, child_attachments: cards },
+          },
+        },
+      },
+    });
+    setIsDirty(true);
+  };
+
+  const handleRemoveCarouselCard = (index: number) => {
+    const cards = [...(editData.data?.creative?.object_story_spec?.link_data?.child_attachments || [])];
+    if (cards.length <= 2) return;
+    cards.splice(index, 1);
+    setEditData({
+      ...editData,
+      data: {
+        ...editData.data,
+        creative: {
+          ...editData.data?.creative,
+          object_story_spec: {
+            ...editData.data?.creative?.object_story_spec,
+            link_data: { ...editData.data?.creative?.object_story_spec?.link_data, child_attachments: cards },
+          },
+        },
+      },
+    });
+    setIsDirty(true);
+  };
+
+  const creativeType = getCreativeType();
+  const carouselCards: any[] = editData?.data?.creative?.object_story_spec?.link_data?.child_attachments || [];
+  const adAccountId = draft?.adAccountId || editData?.adAccountId;
+
   const renderAdForm = () => (
     <div className="space-y-4">
       <MetaField label="Ad Name" value={editData.name || ""} onChange={(v) => handleUpdateField("name", v)} />
@@ -460,36 +648,184 @@ export default function DraftEditorPage({ params: paramsPromise }: { params: Pro
         onChange={(v) => handleUpdateNestedDataField("creative", "creative_id", v)}
         placeholder="Enter creative ID" hint="Reference to existing Meta creative" />
 
-      <MetaField label="Ad Body Text"
-        value={editData.data?.creative?.object_story_spec?.link_data?.message || ""}
-        onChange={(v) => handleUpdateCreativeLinkData("message", v)}
-        placeholder="Write your ad body text here..." />
+      <MetaField label="Creative Type" type="enum"
+        value={creativeType}
+        options={CREATIVE_TYPES}
+        onChange={(v) => handleSetCreativeType(v)} />
 
-      <MetaField label="Headline"
-        value={editData.data?.creative?.object_story_spec?.link_data?.name || ""}
-        onChange={(v) => handleUpdateCreativeLinkData("name", v)}
-        placeholder="Enter headline" />
+      <MetaField label="Page ID"
+        value={editData.data?.creative?.object_story_spec?.page_id || ""}
+        onChange={(v) => {
+          setEditData({
+            ...editData,
+            data: {
+              ...editData.data,
+              creative: {
+                ...editData.data?.creative,
+                object_story_spec: { ...editData.data?.creative?.object_story_spec, page_id: v },
+              },
+            },
+          });
+          setIsDirty(true);
+        }}
+        placeholder="Facebook Page ID"
+        hint="Required for inline creatives. Auto-resolved from ad set if empty." />
 
-      <MetaField label="Description"
-        value={editData.data?.creative?.object_story_spec?.link_data?.description || ""}
-        onChange={(v) => handleUpdateCreativeLinkData("description", v)}
-        placeholder="Additional description text below the headline" />
+      {/* ── Link Ad ── */}
+      {creativeType === "link" && (
+        <>
+          <MetaField label="Ad Body Text"
+            value={editData.data?.creative?.object_story_spec?.link_data?.message || ""}
+            onChange={(v) => handleUpdateCreativeLinkData("message", v)}
+            placeholder="Write your ad body text here..." />
+          <MetaField label="Headline"
+            value={editData.data?.creative?.object_story_spec?.link_data?.name || ""}
+            onChange={(v) => handleUpdateCreativeLinkData("name", v)}
+            placeholder="Enter headline" />
+          <MetaField label="Description"
+            value={editData.data?.creative?.object_story_spec?.link_data?.description || ""}
+            onChange={(v) => handleUpdateCreativeLinkData("description", v)}
+            placeholder="Additional description text below the headline" />
+          <MetaField label="Destination URL"
+            value={editData.data?.creative?.object_story_spec?.link_data?.link || ""}
+            onChange={(v) => handleUpdateCreativeLinkData("link", v)}
+            placeholder="https://example.com" />
+          <MetaField label="Image Hash"
+            value={editData.data?.creative?.object_story_spec?.link_data?.image_hash || ""}
+            onChange={(v) => handleUpdateCreativeLinkData("image_hash", v)}
+            placeholder="Enter image hash from Meta ad account" />
+          <UploadButton type="image" adAccountId={adAccountId}
+            onUploaded={(v) => { handleUpdateCreativeLinkData("image_hash", v); setIsDirty(true); }} />
+          <MetaField label="Call to Action" type="enum"
+            value={editData.data?.creative?.object_story_spec?.link_data?.call_to_action?.type || ""}
+            options={CTA_OPTIONS}
+            onChange={(v) => handleUpdateCreativeCTA(v)} />
+        </>
+      )}
 
-      <MetaField label="Destination URL"
-        value={editData.data?.creative?.object_story_spec?.link_data?.link || ""}
-        onChange={(v) => handleUpdateCreativeLinkData("link", v)}
-        placeholder="https://example.com" />
+      {/* ── Video Ad ── */}
+      {creativeType === "video" && (
+        <>
+          <MetaField label="Video ID"
+            value={editData.data?.creative?.object_story_spec?.video_data?.video_id || ""}
+            onChange={(v) => handleUpdateCreativeVideoData("video_id", v)}
+            placeholder="Enter video ID from Meta" />
+          <UploadButton type="video" adAccountId={adAccountId}
+            onUploaded={(v) => { handleUpdateCreativeVideoData("video_id", v); setIsDirty(true); }} />
+          <MetaField label="Post Text"
+            value={editData.data?.creative?.object_story_spec?.video_data?.message || ""}
+            onChange={(v) => handleUpdateCreativeVideoData("message", v)}
+            placeholder="Write your post text..." />
+          <MetaField label="Video Title"
+            value={editData.data?.creative?.object_story_spec?.video_data?.title || ""}
+            onChange={(v) => handleUpdateCreativeVideoData("title", v)}
+            placeholder="Enter video title" />
+          <MetaField label="Thumbnail Hash"
+            value={editData.data?.creative?.object_story_spec?.video_data?.image_hash || ""}
+            onChange={(v) => handleUpdateCreativeVideoData("image_hash", v)}
+            placeholder="Thumbnail image hash (optional)"
+            hint="If omitted, Meta auto-generates one." />
+          <UploadButton type="image" adAccountId={adAccountId}
+            onUploaded={(v) => { handleUpdateCreativeVideoData("image_hash", v); setIsDirty(true); }} />
+          <MetaField label="Call to Action" type="enum"
+            value={editData.data?.creative?.object_story_spec?.video_data?.call_to_action?.type || ""}
+            options={CTA_OPTIONS}
+            onChange={(v) => handleUpdateVideoCTA("type", v)} />
+          <MetaField label="CTA Link"
+            value={editData.data?.creative?.object_story_spec?.video_data?.call_to_action?.value?.link || ""}
+            onChange={(v) => handleUpdateVideoCTA("link", v)}
+            placeholder="https://example.com"
+            hint="Destination URL for the call to action button" />
+        </>
+      )}
 
-      <MetaField label="Image Hash"
-        value={editData.data?.creative?.object_story_spec?.link_data?.image_hash || ""}
-        onChange={(v) => handleUpdateCreativeLinkData("image_hash", v)}
-        placeholder="Enter image hash from Meta ad account"
-        hint="Upload images via Meta Business Suite, then paste the hash here" />
+      {/* ── Photo Ad ── */}
+      {creativeType === "photo" && (
+        <>
+          <MetaField label="Image Hash"
+            value={editData.data?.creative?.object_story_spec?.photo_data?.image_hash || ""}
+            onChange={(v) => handleUpdateCreativePhotoData("image_hash", v)}
+            placeholder="Image hash from Meta ad account" />
+          <UploadButton type="image" adAccountId={adAccountId}
+            onUploaded={(v) => { handleUpdateCreativePhotoData("image_hash", v); setIsDirty(true); }} />
+          <MetaField label="Post Text"
+            value={editData.data?.creative?.object_story_spec?.photo_data?.message || ""}
+            onChange={(v) => handleUpdateCreativePhotoData("message", v)}
+            placeholder="Write your post text..." />
+          <MetaField label="Caption"
+            value={editData.data?.creative?.object_story_spec?.photo_data?.caption || ""}
+            onChange={(v) => handleUpdateCreativePhotoData("caption", v)}
+            placeholder="Photo caption" />
+          <MetaField label="Destination URL"
+            value={editData.data?.creative?.object_story_spec?.photo_data?.link || ""}
+            onChange={(v) => handleUpdateCreativePhotoData("link", v)}
+            placeholder="https://example.com" />
+          <MetaField label="Call to Action" type="enum"
+            value={editData.data?.creative?.object_story_spec?.photo_data?.call_to_action?.type || ""}
+            options={CTA_OPTIONS}
+            onChange={(v) => handleUpdateCreativePhotoData("call_to_action", { type: v })} />
+        </>
+      )}
 
-      <MetaField label="Call to Action" type="enum"
-        value={editData.data?.creative?.object_story_spec?.link_data?.call_to_action?.type || ""}
-        options={CTA_OPTIONS}
-        onChange={(v) => handleUpdateCreativeCTA(v)} />
+      {/* ── Carousel Ad ── */}
+      {creativeType === "carousel" && (
+        <>
+          <MetaField label="Carousel Message"
+            value={editData.data?.creative?.object_story_spec?.link_data?.message || ""}
+            onChange={(v) => handleUpdateCreativeLinkData("message", v)}
+            placeholder="Post text for the carousel..." />
+          <MetaField label="Default URL"
+            value={editData.data?.creative?.object_story_spec?.link_data?.link || ""}
+            onChange={(v) => handleUpdateCreativeLinkData("link", v)}
+            placeholder="https://example.com"
+            hint="Default destination URL for the carousel" />
+
+          <div className="pt-2 border-t border-gray-800/40">
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] font-semibold text-gray-600 uppercase tracking-wider">
+                Carousel Cards ({carouselCards.length}/10)
+              </span>
+              {carouselCards.length < 10 && (
+                <button onClick={handleAddCarouselCard}
+                  className="text-[10px] text-blue-400 hover:text-blue-300">+ Add Card</button>
+              )}
+            </div>
+            {carouselCards.length < 2 && (
+              <p className="text-[10px] text-amber-500 mt-1">Carousel requires at least 2 cards.</p>
+            )}
+          </div>
+
+          {carouselCards.map((card: any, i: number) => (
+            <div key={i} className="border border-gray-800/40 rounded-md p-3 space-y-2 bg-gray-950/30">
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] font-semibold text-gray-500">Card {i + 1}</span>
+                {carouselCards.length > 2 && (
+                  <button onClick={() => handleRemoveCarouselCard(i)}
+                    className="text-[10px] text-red-400 hover:text-red-300">Remove</button>
+                )}
+              </div>
+              <MetaField label="Card URL"
+                value={card.link || ""}
+                onChange={(v) => handleUpdateCarouselCard(i, "link", v)}
+                placeholder="https://example.com/page" />
+              <MetaField label="Headline"
+                value={card.name || ""}
+                onChange={(v) => handleUpdateCarouselCard(i, "name", v)}
+                placeholder="Card headline" />
+              <MetaField label="Description"
+                value={card.description || ""}
+                onChange={(v) => handleUpdateCarouselCard(i, "description", v)}
+                placeholder="Card description" />
+              <MetaField label="Image Hash"
+                value={card.image_hash || ""}
+                onChange={(v) => handleUpdateCarouselCard(i, "image_hash", v)}
+                placeholder="Image hash for this card" />
+              <UploadButton type="image" adAccountId={adAccountId}
+                onUploaded={(v) => { handleUpdateCarouselCard(i, "image_hash", v); setIsDirty(true); }} />
+            </div>
+          ))}
+        </>
+      )}
 
       <div className="pt-2 border-t border-gray-800/40">
         <span className="text-[10px] font-semibold text-gray-600 uppercase tracking-wider">Tracking</span>

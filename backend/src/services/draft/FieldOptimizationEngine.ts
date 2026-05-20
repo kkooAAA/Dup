@@ -289,14 +289,18 @@ export class FieldOptimizationEngine {
         const creativeId = value?.id || value?.creative_id;
         if (creativeId) {
           payload.creative = { creative_id: String(creativeId) };
-          fields.push({
-            field: key, label: config.label, action: 'kept',
-            originalValue: sourceVal, newValue: payload.creative,
-            editable: false, type: 'object',
-          });
+        } else if (value?.object_story_spec || value?.asset_feed_spec) {
+          payload.creative = { ...value };
+          delete payload.creative.id;
+          delete payload.creative.creative_type;
         } else {
-          warnings.push('No creative_id found. Ad may fail to create.');
+          warnings.push('No creative_id or inline creative found. Ad may fail to create.');
         }
+        fields.push({
+          field: key, label: config.label, action: 'kept',
+          originalValue: sourceVal, newValue: payload.creative,
+          editable: false, type: 'object',
+        });
         continue;
       }
 

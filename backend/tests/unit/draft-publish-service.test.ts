@@ -719,6 +719,151 @@ describe('DraftPublishService.publishCampaign', () => {
     expect(adCall[1].creative.object_story_spec.page_id).toBe('888');
   });
 
+  it('passes video_data through in object_story_spec', async () => {
+    const campaign = makeDraftCampaign();
+    campaign.adSets[0].data.promoted_object = { page_id: '111' };
+    campaign.adSets[0].ads[0].data = {
+      creative: { object_story_spec: { page_id: '111', video_data: { video_id: '456', message: 'Watch this' } } },
+    };
+    mockPrisma.draftCampaign.findUnique.mockResolvedValue(campaign);
+    mockPrisma.draftCampaign.update.mockResolvedValue({});
+    mockPrisma.draftAdSet.update.mockResolvedValue({});
+    mockPrisma.draftAd.update.mockResolvedValue({});
+    mockFbPost
+      .mockResolvedValueOnce({ data: { id: 'meta_camp_1' } })
+      .mockResolvedValueOnce({ data: { id: 'meta_adset_1' } })
+      .mockResolvedValueOnce({ data: { id: 'meta_ad_1' } });
+
+    await DraftPublishService.publishCampaign('camp-1', 'token');
+    const adCall = mockFbPost.mock.calls[2];
+    expect(adCall[1].creative.object_story_spec.video_data).toEqual({ video_id: '456', message: 'Watch this' });
+  });
+
+  it('passes photo_data through in object_story_spec', async () => {
+    const campaign = makeDraftCampaign();
+    campaign.adSets[0].ads[0].data = {
+      creative: { object_story_spec: { page_id: '111', photo_data: { image_hash: 'abc', message: 'Look at this' } } },
+    };
+    mockPrisma.draftCampaign.findUnique.mockResolvedValue(campaign);
+    mockPrisma.draftCampaign.update.mockResolvedValue({});
+    mockPrisma.draftAdSet.update.mockResolvedValue({});
+    mockPrisma.draftAd.update.mockResolvedValue({});
+    mockFbPost
+      .mockResolvedValueOnce({ data: { id: 'meta_camp_1' } })
+      .mockResolvedValueOnce({ data: { id: 'meta_adset_1' } })
+      .mockResolvedValueOnce({ data: { id: 'meta_ad_1' } });
+
+    await DraftPublishService.publishCampaign('camp-1', 'token');
+    const adCall = mockFbPost.mock.calls[2];
+    expect(adCall[1].creative.object_story_spec.photo_data).toEqual({ image_hash: 'abc', message: 'Look at this' });
+  });
+
+  it('passes child_attachments through in link_data for carousel', async () => {
+    const cards = [{ link: 'https://a.com', name: 'A' }, { link: 'https://b.com', name: 'B' }];
+    const campaign = makeDraftCampaign();
+    campaign.adSets[0].ads[0].data = {
+      creative: { object_story_spec: { page_id: '111', link_data: { message: 'hi', child_attachments: cards } } },
+    };
+    mockPrisma.draftCampaign.findUnique.mockResolvedValue(campaign);
+    mockPrisma.draftCampaign.update.mockResolvedValue({});
+    mockPrisma.draftAdSet.update.mockResolvedValue({});
+    mockPrisma.draftAd.update.mockResolvedValue({});
+    mockFbPost
+      .mockResolvedValueOnce({ data: { id: 'meta_camp_1' } })
+      .mockResolvedValueOnce({ data: { id: 'meta_adset_1' } })
+      .mockResolvedValueOnce({ data: { id: 'meta_ad_1' } });
+
+    await DraftPublishService.publishCampaign('camp-1', 'token');
+    const adCall = mockFbPost.mock.calls[2];
+    expect(adCall[1].creative.object_story_spec.link_data.child_attachments).toEqual(cards);
+  });
+
+  it('includes platform_customizations as top-level creative field', async () => {
+    const campaign = makeDraftCampaign();
+    campaign.adSets[0].ads[0].data = {
+      creative: {
+        creative_id: '999',
+        platform_customizations: { instagram: { title: 'IG Title' } },
+      },
+    };
+    mockPrisma.draftCampaign.findUnique.mockResolvedValue(campaign);
+    mockPrisma.draftCampaign.update.mockResolvedValue({});
+    mockPrisma.draftAdSet.update.mockResolvedValue({});
+    mockPrisma.draftAd.update.mockResolvedValue({});
+    mockFbPost
+      .mockResolvedValueOnce({ data: { id: 'meta_camp_1' } })
+      .mockResolvedValueOnce({ data: { id: 'meta_adset_1' } })
+      .mockResolvedValueOnce({ data: { id: 'meta_ad_1' } });
+
+    await DraftPublishService.publishCampaign('camp-1', 'token');
+    const adCall = mockFbPost.mock.calls[2];
+    expect(adCall[1].creative.platform_customizations).toEqual({ instagram: { title: 'IG Title' } });
+  });
+
+  it('includes asset_feed_spec as top-level creative field', async () => {
+    const campaign = makeDraftCampaign();
+    campaign.adSets[0].ads[0].data = {
+      creative: {
+        creative_id: '999',
+        asset_feed_spec: { images: [{ hash: 'x' }], bodies: [{ text: 'y' }] },
+      },
+    };
+    mockPrisma.draftCampaign.findUnique.mockResolvedValue(campaign);
+    mockPrisma.draftCampaign.update.mockResolvedValue({});
+    mockPrisma.draftAdSet.update.mockResolvedValue({});
+    mockPrisma.draftAd.update.mockResolvedValue({});
+    mockFbPost
+      .mockResolvedValueOnce({ data: { id: 'meta_camp_1' } })
+      .mockResolvedValueOnce({ data: { id: 'meta_adset_1' } })
+      .mockResolvedValueOnce({ data: { id: 'meta_ad_1' } });
+
+    await DraftPublishService.publishCampaign('camp-1', 'token');
+    const adCall = mockFbPost.mock.calls[2];
+    expect(adCall[1].creative.asset_feed_spec).toEqual({ images: [{ hash: 'x' }], bodies: [{ text: 'y' }] });
+  });
+
+  it('strips creative_type from publish payload', async () => {
+    const campaign = makeDraftCampaign();
+    campaign.adSets[0].ads[0].data = {
+      creative: {
+        creative_type: 'video',
+        object_story_spec: { page_id: '111', video_data: { video_id: '456' } },
+      },
+    };
+    mockPrisma.draftCampaign.findUnique.mockResolvedValue(campaign);
+    mockPrisma.draftCampaign.update.mockResolvedValue({});
+    mockPrisma.draftAdSet.update.mockResolvedValue({});
+    mockPrisma.draftAd.update.mockResolvedValue({});
+    mockFbPost
+      .mockResolvedValueOnce({ data: { id: 'meta_camp_1' } })
+      .mockResolvedValueOnce({ data: { id: 'meta_adset_1' } })
+      .mockResolvedValueOnce({ data: { id: 'meta_ad_1' } });
+
+    await DraftPublishService.publishCampaign('camp-1', 'token');
+    const adCall = mockFbPost.mock.calls[2];
+    expect(adCall[1].creative.creative_type).toBeUndefined();
+  });
+
+  it('accepts asset_feed_spec-only creative without object_story_spec', async () => {
+    const campaign = makeDraftCampaign();
+    campaign.adSets[0].ads[0].data = {
+      creative: { asset_feed_spec: { images: [{ hash: 'x' }], bodies: [{ text: 'y' }] } },
+    };
+    mockPrisma.draftCampaign.findUnique.mockResolvedValue(campaign);
+    mockPrisma.draftCampaign.update.mockResolvedValue({});
+    mockPrisma.draftAdSet.update.mockResolvedValue({});
+    mockPrisma.draftAd.update.mockResolvedValue({});
+    mockFbPost
+      .mockResolvedValueOnce({ data: { id: 'meta_camp_1' } })
+      .mockResolvedValueOnce({ data: { id: 'meta_adset_1' } })
+      .mockResolvedValueOnce({ data: { id: 'meta_ad_1' } });
+
+    await DraftPublishService.publishCampaign('camp-1', 'token');
+    const adCall = mockFbPost.mock.calls[2];
+    expect(adCall[1].creative.asset_feed_spec).toEqual({ images: [{ hash: 'x' }], bodies: [{ text: 'y' }] });
+    expect(adCall[1].creative.creative_id).toBeUndefined();
+  });
+
   it('deletes and recreates campaign on objective mismatch, clears child metaIds', async () => {
     const campaign = makeDraftCampaign({ metaId: 'existing_camp' });
     campaign.data.objective = 'OUTCOME_LEADS';

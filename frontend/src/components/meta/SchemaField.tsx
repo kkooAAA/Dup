@@ -355,7 +355,7 @@ function FieldLabel({ field, compact }: { field: FieldSchema; compact?: boolean 
       {field.helpText && (
         <span className="group relative">
           <HelpCircle className="w-3 h-3 text-gray-600 cursor-help" />
-          <span className="absolute left-0 bottom-full mb-1 hidden group-hover:block bg-gray-800 border border-gray-700 text-[10px] text-gray-300 px-2 py-1 rounded shadow-lg whitespace-nowrap z-50 max-w-[250px]">
+          <span className="absolute left-0 bottom-full mb-1 hidden group-hover:block bg-gray-800 border border-gray-700 text-[10px] text-gray-300 px-2 py-1.5 rounded shadow-lg z-50 w-[250px]">
             {field.helpText}
           </span>
         </span>

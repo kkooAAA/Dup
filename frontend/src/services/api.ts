@@ -114,4 +114,23 @@ export const userApi = {
   deleteAccount: () => api.delete('/user/account'),
 };
 
+export const uploadApi = {
+  uploadImage: (file: File, adAccountId: string) => {
+    const form = new FormData();
+    form.append('file', file);
+    form.append('adAccountId', adAccountId);
+    return api.post('/uploads/image', form, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+  },
+  uploadVideo: (file: File, adAccountId: string) => {
+    const form = new FormData();
+    form.append('file', file);
+    form.append('adAccountId', adAccountId);
+    return api.post('/uploads/video', form, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+  },
+};
+
 export default api;
