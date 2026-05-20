@@ -614,6 +614,14 @@ function BooleanField({
   );
 }
 
+function parseDateTimeParts(v: any): { date: string; hour: string; minute: string } {
+  if (!v) return { date: "", hour: "", minute: "" };
+  const s = String(v);
+  const match = s.match(/^(\d{4}-\d{2}-\d{2})(?:T(\d{2}):(\d{2}))?/);
+  if (!match) return { date: "", hour: "", minute: "" };
+  return { date: match[1], hour: match[2] || "00", minute: match[3] || "00" };
+}
+
 function DateTimeField({
   field,
   value,
@@ -625,28 +633,68 @@ function DateTimeField({
   onChange: (v: any) => void;
   compact?: boolean;
 }) {
-  const inputType = field.type === "date" ? "date" : "datetime-local";
-  const displayValue = value
-    ? field.type === "datetime" && value.includes("T")
-      ? value.slice(0, 16)
-      : value
-    : "";
+  if (field.type === "date") {
+    const displayValue = value ? String(value).slice(0, 10) : "";
+    return (
+      <div className="space-y-1">
+        <FieldLabel field={field} compact={compact} />
+        <Input
+          type="date"
+          value={displayValue}
+          onChange={(e) => onChange(e.target.value || undefined)}
+          className={cn(
+            "bg-gray-950 border-gray-800 focus:border-blue-500 text-gray-200",
+            compact ? "h-7 text-[11px]" : "h-8 text-sm",
+          )}
+        />
+      </div>
+    );
+  }
+
+  const parts = parseDateTimeParts(value);
+  const hours = Array.from({ length: 24 }, (_, i) => String(i).padStart(2, "0"));
+  const minutes = ["00", "15", "30", "45"];
+
+  const update = (date: string, hour: string, minute: string) => {
+    if (!date) { onChange(undefined); return; }
+    onChange(`${date}T${hour.padStart(2, "0")}:${minute.padStart(2, "0")}:00`);
+  };
 
   return (
     <div className="space-y-1">
       <FieldLabel field={field} compact={compact} />
-      <Input
-        type={inputType}
-        value={displayValue}
-        onChange={(e) => {
-          const v = e.target.value;
-          onChange(v ? (field.type === "datetime" ? `${v}:00` : v) : undefined);
-        }}
-        className={cn(
-          "bg-gray-950 border-gray-800 focus:border-blue-500 text-gray-200",
-          compact ? "h-7 text-[11px]" : "h-8 text-sm",
-        )}
-      />
+      <div className="flex gap-1.5">
+        <Input
+          type="date"
+          value={parts.date}
+          onChange={(e) => update(e.target.value, parts.hour, parts.minute)}
+          className={cn(
+            "bg-gray-950 border-gray-800 focus:border-blue-500 text-gray-200 flex-1",
+            compact ? "h-7 text-[11px]" : "h-8 text-sm",
+          )}
+        />
+        <select
+          value={parts.hour}
+          onChange={(e) => update(parts.date, e.target.value, parts.minute)}
+          className={cn(
+            "w-14 rounded-md bg-gray-950 border border-gray-800 text-gray-200 px-1 focus:border-blue-500",
+            compact ? "h-7 text-[11px]" : "h-8 text-sm",
+          )}
+        >
+          {hours.map((h) => <option key={h} value={h}>{h}</option>)}
+        </select>
+        <span className="text-gray-500 self-center text-xs">:</span>
+        <select
+          value={minutes.includes(parts.minute) ? parts.minute : "00"}
+          onChange={(e) => update(parts.date, parts.hour, e.target.value)}
+          className={cn(
+            "w-14 rounded-md bg-gray-950 border border-gray-800 text-gray-200 px-1 focus:border-blue-500",
+            compact ? "h-7 text-[11px]" : "h-8 text-sm",
+          )}
+        >
+          {minutes.map((m) => <option key={m} value={m}>{m}</option>)}
+        </select>
+      </div>
     </div>
   );
 }

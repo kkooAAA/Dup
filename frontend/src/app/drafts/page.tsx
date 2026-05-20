@@ -147,7 +147,7 @@ export default function DraftsPage() {
       const failed = results.filter((r) => !r.success);
 
       if (succeeded > 0) toast.success(`${succeeded} campaign${succeeded > 1 ? "s" : ""} published`);
-      failed.forEach((r) => toast.error(`Failed: ${r.error || "Unknown error"}`));
+      failed.forEach((r: any) => toast.error(r.userMessage || r.error || "Unknown error"));
 
       setSelectedIds(new Set());
       fetchDrafts();

@@ -25,7 +25,8 @@ export type SchemaFieldType =
   | 'currency'
   | 'object'
   | 'array'
-  | 'multiEnum';
+  | 'multiEnum'
+  | 'tags';
 
 export interface EnumOption {
   value: string;
@@ -73,6 +74,9 @@ export interface SchemaField {
 
   // Validation
   validation?: ValidationRule[];
+
+  // Conditional visibility
+  visibleWhen?: { field: string; notEquals?: any; equals?: any };
 }
 
 export interface DependencyRule {
@@ -247,6 +251,30 @@ export class MetaFormSchemaEngine {
           ],
         },
         {
+          id: 'schedule',
+          title: 'Schedule',
+          collapsible: true,
+          defaultCollapsed: true,
+          fields: [
+            {
+              key: 'start_time',
+              label: 'Start Time',
+              type: 'datetime',
+              required: false,
+              editable: true,
+              helpText: 'When the campaign starts delivering. Leave empty to start immediately.',
+            },
+            {
+              key: 'stop_time',
+              label: 'Stop Time',
+              type: 'datetime',
+              required: false,
+              editable: true,
+              helpText: 'When the campaign stops delivering.',
+            },
+          ],
+        },
+        {
           id: 'special',
           title: 'Special Categories',
           collapsible: true,
@@ -264,6 +292,69 @@ export class MetaFormSchemaEngine {
                 label: this.formatEnumLabel(v),
               })),
               helpText: 'Required by Meta for ads about credit, employment, housing, etc.',
+              invalidates: ['special_ad_category_country'],
+            },
+            {
+              key: 'special_ad_category_country',
+              label: 'Special Ad Category Countries',
+              type: 'tags',
+              required: false,
+              editable: true,
+              defaultValue: [],
+              helpText: 'ISO country codes (e.g. US, TH). Required when special categories are set and targeting specific countries.',
+              visibleWhen: { field: 'special_ad_categories', notEquals: ['NONE'] },
+            },
+          ],
+        },
+        {
+          id: 'advanced',
+          title: 'Advanced',
+          collapsible: true,
+          defaultCollapsed: true,
+          fields: [
+            {
+              key: 'budget_rebalance_flag',
+              label: 'Auto-Rebalance Budget',
+              type: 'boolean',
+              required: false,
+              editable: true,
+              helpText: 'Automatically redistribute budget across ad sets based on performance',
+              dependsOn: [{
+                field: 'is_adset_budget_sharing_enabled',
+                condition: 'equals',
+                value: true,
+                effect: 'show',
+              }],
+            },
+            {
+              key: 'pacing_type',
+              label: 'Pacing Type',
+              type: 'enum',
+              required: false,
+              editable: true,
+              options: [
+                { value: 'standard', label: 'Standard' },
+                { value: 'no_pacing', label: 'No Pacing (Accelerated)' },
+              ],
+              helpText: 'Standard spreads spend evenly; No Pacing spends as fast as possible',
+            },
+            {
+              key: 'adlabels',
+              label: 'Ad Labels',
+              type: 'array',
+              required: false,
+              editable: true,
+              helpText: 'Organizational labels for filtering and reporting',
+              arrayItemSchema: {
+                key: 'label',
+                label: 'Label',
+                type: 'object',
+                required: true,
+                editable: true,
+                objectSchema: [
+                  { key: 'name', label: 'Label Name', type: 'string', required: true, editable: true, placeholder: 'e.g. Q2_2025, Brand' },
+                ],
+              },
             },
           ],
         },
@@ -294,6 +385,19 @@ export class MetaFormSchemaEngine {
               required: true,
               editable: true,
               placeholder: 'Enter ad set name',
+            },
+            {
+              key: 'status',
+              label: 'Status',
+              type: 'enum',
+              required: true,
+              editable: true,
+              defaultValue: 'PAUSED',
+              helpText: 'New ad sets are created as PAUSED',
+              options: [
+                { value: 'PAUSED', label: 'Paused' },
+                { value: 'ACTIVE', label: 'Active' },
+              ],
             },
           ],
         },
@@ -347,6 +451,14 @@ export class MetaFormSchemaEngine {
                 effect: 'updateOptions',
                 optionsMap: this.buildDestinationTypeOptionsMap(),
               }],
+            },
+            {
+              key: 'is_dynamic_creative',
+              label: 'Dynamic Creative',
+              type: 'boolean',
+              required: false,
+              editable: false,
+              helpText: 'Enable Dynamic Creative Optimization to auto-test creative combinations. Cannot be changed after creation.',
             },
           ],
         },
@@ -405,6 +517,28 @@ export class MetaFormSchemaEngine {
                 values: [...BID_CAP_STRATEGIES],
                 effect: 'require',
               }],
+            },
+            {
+              key: 'daily_spend_cap',
+              label: 'Daily Spend Cap',
+              type: 'currency',
+              required: false,
+              editable: true,
+              min: 0,
+              step: 100,
+              currencyMultiplier: 100,
+              helpText: 'Hard daily spend limit for this ad set',
+            },
+            {
+              key: 'lifetime_spend_cap',
+              label: 'Lifetime Spend Cap',
+              type: 'currency',
+              required: false,
+              editable: true,
+              min: 0,
+              step: 100,
+              currencyMultiplier: 100,
+              helpText: 'Hard total spend limit for this ad set',
             },
           ],
         },
@@ -484,6 +618,168 @@ export class MetaFormSchemaEngine {
             },
           ],
         }] : []),
+        {
+          id: 'frequency_pacing',
+          title: 'Frequency & Pacing',
+          collapsible: true,
+          defaultCollapsed: true,
+          fields: [
+            {
+              key: 'frequency_control_specs',
+              label: 'Frequency Cap',
+              type: 'array',
+              required: false,
+              editable: true,
+              helpText: 'Limit how often people see your ads',
+              arrayItemSchema: {
+                key: 'freq_rule',
+                label: 'Frequency Rule',
+                type: 'object',
+                required: true,
+                editable: true,
+                objectSchema: [
+                  {
+                    key: 'event',
+                    label: 'Event',
+                    type: 'enum',
+                    required: true,
+                    editable: true,
+                    options: [
+                      { value: 'IMPRESSIONS', label: 'Impressions' },
+                    ],
+                  },
+                  {
+                    key: 'interval_days',
+                    label: 'Interval (Days)',
+                    type: 'number',
+                    required: true,
+                    editable: true,
+                    min: 1,
+                    max: 90,
+                  },
+                  {
+                    key: 'max_frequency',
+                    label: 'Max Frequency',
+                    type: 'number',
+                    required: true,
+                    editable: true,
+                    min: 1,
+                    max: 100,
+                  },
+                ],
+              },
+            },
+            {
+              key: 'pacing_type',
+              label: 'Pacing Type',
+              type: 'enum',
+              required: false,
+              editable: true,
+              options: [
+                { value: 'standard', label: 'Standard' },
+                { value: 'day_parting', label: 'Day Parting' },
+              ],
+              helpText: 'Standard spreads spend evenly. Day Parting uses a schedule.',
+              invalidates: ['adset_schedule'],
+            },
+            {
+              key: 'adset_schedule',
+              label: 'Dayparting Schedule',
+              type: 'array',
+              required: false,
+              editable: true,
+              helpText: 'Define time windows for delivery. Requires lifetime budget.',
+              dependsOn: [{
+                field: 'pacing_type',
+                condition: 'equals',
+                value: 'day_parting',
+                effect: 'show',
+              }],
+              arrayItemSchema: {
+                key: 'schedule_entry',
+                label: 'Schedule Entry',
+                type: 'object',
+                required: true,
+                editable: true,
+                objectSchema: [
+                  {
+                    key: 'start_minute',
+                    label: 'Start Minute',
+                    type: 'number',
+                    required: true,
+                    editable: true,
+                    min: 0,
+                    max: 1439,
+                    helpText: 'Minutes from midnight (e.g. 480 = 8:00 AM)',
+                  },
+                  {
+                    key: 'end_minute',
+                    label: 'End Minute',
+                    type: 'number',
+                    required: true,
+                    editable: true,
+                    min: 0,
+                    max: 1439,
+                    helpText: 'Minutes from midnight (e.g. 1080 = 6:00 PM)',
+                  },
+                  {
+                    key: 'days',
+                    label: 'Days',
+                    type: 'multiEnum',
+                    required: true,
+                    editable: true,
+                    options: [
+                      { value: '0', label: 'Sun' },
+                      { value: '1', label: 'Mon' },
+                      { value: '2', label: 'Tue' },
+                      { value: '3', label: 'Wed' },
+                      { value: '4', label: 'Thu' },
+                      { value: '5', label: 'Fri' },
+                      { value: '6', label: 'Sat' },
+                    ],
+                  },
+                  {
+                    key: 'timezone_type',
+                    label: 'Timezone',
+                    type: 'enum',
+                    required: false,
+                    editable: true,
+                    options: [
+                      { value: 'USER', label: "User's Timezone" },
+                      { value: 'ADVERTISER', label: "Ad Account's Timezone" },
+                    ],
+                  },
+                ],
+              },
+            },
+          ],
+        },
+        {
+          id: 'dsa',
+          title: 'EU DSA Compliance',
+          collapsible: true,
+          defaultCollapsed: true,
+          fields: [
+            {
+              key: 'dsa_beneficiary',
+              label: 'DSA Beneficiary',
+              type: 'string',
+              required: false,
+              editable: true,
+              placeholder: 'Name of the beneficiary',
+              helpText: 'Required for ads targeting the EU under the Digital Services Act',
+            },
+            {
+              key: 'dsa_payor',
+              label: 'DSA Payor',
+              type: 'string',
+              required: false,
+              editable: true,
+              placeholder: 'Name of the payor',
+              helpText: 'Entity paying for the ad',
+            },
+          ],
+        },
       ],
       context: { objective, isCBO, buyingType: context.buyingType, destinationType: context.destinationType },
     };
@@ -540,6 +836,15 @@ export class MetaFormSchemaEngine {
                   helpText: 'Reference to existing Meta creative (used on publish if present)',
                 },
                 {
+                  key: 'object_story_spec.page_id',
+                  label: 'Page ID',
+                  type: 'string',
+                  required: true,
+                  editable: true,
+                  placeholder: 'Facebook Page ID',
+                  helpText: 'Required. The Facebook Page that publishes the ad.',
+                },
+                {
                   key: 'object_story_spec.link_data.message',
                   label: 'Ad Body Text',
                   type: 'string',
@@ -556,6 +861,15 @@ export class MetaFormSchemaEngine {
                   placeholder: 'Enter headline',
                 },
                 {
+                  key: 'object_story_spec.link_data.description',
+                  label: 'Description',
+                  type: 'string',
+                  required: false,
+                  editable: true,
+                  placeholder: 'Enter link description',
+                  helpText: 'Appears below the headline in some placements',
+                },
+                {
                   key: 'object_story_spec.link_data.link',
                   label: 'Destination URL',
                   type: 'string',
@@ -564,23 +878,68 @@ export class MetaFormSchemaEngine {
                   placeholder: 'https://example.com',
                 },
                 {
+                  key: 'object_story_spec.link_data.image_hash',
+                  label: 'Image Hash',
+                  type: 'string',
+                  required: false,
+                  editable: true,
+                  placeholder: 'Uploaded image hash (from Meta)',
+                  helpText: 'Hash of an image uploaded to your ad account via the /adimages endpoint',
+                },
+                {
                   key: 'object_story_spec.link_data.call_to_action.type',
                   label: 'Call to Action',
                   type: 'enum',
                   required: false,
                   editable: true,
                   options: [
+                    // Navigation
                     { value: 'LEARN_MORE', label: 'Learn More' },
+                    { value: 'SEE_MORE', label: 'See More' },
+                    { value: 'OPEN_LINK', label: 'Open Link' },
+                    { value: 'GET_DIRECTIONS', label: 'Get Directions' },
+                    // Shopping
                     { value: 'SHOP_NOW', label: 'Shop Now' },
+                    { value: 'BUY_NOW', label: 'Buy Now' },
+                    { value: 'ORDER_NOW', label: 'Order Now' },
+                    { value: 'ADD_TO_CART', label: 'Add to Cart' },
+                    // Lead Gen
                     { value: 'SIGN_UP', label: 'Sign Up' },
-                    { value: 'BOOK_TRAVEL', label: 'Book Now' },
-                    { value: 'CONTACT_US', label: 'Contact Us' },
+                    { value: 'SUBSCRIBE', label: 'Subscribe' },
+                    { value: 'APPLY_NOW', label: 'Apply Now' },
+                    { value: 'GET_QUOTE', label: 'Get Quote' },
                     { value: 'DOWNLOAD', label: 'Download' },
                     { value: 'GET_OFFER', label: 'Get Offer' },
-                    { value: 'GET_QUOTE', label: 'Get Quote' },
-                    { value: 'SUBSCRIBE', label: 'Subscribe' },
+                    // Communication
+                    { value: 'CONTACT_US', label: 'Contact Us' },
+                    { value: 'CALL_NOW', label: 'Call Now' },
+                    { value: 'MESSAGE_PAGE', label: 'Send Message' },
+                    { value: 'WHATSAPP_MESSAGE', label: 'WhatsApp Message' },
+                    { value: 'SEND_MESSAGE', label: 'Send Message (Generic)' },
+                    // Booking
+                    { value: 'BOOK_TRAVEL', label: 'Book Now' },
+                    { value: 'MAKE_AN_APPOINTMENT', label: 'Make Appointment' },
+                    // Engagement
+                    { value: 'LIKE_PAGE', label: 'Like Page' },
+                    { value: 'FOLLOW_PAGE', label: 'Follow Page' },
+                    // Apps
+                    { value: 'INSTALL_APP', label: 'Install App' },
+                    { value: 'USE_APP', label: 'Use App' },
+                    { value: 'PLAY_GAME', label: 'Play Game' },
+                    // Media
                     { value: 'WATCH_MORE', label: 'Watch More' },
+                    { value: 'WATCH_VIDEO', label: 'Watch Video' },
+                    { value: 'LISTEN_NOW', label: 'Listen Now' },
                   ],
+                },
+                {
+                  key: 'url_tags',
+                  label: 'URL Tags',
+                  type: 'string',
+                  required: false,
+                  editable: true,
+                  placeholder: 'utm_source=facebook&utm_medium=paid',
+                  helpText: 'UTM parameters appended to the creative destination URL',
                 },
               ],
             },
@@ -604,6 +963,31 @@ export class MetaFormSchemaEngine {
           ],
         },
         {
+          id: 'conversion',
+          title: 'Conversion Tracking',
+          collapsible: true,
+          defaultCollapsed: true,
+          fields: [
+            {
+              key: 'conversion_domain',
+              label: 'Conversion Domain',
+              type: 'string',
+              required: false,
+              editable: true,
+              placeholder: 'example.com',
+              helpText: 'Domain where conversions happen. Required for iOS 14+ optimization.',
+            },
+            {
+              key: 'conversion_specs',
+              label: 'Conversion Specs',
+              type: 'object',
+              required: false,
+              editable: true,
+              helpText: 'Advanced conversion tracking configuration (JSON)',
+            },
+          ],
+        },
+        {
           id: 'url_params',
           title: 'URL Parameters',
           collapsible: true,
@@ -617,6 +1001,22 @@ export class MetaFormSchemaEngine {
               editable: true,
               placeholder: 'utm_source=facebook&utm_medium=paid&utm_campaign=brand',
               helpText: 'Appended to destination URLs for tracking. Key=value pairs separated by &',
+            },
+          ],
+        },
+        {
+          id: 'advanced',
+          title: 'Advanced',
+          collapsible: true,
+          defaultCollapsed: true,
+          fields: [
+            {
+              key: 'engagement_audience',
+              label: 'Build Engagement Audience',
+              type: 'boolean',
+              required: false,
+              editable: true,
+              helpText: 'Automatically create an audience from people who engage with this ad',
             },
           ],
         },
@@ -692,6 +1092,23 @@ export class MetaFormSchemaEngine {
             },
           },
           {
+            key: 'zips',
+            label: 'Zip/Postal Codes',
+            type: 'array',
+            required: false,
+            editable: true,
+            arrayItemSchema: {
+              key: 'zip',
+              label: 'Zip Code',
+              type: 'object',
+              required: true,
+              editable: true,
+              objectSchema: [
+                { key: 'key', label: 'Zip Key', type: 'string', required: true, editable: true, placeholder: 'e.g. US:10001' },
+              ],
+            },
+          },
+          {
             key: 'location_types',
             label: 'Location Types',
             type: 'multiEnum',
@@ -735,6 +1152,33 @@ export class MetaFormSchemaEngine {
           { value: '0', label: 'All' },
           { value: '1', label: 'Male' },
           { value: '2', label: 'Female' },
+        ],
+      },
+      {
+        key: 'locales',
+        label: 'Languages',
+        type: 'array',
+        required: false,
+        editable: true,
+        helpText: 'Target users by language (Meta locale IDs)',
+        arrayItemSchema: {
+          key: 'locale',
+          label: 'Locale ID',
+          type: 'number',
+          required: true,
+          editable: true,
+          min: 1,
+        },
+      },
+      {
+        key: 'device_platforms',
+        label: 'Device Platforms',
+        type: 'multiEnum',
+        required: false,
+        editable: true,
+        options: [
+          { value: 'mobile', label: 'Mobile' },
+          { value: 'desktop', label: 'Desktop' },
         ],
       },
       {
@@ -1003,6 +1447,18 @@ export class MetaFormSchemaEngine {
           condition: 'exists',
           effect: 'show',
         }],
+      });
+    }
+
+    if (objective === 'OUTCOME_SALES') {
+      fields.push({
+        key: 'product_catalog_id',
+        label: 'Product Catalog ID',
+        type: 'string',
+        required: false,
+        editable: true,
+        placeholder: 'Catalog ID for DPA/Advantage+ catalog ads',
+        helpText: 'Required for catalog/DPA ads',
       });
     }
 

@@ -60,7 +60,7 @@ describe('Campaign Form Schema', () => {
     const special = schema.sections.find(s => s.id === 'special')!;
     const field = special.fields.find(f => f.key === 'special_ad_categories')!;
     expect(field.type).toBe('multiEnum');
-    expect(field.options!.length).toBeGreaterThanOrEqual(7);
+    expect(field.options!.length).toBeGreaterThanOrEqual(6);
     expect(field.defaultValue).toEqual(['NONE']);
   });
 });

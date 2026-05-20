@@ -68,11 +68,11 @@ describe('DraftValidationEngine.validateCampaign', () => {
     expect(errors.some(e => e.field === 'budget')).toBe(true);
   });
 
-  it('warns when bid cap strategy lacks bid_amount', async () => {
+  it('errors when bid cap strategy lacks bid_amount', async () => {
     const errors = await DraftValidationEngine.validateCampaign(
       makeCampaign({ data: { objective: 'OUTCOME_TRAFFIC', bid_strategy: 'COST_CAP' } })
     );
-    expect(errors.some(e => e.field === 'bid_strategy' && e.severity === 'warning')).toBe(true);
+    expect(errors.some(e => e.field === 'bid_strategy' && e.severity === 'error')).toBe(true);
   });
 
   it('does not warn when bid cap strategy has bid_amount', async () => {

@@ -47,10 +47,21 @@ export class DraftValidationEngine {
       if (!data.bid_amount && !data.bid_constraints) {
         errors.push({
           field: 'bid_strategy',
-          message: `${data.bid_strategy} requires bid_amount or bid_constraints`,
-          severity: 'warning',
+          message: `${data.bid_strategy} requires a bid amount. Set a bid amount or switch to Lowest Cost.`,
+          severity: 'error',
         });
       }
+    }
+
+    // special_ad_categories: NONE must not coexist with real categories
+    const cats: string[] = data.special_ad_categories || [];
+    const realCats = cats.filter((c: string) => c !== 'NONE');
+    if (realCats.length > 0 && cats.includes('NONE')) {
+      errors.push({
+        field: 'special_ad_categories',
+        message: '"None" should be removed when real special ad categories are selected.',
+        severity: 'warning',
+      });
     }
 
     if (campaign.metaId) {
@@ -180,6 +191,64 @@ export class DraftValidationEngine {
       }
     }
 
+    // ─── Targeting conflict checks (mirrors DraftPublishService.resolveTargetingConflicts) ───
+    const targeting = data.targeting || {};
+    const advantageAudience = targeting.targeting_automation?.advantage_audience;
+
+    if (advantageAudience === 1) {
+      if (targeting.age_min > 25) {
+        errors.push({
+          field: 'targeting',
+          message: 'Advantage+ Audience limits minimum age to 25. Lower the age or turn off Advantage Audience.',
+          severity: 'warning',
+        });
+      }
+      if (targeting.publisher_platforms?.length > 0) {
+        errors.push({
+          field: 'targeting',
+          message: 'Advantage+ Audience does not support manual platform selection. Remove platforms or turn off Advantage Audience.',
+          severity: 'warning',
+        });
+      }
+      const genders: string[] = targeting.genders || [];
+      if (genders.length > 0 && !(genders.length === 1 && String(genders[0]) === '0')) {
+        errors.push({
+          field: 'targeting',
+          message: 'Advantage+ Audience does not support narrow gender targeting. Remove gender filter or turn off Advantage Audience.',
+          severity: 'warning',
+        });
+      }
+    }
+
+    const platforms: string[] = targeting.publisher_platforms || [];
+    if (platforms.length > 0 && !platforms.includes('facebook')) {
+      if (platforms.includes('messenger') || platforms.includes('audience_network')) {
+        errors.push({
+          field: 'targeting',
+          message: 'Messenger and Audience Network require Facebook to also be selected as a platform.',
+          severity: 'warning',
+        });
+      }
+    }
+
+    const geoCountries: string[] = targeting.geo_locations?.countries || [];
+    if (geoCountries.includes('TH') && targeting.age_min && targeting.age_min < 20) {
+      errors.push({
+        field: 'targeting',
+        message: 'Thailand requires minimum age of 20.',
+        severity: 'error',
+      });
+    }
+
+    // lifetime_budget requires end_time
+    if (!isCBO && data.lifetime_budget && Number(data.lifetime_budget) > 0 && !data.end_time) {
+      errors.push({
+        field: 'end_time',
+        message: 'Lifetime budget requires an end time to be set.',
+        severity: 'error',
+      });
+    }
+
     if (adSet.metaId) {
       for (const field of IMMUTABLE_ADSET_FIELDS) {
         if (field === 'campaign_id') continue;
@@ -230,6 +299,27 @@ export class DraftValidationEngine {
       const campaignData = campaign.data as any;
       const campaignObjective = campaignData?.objective || campaign.objective;
       const isCBO = !!(campaignData.daily_budget || campaignData.lifetime_budget);
+
+      // Cross-validate: special_ad_category_country must cover ad set targeting countries
+      const cats: string[] = campaignData.special_ad_categories || [];
+      const realCats = cats.filter((c: string) => c !== 'NONE');
+      if (realCats.length > 0) {
+        const sacCountries: string[] = campaignData.special_ad_category_country || [];
+        for (const adSet of campaign.adSets) {
+          const adSetTargeting = (adSet.data as any)?.targeting;
+          const adSetCountries: string[] = adSetTargeting?.geo_locations?.countries || [];
+          const missing = adSetCountries.filter((c: string) => sacCountries.length > 0 ? !sacCountries.includes(c) : true);
+          if (missing.length > 0 && sacCountries.length === 0) {
+            campaignErrors.push({
+              field: 'special_ad_category_country',
+              message: `Special Ad Categories require country selection. Ad set "${adSet.name}" targets ${missing.join(', ')} but no Special Ad Category countries are set.`,
+              severity: 'warning',
+            });
+            break;
+          }
+        }
+      }
+
       for (const adSet of campaign.adSets) {
         const errors = await this.validateAdSet(adSet, campaignObjective, isCBO);
         adSetErrors[adSet.id] = errors;

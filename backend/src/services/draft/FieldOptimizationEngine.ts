@@ -128,6 +128,16 @@ export class FieldOptimizationEngine {
       const overrideVal = overrides?.[key];
       let value = overrideVal !== undefined ? overrideVal : sourceVal;
 
+      if (key === 'status') {
+        payload.status = 'PAUSED';
+        fields.push({
+          field: key, label: config.label, action: 'locked',
+          reason: 'Always created as PAUSED', originalValue: sourceVal,
+          newValue: 'PAUSED', editable: false, type: config.type,
+        });
+        continue;
+      }
+
       if (key === 'optimization_goal') {
         const migration = migrateOptimizationGoal(value || '', campaignObjective);
         value = migration.goal;

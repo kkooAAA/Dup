@@ -73,11 +73,38 @@ export const CAMPAIGN_FIELDS: Record<string, FieldConfig> = {
   special_ad_categories: {
     mutability: 'mutable', required: true, type: 'array',
     label: 'Special Ad Categories',
-    enumValues: ['NONE', 'CREDIT', 'EMPLOYMENT', 'HOUSING', 'ISSUES_ELECTIONS_POLITICS', 'FINANCIAL_PRODUCTS_SERVICES', 'ONLINE_GAMBLING_AND_GAMING'],
+    enumValues: ['NONE', 'EMPLOYMENT', 'HOUSING', 'ISSUES_ELECTIONS_POLITICS', 'FINANCIAL_PRODUCTS_SERVICES', 'ONLINE_GAMBLING_AND_GAMING'],
+  },
+  special_ad_category_country: {
+    mutability: 'mutable', required: false, type: 'array',
+    label: 'Special Ad Category Countries',
+    dependsOn: ['special_ad_categories'],
   },
   is_adset_budget_sharing_enabled: {
     mutability: 'mutable', required: false, type: 'boolean',
     label: 'Campaign Budget Optimization',
+  },
+  start_time: {
+    mutability: 'mutable', required: false, type: 'string',
+    label: 'Start Time',
+  },
+  stop_time: {
+    mutability: 'mutable', required: false, type: 'string',
+    label: 'Stop Time',
+  },
+  budget_rebalance_flag: {
+    mutability: 'mutable', required: false, type: 'boolean',
+    label: 'Budget Rebalance',
+    dependsOn: ['is_adset_budget_sharing_enabled'],
+  },
+  pacing_type: {
+    mutability: 'mutable', required: false, type: 'array',
+    label: 'Pacing Type',
+    enumValues: ['standard', 'no_pacing'],
+  },
+  adlabels: {
+    mutability: 'mutable', required: false, type: 'array',
+    label: 'Ad Labels',
   },
 };
 
@@ -160,6 +187,46 @@ export const ADSET_FIELDS: Record<string, FieldConfig> = {
     mutability: 'mutable', required: false, type: 'string',
     label: 'End Time',
   },
+  status: {
+    mutability: 'mutable', required: true, type: 'enum',
+    label: 'Status',
+    enumValues: ['ACTIVE', 'PAUSED'],
+    enumLabels: { ACTIVE: 'Active', PAUSED: 'Paused' },
+  },
+  is_dynamic_creative: {
+    mutability: 'immutable', required: false, type: 'boolean',
+    label: 'Dynamic Creative',
+  },
+  frequency_control_specs: {
+    mutability: 'mutable', required: false, type: 'array',
+    label: 'Frequency Control',
+  },
+  pacing_type: {
+    mutability: 'mutable', required: false, type: 'array',
+    label: 'Pacing Type',
+    enumValues: ['standard', 'day_parting'],
+  },
+  adset_schedule: {
+    mutability: 'mutable', required: false, type: 'array',
+    label: 'Ad Set Schedule',
+    dependsOn: ['pacing_type'],
+  },
+  daily_spend_cap: {
+    mutability: 'mutable', required: false, type: 'number',
+    label: 'Daily Spend Cap',
+  },
+  lifetime_spend_cap: {
+    mutability: 'mutable', required: false, type: 'number',
+    label: 'Lifetime Spend Cap',
+  },
+  dsa_beneficiary: {
+    mutability: 'mutable', required: false, type: 'string',
+    label: 'DSA Beneficiary',
+  },
+  dsa_payor: {
+    mutability: 'mutable', required: false, type: 'string',
+    label: 'DSA Payor',
+  },
 };
 
 // ─── Ad fields ───
@@ -186,6 +253,18 @@ export const AD_FIELDS: Record<string, FieldConfig> = {
   tracking_specs: {
     mutability: 'mutable', required: false, type: 'object',
     label: 'Tracking Specs',
+  },
+  conversion_specs: {
+    mutability: 'mutable', required: false, type: 'object',
+    label: 'Conversion Specs',
+  },
+  conversion_domain: {
+    mutability: 'mutable', required: false, type: 'string',
+    label: 'Conversion Domain',
+  },
+  engagement_audience: {
+    mutability: 'mutable', required: false, type: 'boolean',
+    label: 'Engagement Audience',
   },
 };
 
@@ -313,7 +392,8 @@ export const PROMOTED_OBJECT_READ_ONLY = new Set([
 ]);
 
 export const TARGETING_READ_ONLY = new Set([
-  'id', 'targeting_automation', 'contextual_targeting_options',
+  'id', 'contextual_targeting_options',
+  'age_range', 'user_age_unknown',
 ]);
 
 // ─── Utility functions ───
@@ -402,6 +482,14 @@ export function sanitizeTargeting(targeting: any): any {
     }
     if (!sanitized.age_min) {
       sanitized.age_min = 18;
+    }
+    if (sanitized.geo_locations?.zips) {
+      sanitized.geo_locations.zips = sanitized.geo_locations.zips
+        .map((z: any) => (typeof z === 'string' ? { key: z } : z))
+        .filter((z: any) => z.key);
+      if (sanitized.geo_locations.zips.length === 0) {
+        delete sanitized.geo_locations.zips;
+      }
     }
     return sanitized;
   } catch {

@@ -25,6 +25,63 @@ import {
   PROMOTED_OBJECT_REQUIREMENTS, PROMOTED_OBJECT_FIELD_LABELS,
 } from "@/lib/meta-schema";
 
+function toDateTimeLocal(v: string | undefined): string {
+  if (!v) return "";
+  const s = String(v);
+  if (s.includes("T")) return s.slice(0, 16);
+  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return `${s}T00:00`;
+  return s.slice(0, 16);
+}
+
+function parseDateTimeParts(v: string | undefined): { date: string; hour: string; minute: string } {
+  if (!v) return { date: "", hour: "", minute: "" };
+  const s = String(v);
+  const match = s.match(/^(\d{4}-\d{2}-\d{2})(?:T(\d{2}):(\d{2}))?/);
+  if (!match) return { date: "", hour: "", minute: "" };
+  return { date: match[1], hour: match[2] || "00", minute: match[3] || "00" };
+}
+
+function DateTimeInput({ label, value, onChange }: { label: string; value: string | undefined; onChange: (v: string | undefined) => void }) {
+  const parts = parseDateTimeParts(value);
+
+  const update = (date: string, hour: string, minute: string) => {
+    if (!date) { onChange(undefined); return; }
+    onChange(`${date}T${hour.padStart(2, "0")}:${minute.padStart(2, "0")}:00`);
+  };
+
+  const hours = Array.from({ length: 24 }, (_, i) => String(i).padStart(2, "0"));
+  const minutes = ["00", "15", "30", "45"];
+
+  return (
+    <div className="space-y-1.5">
+      <Label className="text-xs text-gray-400">{label}</Label>
+      <div className="flex gap-2">
+        <Input
+          type="date"
+          value={parts.date}
+          onChange={(e) => update(e.target.value, parts.hour, parts.minute)}
+          className="bg-gray-950/50 border-gray-800/40 flex-1"
+        />
+        <select
+          value={parts.hour}
+          onChange={(e) => update(parts.date, e.target.value, parts.minute)}
+          className="w-16 h-8 rounded-md bg-gray-950 border border-gray-800 text-sm text-gray-200 px-1.5"
+        >
+          {hours.map((h) => <option key={h} value={h}>{h}</option>)}
+        </select>
+        <span className="text-gray-500 self-center">:</span>
+        <select
+          value={minutes.includes(parts.minute) ? parts.minute : "00"}
+          onChange={(e) => update(parts.date, parts.hour, e.target.value)}
+          className="w-16 h-8 rounded-md bg-gray-950 border border-gray-800 text-sm text-gray-200 px-1.5"
+        >
+          {minutes.map((m) => <option key={m} value={m}>{m}</option>)}
+        </select>
+      </div>
+    </div>
+  );
+}
+
 export default function DraftEditorPage({ params: paramsPromise }: { params: Promise<{ id: string }> }) {
   const params = use(paramsPromise);
   const router = useRouter();
@@ -37,6 +94,7 @@ export default function DraftEditorPage({ params: paramsPromise }: { params: Pro
   const [isPublishing, setIsPublishing] = useState(false);
   const [isCleaning, setIsCleaning] = useState(false);
   const [validationResults, setValidationResults] = useState<any>(null);
+  const [isDirty, setIsDirty] = useState(false);
 
   const campaignObjective: string = draft?.data?.objective || draft?.objective || "";
   const isCBO = !!(draft?.data?.daily_budget || draft?.data?.lifetime_budget);
@@ -68,15 +126,26 @@ export default function DraftEditorPage({ params: paramsPromise }: { params: Pro
 
   useEffect(() => { fetchDraft(); }, [params.id]);
 
-  const handleSelectNode = (type: "CAMPAIGN" | "ADSET" | "AD", item: any) => {
+  const saveCurrentNode = async () => {
+    if (!isDirty || !selectedNode || !editData) return;
+    try {
+      if (selectedNode.type === "CAMPAIGN") await draftApi.updateCampaign(selectedNode.id, editData);
+      else if (selectedNode.type === "ADSET") await draftApi.updateAdSet(selectedNode.id, editData);
+      else if (selectedNode.type === "AD") await draftApi.updateAd(selectedNode.id, editData);
+      setIsDirty(false);
+    } catch { toast.error("Failed to auto-save changes"); }
+  };
+
+  const handleSelectNode = async (type: "CAMPAIGN" | "ADSET" | "AD", item: any) => {
+    if (isDirty) await saveCurrentNode();
     setSelectedNode({ type, id: item.id });
     setEditData(item);
   };
 
-  const handleUpdateField = (field: string, value: any) => setEditData({ ...editData, [field]: value });
-  const handleUpdateDataField = (field: string, value: any) => setEditData({ ...editData, data: { ...editData.data, [field]: value } });
+  const handleUpdateField = (field: string, value: any) => { setEditData({ ...editData, [field]: value }); setIsDirty(true); };
+  const handleUpdateDataField = (field: string, value: any) => { setEditData({ ...editData, data: { ...editData.data, [field]: value } }); setIsDirty(true); };
   const handleUpdateNestedDataField = (parent: string, field: string, value: any) => {
-    setEditData({ ...editData, data: { ...editData.data, [parent]: { ...(editData.data?.[parent] || {}), [field]: value } } });
+    setEditData({ ...editData, data: { ...editData.data, [parent]: { ...(editData.data?.[parent] || {}), [field]: value } } }); setIsDirty(true);
   };
 
   const handleUpdateCreativeLinkData = (field: string, value: any) => {
@@ -93,6 +162,7 @@ export default function DraftEditorPage({ params: paramsPromise }: { params: Pro
         },
       },
     });
+    setIsDirty(true);
   };
 
   const handleUpdateCreativeCTA = (ctaType: string) => {
@@ -112,6 +182,7 @@ export default function DraftEditorPage({ params: paramsPromise }: { params: Pro
         },
       },
     });
+    setIsDirty(true);
   };
 
   const handleSave = async () => {
@@ -122,6 +193,7 @@ export default function DraftEditorPage({ params: paramsPromise }: { params: Pro
       else if (selectedNode.type === "ADSET") await draftApi.updateAdSet(selectedNode.id, editData);
       else if (selectedNode.type === "AD") await draftApi.updateAd(selectedNode.id, editData);
       toast.success("Changes saved");
+      setIsDirty(false);
       fetchDraft();
     } catch { toast.error("Failed to save changes"); }
     finally { setIsSaving(false); }
@@ -146,7 +218,7 @@ export default function DraftEditorPage({ params: paramsPromise }: { params: Pro
       await draftApi.publishDraft(params.id);
       toast.success("Published successfully!");
       router.push("/drafts");
-    } catch (error: any) { toast.error(error.response?.data?.error || "Publishing failed"); }
+    } catch (error: any) { toast.error(error.response?.data?.userMessage || error.response?.data?.error || "Publishing failed"); }
     finally { setIsPublishing(false); }
   };
 
@@ -224,7 +296,7 @@ export default function DraftEditorPage({ params: paramsPromise }: { params: Pro
         <p className="text-[10px] text-gray-600 mt-0.5">Required by Meta for ads about credit, employment, housing, etc.</p>
       </div>
       <div className="space-y-2">
-        {['NONE', 'CREDIT', 'EMPLOYMENT', 'HOUSING', 'ISSUES_ELECTIONS_POLITICS', 'FINANCIAL_PRODUCTS_SERVICES', 'ONLINE_GAMBLING_AND_GAMING'].map((cat) => {
+        {['NONE', 'EMPLOYMENT', 'HOUSING', 'ISSUES_ELECTIONS_POLITICS', 'FINANCIAL_PRODUCTS_SERVICES', 'ONLINE_GAMBLING_AND_GAMING'].map((cat) => {
           const current: string[] = editData.data?.special_ad_categories || ['NONE'];
           const checked = current.includes(cat);
           const labelId = `special-cat-${cat}`;
@@ -318,24 +390,16 @@ export default function DraftEditorPage({ params: paramsPromise }: { params: Pro
       <div className="pt-2 border-t border-gray-800/40">
         <span className="text-[10px] font-semibold text-gray-600 uppercase tracking-wider">Schedule</span>
       </div>
-      <div className="space-y-1.5">
-        <Label className="text-xs text-gray-400">Start Time</Label>
-        <Input
-          type="datetime-local"
-          value={editData.data?.start_time ? editData.data.start_time.slice(0, 16) : ""}
-          onChange={(e) => handleUpdateDataField("start_time", e.target.value ? `${e.target.value}:00` : undefined)}
-          className="bg-gray-950/50 border-gray-800/40"
-        />
-      </div>
-      <div className="space-y-1.5">
-        <Label className="text-xs text-gray-400">End Time</Label>
-        <Input
-          type="datetime-local"
-          value={editData.data?.end_time ? editData.data.end_time.slice(0, 16) : ""}
-          onChange={(e) => handleUpdateDataField("end_time", e.target.value ? `${e.target.value}:00` : undefined)}
-          className="bg-gray-950/50 border-gray-800/40"
-        />
-      </div>
+      <DateTimeInput
+        label="Start Time"
+        value={editData.data?.start_time}
+        onChange={(v) => handleUpdateDataField("start_time", v)}
+      />
+      <DateTimeInput
+        label="End Time"
+        value={editData.data?.end_time}
+        onChange={(v) => handleUpdateDataField("end_time", v)}
+      />
 
       {['OUTCOME_SALES', 'OUTCOME_LEADS', 'OUTCOME_APP_PROMOTION'].includes(campaignObjective) && (
         <>
@@ -380,10 +444,10 @@ export default function DraftEditorPage({ params: paramsPromise }: { params: Pro
 
       <MetaField
         label="Status"
-        value={editData.status || "PAUSED"}
+        value={editData.data?.status || "PAUSED"}
         type="enum"
         options={[{ value: "PAUSED", label: "Paused" }, { value: "ACTIVE", label: "Active" }]}
-        onChange={(v) => handleUpdateField("status", v)}
+        onChange={(v) => handleUpdateDataField("status", v)}
       />
 
       <div className="pt-2 border-t border-gray-800/40">
@@ -583,7 +647,7 @@ export default function DraftEditorPage({ params: paramsPromise }: { params: Pro
                         buyingType: editData.data?.buying_type || "AUCTION",
                         isCBO,
                       }}
-                      onChange={(values) => setEditData({ ...editData, data: values })}
+                      onChange={(values) => { setEditData({ ...editData, data: values }); setIsDirty(true); }}
                     />
                   </TabsContent>
 

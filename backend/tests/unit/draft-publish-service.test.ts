@@ -346,7 +346,7 @@ describe('DraftPublishService.publishCampaign', () => {
     });
 
     await expect(DraftPublishService.publishCampaign('camp-1', 'token'))
-      .rejects.toThrow('Facebook API Error (Campaign)');
+      .rejects.toThrow('Campaign error');
   });
 
   it('marks entities as FAILED on error', async () => {
@@ -850,11 +850,14 @@ describe('DraftPublishService.publishCampaign', () => {
         response: { data: { error: { message: 'Bid conflict', code: 100, error_subcode: 1815857 } } },
       })
       .mockRejectedValueOnce({
-        response: { data: { error: { message: 'Still failing', code: 100, error_subcode: 999 } } },
+        response: { data: { error: { message: 'Still failing retry 1', code: 100, error_subcode: 999 } } },
+      })
+      .mockRejectedValueOnce({
+        response: { data: { error: { message: 'Still failing retry 2', code: 100, error_subcode: 999 } } },
       });
 
     await expect(DraftPublishService.publishCampaign('camp-1', 'token'))
-      .rejects.toThrow('Facebook API Error (AdSet');
+      .rejects.toThrow('Ad Set error');
   });
 
   it('falls back to LOWEST_COST_WITHOUT_CAP for cap strategy without bid_amount', async () => {
@@ -965,6 +968,7 @@ describe('DraftPublishService.publishCampaign', () => {
         special_ad_categories: ['NONE'],
         daily_budget: '10000',
         bid_strategy: 'COST_CAP',
+        bid_amount: '500',
       },
     });
     mockPrisma.draftCampaign.findUnique.mockResolvedValue(campaign);
@@ -982,6 +986,7 @@ describe('DraftPublishService.publishCampaign', () => {
     expect(result.success).toBe(true);
     const campaignCall = mockFbPost.mock.calls[0];
     expect(campaignCall[1]).toHaveProperty('bid_strategy', 'COST_CAP');
+    expect(campaignCall[1]).toHaveProperty('bid_amount', '500');
   });
 
   it('updateMetaCampaign with CBO lifetime_budget only', async () => {
@@ -1092,7 +1097,7 @@ describe('DraftPublishService.publishCampaign', () => {
       });
 
     await expect(DraftPublishService.publishCampaign('camp-1', 'token'))
-      .rejects.toThrow('Facebook API Error (Ad ad-1)');
+      .rejects.toThrow('Ad error');
   });
 
   it('throws on ad creation failure with plain error (no response)', async () => {
@@ -1111,7 +1116,7 @@ describe('DraftPublishService.publishCampaign', () => {
       .mockRejectedValueOnce(new Error('Network timeout'));
 
     await expect(DraftPublishService.publishCampaign('camp-1', 'token'))
-      .rejects.toThrow('Facebook API Error (Ad ad-1)');
+      .rejects.toThrow('Network timeout');
   });
 
   it('throws on adset creation failure with non-CBO subcode', async () => {
@@ -1131,7 +1136,7 @@ describe('DraftPublishService.publishCampaign', () => {
       });
 
     await expect(DraftPublishService.publishCampaign('camp-1', 'token'))
-      .rejects.toThrow('Facebook API Error (AdSet adset-1)');
+      .rejects.toThrow('Ad Set error');
   });
 
   it('updateMetaAdSet includes non-CBO budget and bid fields', async () => {
@@ -1252,6 +1257,7 @@ describe('DraftPublishService.publishCampaign', () => {
       optimization_goal: 'LINK_CLICKS',
       targeting: { geo_locations: { countries: ['TH'] } },
       lifetime_budget: '50000',
+      end_time: '2026-12-31T23:59:59+0000',
     };
     mockPrisma.draftCampaign.findUnique.mockResolvedValue(campaign);
     mockPrisma.draftCampaign.update.mockResolvedValue({});

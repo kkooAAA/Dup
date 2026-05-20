@@ -340,7 +340,7 @@ describe('Targeting Sanitization', () => {
     };
     const sanitized = sanitizeTargeting(targeting);
     expect(sanitized.id).toBeUndefined();
-    expect(sanitized.targeting_automation).toBeUndefined();
+    expect(sanitized.targeting_automation).toEqual({ some: 'thing' });
     expect(sanitized.contextual_targeting_options).toBeUndefined();
   });
 });

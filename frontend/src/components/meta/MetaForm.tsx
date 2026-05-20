@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { FormSectionRenderer, FieldSchema, FormSection } from "./SchemaField";
 import { Loader2, AlertTriangle } from "lucide-react";
 import { draftApi } from "@/services/api";
@@ -44,6 +44,9 @@ export function MetaForm({
   const [loading, setLoading] = useState(!externalSchema);
   const [error, setError] = useState<string | null>(null);
   const [values, setValues] = useState<Record<string, any>>(initialValues);
+  const isInternalChange = useRef(false);
+  const onChangeRef = useRef(onChange);
+  onChangeRef.current = onChange;
 
   useEffect(() => {
     if (externalSchema) {
@@ -69,29 +72,40 @@ export function MetaForm({
 
   const handleFieldChange = useCallback(
     (path: string, value: any) => {
-      setValues((prev) => {
-        const next = setNestedValue({ ...prev }, path, value);
-        onChange(next);
-        return next;
-      });
+      isInternalChange.current = true;
+      setValues((prev) => setNestedValue({ ...prev }, path, value));
     },
-    [onChange],
+    [],
   );
 
   const handleInvalidate = useCallback(
     (field: string) => {
+      isInternalChange.current = true;
       setValues((prev) => {
         const next = { ...prev };
         delete next[field];
-        onChange(next);
         return next;
       });
     },
-    [onChange],
+    [],
   );
 
+  // Propagate internal changes to parent after render
   useEffect(() => {
-    setValues(initialValues);
+    if (isInternalChange.current) {
+      isInternalChange.current = false;
+      onChangeRef.current(values);
+    }
+  }, [values]);
+
+  // Sync from parent only when initialValues meaningfully changes (e.g. switching nodes)
+  const prevInitialJson = useRef(JSON.stringify(initialValues));
+  useEffect(() => {
+    const json = JSON.stringify(initialValues);
+    if (json !== prevInitialJson.current) {
+      prevInitialJson.current = json;
+      setValues(initialValues);
+    }
   }, [initialValues]);
 
   if (loading) {

@@ -4,7 +4,7 @@ import { DraftCampaignService } from '../services/draft/DraftCampaignService';
 import { DraftAdSetService } from '../services/draft/DraftAdSetService';
 import { DraftAdService } from '../services/draft/DraftAdService';
 import { DraftValidationEngine } from '../services/draft/DraftValidationEngine';
-import { DraftPublishService } from '../services/draft/DraftPublishService';
+import { DraftPublishService, PublishError } from '../services/draft/DraftPublishService';
 import { BulkEditCompatibilityEngine, EntityLevel } from '../services/draft/BulkEditCompatibilityEngine';
 import { MetaFormSchemaEngine } from '../services/draft/MetaFormSchemaEngine';
 import { AuthRequest } from '../middleware/auth.middleware';
@@ -127,7 +127,8 @@ export class DraftController {
       if (isFacebookAuthError(error.message)) {
         return res.status(401).json({ error: error.message, code: 'TOKEN_EXPIRED' });
       }
-      res.status(500).json({ error: error.message });
+      const userMessage = error instanceof PublishError ? error.userMessage : error.message;
+      res.status(500).json({ error: error.message, userMessage });
     }
   }
 
@@ -140,7 +141,7 @@ export class DraftController {
         return res.status(400).json({ error: 'campaignIds must be a non-empty array' });
       }
 
-      const results: { id: string; success: boolean; metaCampaignId?: string; error?: string }[] = [];
+      const results: { id: string; success: boolean; metaCampaignId?: string; error?: string; userMessage?: string }[] = [];
       for (const id of campaignIds) {
         try {
           const result = await DraftPublishService.publishCampaign(id, authReq.userAccessToken!);
@@ -149,7 +150,8 @@ export class DraftController {
           if (isFacebookAuthError(error.message)) {
             return res.status(401).json({ error: error.message, code: 'TOKEN_EXPIRED' });
           }
-          results.push({ id, success: false, error: error.message });
+          const userMessage = error instanceof PublishError ? error.userMessage : error.message;
+          results.push({ id, success: false, error: error.message, userMessage });
         }
       }
 

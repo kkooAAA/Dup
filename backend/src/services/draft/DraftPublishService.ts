@@ -13,7 +13,15 @@ import {
   sanitizePromotedObject,
 } from './MetaFieldRegistry';
 import { DraftValidationEngine } from './DraftValidationEngine';
-import { extractMetaError } from '../../utils/metaErrorHelper';
+import { extractMetaError, extractMetaErrorInfo } from '../../utils/metaErrorHelper';
+
+export class PublishError extends Error {
+  userMessage: string;
+  constructor(detail: string, userMessage: string) {
+    super(detail);
+    this.userMessage = userMessage;
+  }
+}
 
 export class DraftPublishService {
   static async publishCampaign(campaignId: string, accessToken: string) {
@@ -67,6 +75,21 @@ export class DraftPublishService {
 
       const campaignData = campaign.data as any;
       const isCBO = this.detectCBO(campaignData);
+
+      // Auto-fill special_ad_category_country from ad set targeting when missing
+      const cats: string[] = campaignData.special_ad_categories || [];
+      const hasSpecialCats = cats.length > 0 && !(cats.length === 1 && cats[0] === 'NONE');
+      if (hasSpecialCats && (!campaignData.special_ad_category_country || campaignData.special_ad_category_country.length === 0)) {
+        const countries = new Set<string>();
+        for (const adSet of campaign.adSets) {
+          const targeting = (adSet.data as any)?.targeting;
+          const geoCountries: string[] = targeting?.geo_locations?.countries || [];
+          geoCountries.forEach((c: string) => countries.add(c));
+        }
+        if (countries.size > 0) {
+          campaignData.special_ad_category_country = Array.from(countries);
+        }
+      }
 
       let metaCampaignId: string;
       if (campaign.metaId) {
@@ -362,12 +385,27 @@ export class DraftPublishService {
     campaignData: any,
     isCBO: boolean,
   ): Promise<string> {
+    const rawCategories: string[] = campaignData.special_ad_categories || [];
+    let migratedCategories = rawCategories.map((c: string) =>
+      c === 'CREDIT' ? 'FINANCIAL_PRODUCTS_SERVICES' : c
+    ).filter((c: string, i: number, a: string[]) => a.indexOf(c) === i);
+    // NONE must not coexist with real categories
+    if (migratedCategories.length > 1) {
+      migratedCategories = migratedCategories.filter((c: string) => c !== 'NONE');
+    }
+
     const campaignPayload: any = {
       name,
       objective: campaignData.objective,
       status: 'PAUSED',
-      special_ad_categories: campaignData.special_ad_categories || [],
+      special_ad_categories: migratedCategories,
     };
+
+    const hasSpecialCategories = migratedCategories.length > 0 &&
+      !(migratedCategories.length === 1 && migratedCategories[0] === 'NONE');
+    if (hasSpecialCategories && campaignData.special_ad_category_country?.length > 0) {
+      campaignPayload.special_ad_category_country = campaignData.special_ad_category_country;
+    }
 
     if (campaignData.buying_type) {
       campaignPayload.buying_type = campaignData.buying_type;
@@ -403,7 +441,7 @@ export class DraftPublishService {
       const fbCampaign = await fbService.client.post(`/${accountId}/campaigns`, campaignPayload);
       return fbCampaign.data.id;
     } catch (error: any) {
-      throw new Error(extractMetaError(error, 'Facebook API Error (Campaign)'));
+      throw this.toPublishError(error, 'Campaign');
     }
   }
 
@@ -416,11 +454,25 @@ export class DraftPublishService {
     campaignData: any,
     isCBO: boolean,
   ): Promise<void> {
+    const rawCats: string[] = campaignData.special_ad_categories || [];
+    let migratedCats = rawCats.map((c: string) =>
+      c === 'CREDIT' ? 'FINANCIAL_PRODUCTS_SERVICES' : c
+    ).filter((c: string, i: number, a: string[]) => a.indexOf(c) === i);
+    if (migratedCats.length > 1) {
+      migratedCats = migratedCats.filter((c: string) => c !== 'NONE');
+    }
+
     const updatePayload: any = {
       name,
       status: 'PAUSED',
-      special_ad_categories: campaignData.special_ad_categories || [],
+      special_ad_categories: migratedCats,
     };
+
+    const hasSpecialCats = migratedCats.length > 0 &&
+      !(migratedCats.length === 1 && migratedCats[0] === 'NONE');
+    if (hasSpecialCats && campaignData.special_ad_category_country?.length > 0) {
+      updatePayload.special_ad_category_country = campaignData.special_ad_category_country;
+    }
 
     if (isCBO) {
       if (campaignData.daily_budget && !campaignData.lifetime_budget) {
@@ -433,6 +485,13 @@ export class DraftPublishService {
 
       if (campaignData.bid_strategy) {
         updatePayload.bid_strategy = campaignData.bid_strategy;
+        if (BID_CAP_STRATEGIES.has(campaignData.bid_strategy)) {
+          if (campaignData.bid_amount) {
+            updatePayload.bid_amount = String(campaignData.bid_amount);
+          } else {
+            updatePayload.bid_strategy = 'LOWEST_COST_WITHOUT_CAP';
+          }
+        }
       }
     }
 
@@ -486,6 +545,7 @@ export class DraftPublishService {
 
     // FIX: Use shared sanitizeTargeting
     const targeting = sanitizeTargeting(adSetData.targeting);
+    this.resolveTargetingConflicts(targeting);
 
     // destination_type — infer from optimization_goal for ENGAGEMENT, validate for others
     const validDestTypes = VALID_DESTINATION_TYPES[campaignObjective] || [];
@@ -553,13 +613,16 @@ export class DraftPublishService {
       const adSetDailyBudget = Number(adSetData.daily_budget) || 0;
       const adSetLifetimeBudget = Number(adSetData.lifetime_budget) || 0;
       if (adSetDailyBudget > 0 && adSetLifetimeBudget > 0) {
+        // Both set — pick daily, lifetime requires end_time which may be missing
         adSetPayload.daily_budget = String(adSetDailyBudget);
       } else if (adSetDailyBudget > 0) {
         adSetPayload.daily_budget = String(adSetDailyBudget);
       } else if (adSetLifetimeBudget > 0) {
-        adSetPayload.lifetime_budget = String(adSetLifetimeBudget);
+        // lifetime_budget requires end_time — fall back to daily if missing
         if (adSetData.end_time) {
-          adSetPayload.end_time = adSetData.end_time;
+          adSetPayload.lifetime_budget = String(adSetLifetimeBudget);
+        } else {
+          adSetPayload.daily_budget = String(adSetLifetimeBudget);
         }
       }
       if (adSetData.start_time) adSetPayload.start_time = adSetData.start_time;
@@ -601,12 +664,12 @@ export class DraftPublishService {
             console.warn(`[DraftPublishService] Ad set ${adSet.id} published without budget — CBO fallback used`);
             return fbAdSetRetry2.data.id;
           } catch (retryError2: any) {
-            throw new Error(extractMetaError(retryError2, `Facebook API Error (AdSet ${adSet.id})`));
+            throw this.toPublishError(retryError2, 'Ad Set');
           }
         }
       }
 
-      throw new Error(extractMetaError(error, `Facebook API Error (AdSet ${adSet.id})`));
+      throw this.toPublishError(error, 'Ad Set');
     }
   }
 
@@ -622,6 +685,7 @@ export class DraftPublishService {
     const adSetData = adSet.data as any;
     const campaignObjective = campaignData?.objective || '';
     const targeting = sanitizeTargeting(adSetData.targeting);
+    this.resolveTargetingConflicts(targeting);
 
     const updatePayload: any = {
       name: adSet.name,
@@ -637,12 +701,26 @@ export class DraftPublishService {
     }
 
     if (!isCBO) {
-      if (adSetData.bid_strategy) updatePayload.bid_strategy = adSetData.bid_strategy;
-      if (adSetData.bid_amount) updatePayload.bid_amount = String(adSetData.bid_amount);
+      if (adSetData.bid_strategy) {
+        if (BID_CAP_STRATEGIES.has(adSetData.bid_strategy) && adSetData.bid_amount) {
+          updatePayload.bid_strategy = adSetData.bid_strategy;
+          updatePayload.bid_amount = String(adSetData.bid_amount);
+        } else if (BID_CAP_STRATEGIES.has(adSetData.bid_strategy) && !adSetData.bid_amount) {
+          updatePayload.bid_strategy = 'LOWEST_COST_WITHOUT_CAP';
+        } else {
+          updatePayload.bid_strategy = adSetData.bid_strategy;
+        }
+      }
       const adSetDailyBudget = Number(adSetData.daily_budget) || 0;
       const adSetLifetimeBudget = Number(adSetData.lifetime_budget) || 0;
       if (adSetDailyBudget > 0) updatePayload.daily_budget = String(adSetDailyBudget);
-      else if (adSetLifetimeBudget > 0) updatePayload.lifetime_budget = String(adSetLifetimeBudget);
+      else if (adSetLifetimeBudget > 0) {
+        if (adSetData.end_time) {
+          updatePayload.lifetime_budget = String(adSetLifetimeBudget);
+        } else {
+          updatePayload.daily_budget = String(adSetLifetimeBudget);
+        }
+      }
       if (adSetData.start_time) updatePayload.start_time = adSetData.start_time;
       if (adSetData.end_time) updatePayload.end_time = adSetData.end_time;
     }
@@ -716,7 +794,58 @@ export class DraftPublishService {
       const fbAd = await fbService.client.post(`/${accountId}/ads`, adPayload);
       return fbAd.data.id;
     } catch (error: any) {
-      throw new Error(extractMetaError(error, `Facebook API Error (Ad ${ad.id})`));
+      throw this.toPublishError(error, 'Ad');
+    }
+  }
+
+  // ─── Error helpers ───
+
+  private static toPublishError(error: any, entity: string): PublishError {
+    const info = extractMetaErrorInfo(error, `${entity} error`);
+    return new PublishError(info.detail, info.userMessage);
+  }
+
+  // ─── Targeting conflict resolution ───
+
+  private static resolveTargetingConflicts(targeting: any): void {
+    // Default targeting_automation when missing
+    if (!targeting.targeting_automation) {
+      targeting.targeting_automation = { advantage_audience: 0 };
+    }
+
+    const isAdvantageAudience = targeting.targeting_automation?.advantage_audience === 1;
+
+    if (isAdvantageAudience) {
+      // Advantage+ audience caps age_min at 25
+      if (targeting.age_min > 25) {
+        targeting.targeting_automation.advantage_audience = 0;
+      }
+      // Advantage+ audience doesn't support manual publisher_platforms
+      if (targeting.publisher_platforms) {
+        targeting.targeting_automation.advantage_audience = 0;
+      }
+      // Advantage+ audience doesn't support narrow gender targeting
+      const genders: string[] = targeting.genders || [];
+      if (genders.length > 0 && !(genders.length === 1 && String(genders[0]) === '0')) {
+        targeting.targeting_automation.advantage_audience = 0;
+      }
+    }
+
+    // genders: ["0"] means "all" — Meta may reject it on create, safer to omit
+    const genders: string[] = targeting.genders || [];
+    if (genders.length === 1 && String(genders[0]) === '0') {
+      delete targeting.genders;
+    }
+
+    // messenger/audience_network require facebook as a co-platform
+    const platforms: string[] = targeting.publisher_platforms || [];
+    if (platforms.length > 0 && !platforms.includes('facebook')) {
+      const needsFacebook = platforms.some((p: string) =>
+        p === 'messenger' || p === 'audience_network'
+      );
+      if (needsFacebook) {
+        targeting.publisher_platforms = ['facebook', ...platforms];
+      }
     }
   }
 
