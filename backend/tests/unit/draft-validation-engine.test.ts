@@ -395,7 +395,10 @@ describe('DraftValidationEngine.validateAd', () => {
   it('accepts carousel with 2+ valid cards', async () => {
     const errors = await DraftValidationEngine.validateAd(
       makeAd({ data: { creative: { object_story_spec: { page_id: '111', link_data: {
-        message: 'hi', child_attachments: [{ link: 'https://a.com' }, { link: 'https://b.com' }],
+        message: 'hi', child_attachments: [
+          { link: 'https://a.com', image_hash: 'h1' },
+          { link: 'https://b.com', image_hash: 'h2' },
+        ],
       } } } } })
     );
     expect(errors.filter(e => e.severity === 'error')).toHaveLength(0);

@@ -1424,18 +1424,8 @@ export class MetaFormSchemaEngine {
               ],
             },
           },
-          {
-            key: 'location_types',
-            label: 'Location Types',
-            type: 'multiEnum',
-            required: false,
-            editable: true,
-            options: [
-              { value: 'home', label: 'People living in' },
-              { value: 'recent', label: 'People recently in' },
-              { value: 'travel_in', label: 'People traveling in' },
-            ],
-          },
+          // location_types removed — Meta deprecated this field (error subcode 1870199).
+          // All location targeting now reaches "people living in or recently in" by default.
         ],
       },
       {

@@ -803,17 +803,15 @@ function ArrayField({
     context.onFieldChange(path, next);
   };
 
+  // Use stable identifiers (id, key) when available so deleting a middle item doesn't bleed
+  // state into siblings. Fall back to index — using user-editable fields (name, free-text value)
+  // would re-mount the input on every keystroke and steal focus.
   const itemKey = (item: any, index: number): string => {
     if (item && typeof item === "object") {
-      const stable = item.id ?? item.key ?? item.custom_event_type ?? item.name;
+      const stable = item.id ?? item.key;
       if (stable !== undefined && stable !== null) return String(stable);
-      try {
-        return JSON.stringify(item).slice(0, 64) + ":" + index;
-      } catch {
-        return `obj:${index}`;
-      }
     }
-    return `${typeof item}:${String(item)}:${index}`;
+    return String(index);
   };
 
   if (!field.arrayItemSchema) {

@@ -200,6 +200,14 @@ export class DraftValidationEngine {
           }
         }
       }
+      // OUTCOME_SALES additionally requires a custom_event_type (Meta will reject otherwise)
+      if (campaignObjective === 'OUTCOME_SALES' && data.promoted_object && !data.promoted_object.custom_event_type) {
+        errors.push({
+          field: 'promoted_object.custom_event_type',
+          message: 'Sales campaigns require a Custom Event Type (e.g. PURCHASE, ADD_TO_CART) in Promoted Object.',
+          severity: 'error',
+        });
+      }
     }
 
     if (!isCBO && data.bid_strategy && BID_CAP_STRATEGIES.has(data.bid_strategy)) {
@@ -207,6 +215,12 @@ export class DraftValidationEngine {
         errors.push({
           field: 'bid_amount',
           message: `${labelBid(data.bid_strategy)} strategy requires a bid amount. Set a bid amount or switch to Highest Volume.`,
+          severity: 'error',
+        });
+      } else if (data.bid_amount !== undefined && Number(data.bid_amount) <= 0) {
+        errors.push({
+          field: 'bid_amount',
+          message: 'Bid amount must be greater than 0.',
           severity: 'error',
         });
       }
@@ -292,7 +306,7 @@ export class DraftValidationEngine {
     // Missing geo targeting
     if (data.targeting && typeof data.targeting === 'object') {
       const geo = data.targeting.geo_locations;
-      const hasGeo = geo && (geo.countries?.length || geo.regions?.length || geo.cities?.length || geo.zips?.length || geo.location_types?.length);
+      const hasGeo = geo && (geo.countries?.length || geo.regions?.length || geo.cities?.length || geo.zips?.length);
       if (!hasGeo) {
         errors.push({
           field: 'targeting',
@@ -307,6 +321,17 @@ export class DraftValidationEngine {
       errors.push({
         field: 'targeting',
         message: 'Thailand requires minimum age of 20.',
+        severity: 'error',
+      });
+    }
+
+    // age_min must be <= age_max
+    const ageMin = targeting.age_min !== undefined ? Number(targeting.age_min) : undefined;
+    const ageMax = targeting.age_max !== undefined ? Number(targeting.age_max) : undefined;
+    if (ageMin !== undefined && ageMax !== undefined && !isNaN(ageMin) && !isNaN(ageMax) && ageMin > ageMax) {
+      errors.push({
+        field: 'targeting',
+        message: `Minimum age (${ageMin}) is higher than maximum age (${ageMax}). Adjust the age range.`,
         severity: 'error',
       });
     }
@@ -329,6 +354,30 @@ export class DraftValidationEngine {
           field: 'end_time',
           message: 'Ad set end time must be after the start time.',
           severity: 'error',
+        });
+      }
+    }
+
+    // end_time in the past blocks publishing
+    if (data.end_time) {
+      const end = new Date(data.end_time).getTime();
+      if (!isNaN(end) && end <= Date.now()) {
+        errors.push({
+          field: 'end_time',
+          message: 'Ad set end time is in the past. Update the end date before publishing.',
+          severity: 'error',
+        });
+      }
+    }
+
+    // start_time in the past — Meta will start the ad set immediately
+    if (data.start_time) {
+      const start = new Date(data.start_time).getTime();
+      if (!isNaN(start) && start < Date.now() - 60_000) {
+        errors.push({
+          field: 'start_time',
+          message: 'Start time is in the past. Meta will start the ad set immediately on publish.',
+          severity: 'warning',
         });
       }
     }
@@ -390,12 +439,17 @@ export class DraftValidationEngine {
       }
 
       if (hasLinkData) {
-        // Single link ad: needs destination URL
-        if (!oss.link_data.child_attachments && !oss.link_data.link) {
-          errors.push({ field: 'creative.link_data.link', message: 'Link ad requires a destination URL.', severity: 'error' });
-        }
+        const isCarousel = !!oss.link_data.child_attachments;
 
-        if (oss.link_data.child_attachments) {
+        if (!isCarousel) {
+          // Single link ad: needs destination URL and a visual (image or video)
+          if (!oss.link_data.link) {
+            errors.push({ field: 'creative.link_data.link', message: 'Link ad requires a destination URL.', severity: 'error' });
+          }
+          if (!oss.link_data.image_hash && !oss.link_data.picture && !oss.link_data.video_id) {
+            errors.push({ field: 'creative.link_data.image_hash', message: 'Link ad requires an image, image hash, or video. Add a visual to the creative.', severity: 'error' });
+          }
+        } else {
           const cards = oss.link_data.child_attachments;
           if (!Array.isArray(cards) || cards.length < 2) {
             errors.push({ field: 'creative.child_attachments', message: 'Carousel ads require at least 2 cards.', severity: 'error' });
@@ -403,6 +457,9 @@ export class DraftValidationEngine {
             cards.forEach((card: any, i: number) => {
               if (!card.link) {
                 errors.push({ field: `creative.child_attachments[${i}].link`, message: `Carousel card ${i + 1} is missing a destination URL.`, severity: 'error' });
+              }
+              if (!card.image_hash && !card.picture && !card.video_id) {
+                errors.push({ field: `creative.child_attachments[${i}].image_hash`, message: `Carousel card ${i + 1} is missing an image or video.`, severity: 'error' });
               }
             });
           }
@@ -448,8 +505,9 @@ export class DraftValidationEngine {
         campaignErrors.push({
           field: 'adSets',
           message: 'Campaign has no ad sets. Add at least one ad set before publishing.',
-          severity: 'warning',
+          severity: 'error',
         });
+        isValid = false;
       }
 
       // Cross-validate: special_ad_category_country must cover ad set targeting countries
@@ -482,8 +540,9 @@ export class DraftValidationEngine {
             errors.push({
               field: 'ads',
               message: `Ad set "${adSet.name}" has no ads. Add at least one ad before publishing.`,
-              severity: 'warning',
+              severity: 'error',
             });
+            isValid = false;
           }
 
           for (const ad of adSet.ads) {

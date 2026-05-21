@@ -475,6 +475,11 @@ export function sanitizeTargeting(targeting: any): any {
     if (!sanitized.geo_locations || Object.keys(sanitized.geo_locations).length === 0) {
       sanitized.geo_locations = defaultTargeting.geo_locations;
     }
+    // Meta deprecated location_types (error subcode 1870199) — all targeting now
+    // implicitly reaches people living-in or recently-in the selected geos.
+    if (sanitized.geo_locations?.location_types) {
+      delete sanitized.geo_locations.location_types;
+    }
     // Thailand requires age_min >= 20
     const countries = sanitized.geo_locations?.countries || [];
     if (countries.includes('TH') && (!sanitized.age_min || sanitized.age_min < 20)) {
