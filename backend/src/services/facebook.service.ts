@@ -125,11 +125,12 @@ export class FacebookService {
   }
 
   async getAdSets(campaignId: string) {
+    const MAX_PAGES = 50;
     let allAdSets: any[] = [];
     let nextUrl: string | null = null;
     let isFirstPage = true;
 
-    while (true) {
+    for (let page = 0; page < MAX_PAGES; page++) {
       const pageData = await this.withRetry(async () => {
         if (isFirstPage) {
           const resp = await this.client.get(`/${campaignId}/adsets`, {
@@ -148,17 +149,22 @@ export class FacebookService {
       if (pageData.data) allAdSets = [...allAdSets, ...pageData.data];
       nextUrl = pageData.paging?.next || null;
       if (!nextUrl) break;
+      if (page === MAX_PAGES - 1) {
+        console.warn(`[FacebookService] getAdSets(${campaignId}) hit MAX_PAGES=${MAX_PAGES}, truncating`);
+        break;
+      }
       await sleep(300);
     }
     return allAdSets;
   }
 
   async getAds(adSetId: string) {
+    const MAX_PAGES = 50;
     let allAds: any[] = [];
     let nextUrl: string | null = null;
     let isFirstPage = true;
 
-    while (true) {
+    for (let page = 0; page < MAX_PAGES; page++) {
       const pageData = await this.withRetry(async () => {
         if (isFirstPage) {
           const resp = await this.client.get(`/${adSetId}/ads`, {
@@ -177,6 +183,10 @@ export class FacebookService {
       if (pageData.data) allAds = [...allAds, ...pageData.data];
       nextUrl = pageData.paging?.next || null;
       if (!nextUrl) break;
+      if (page === MAX_PAGES - 1) {
+        console.warn(`[FacebookService] getAds(${adSetId}) hit MAX_PAGES=${MAX_PAGES}, truncating`);
+        break;
+      }
       await sleep(300);
     }
     return allAds;

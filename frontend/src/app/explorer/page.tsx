@@ -3,7 +3,7 @@
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { Button } from "@/components/ui/button";
 import { useAppStore } from "@/store/useAppStore";
-import { useEffect, useState, useCallback, useMemo } from "react";
+import { useEffect, useState, useCallback, useMemo, useRef } from "react";
 import { adAccountApi, duplicationApi, draftApi } from "@/services/api";
 import { Campaign, AdSet, Ad } from "@/types";
 import {
@@ -111,15 +111,21 @@ export default function ExplorerPage() {
     }
   }, [selectedItemsList]);
 
+  // Snapshot adSets/ads refs so this effect only re-fires when the search term itself changes.
+  // Without this, expanding a campaign mutates adSets and re-triggers the expansion sweep needlessly.
+  const adSetsRef = useRef(adSets);
+  const adsRef = useRef(ads);
+  adSetsRef.current = adSets;
+  adsRef.current = ads;
   useEffect(() => {
     if (!debouncedSearch) return;
     const q = debouncedSearch.toLowerCase();
     const toExpandC = new Set<string>();
     const toExpandAS = new Set<string>();
-    for (const [cid, asList] of Object.entries(adSets)) {
+    for (const [cid, asList] of Object.entries(adSetsRef.current)) {
       for (const as of asList) {
         if (as.name.toLowerCase().includes(q)) toExpandC.add(cid);
-        if ((ads[as.id] || []).some((ad: any) => ad.name.toLowerCase().includes(q))) {
+        if ((adsRef.current[as.id] || []).some((ad: any) => ad.name.toLowerCase().includes(q))) {
           toExpandC.add(cid);
           toExpandAS.add(as.id);
         }
@@ -127,7 +133,7 @@ export default function ExplorerPage() {
     }
     if (toExpandC.size) setExpandedCampaigns(prev => new Set([...prev, ...toExpandC]));
     if (toExpandAS.size) setExpandedAdSets(prev => new Set([...prev, ...toExpandAS]));
-  }, [debouncedSearch, adSets, ads]);
+  }, [debouncedSearch]);
 
 
   const filteredCampaigns = useMemo(() => {
@@ -179,18 +185,17 @@ export default function ExplorerPage() {
     toast.success("Explorer refreshed");
   };
 
-  const handleUpdateName = useCallback(async (id: string, type: 'CAMPAIGN' | 'ADSET' | 'AD', resolvedName?: string) => {
-    const nameToSave = resolvedName ?? editValue;
-    if (!nameToSave.trim()) return;
-    if (type === 'CAMPAIGN') setCampaigns(prev => prev.map(c => c.id === id ? { ...c, name: nameToSave } : c));
-    else if (type === 'ADSET') setAdSets(prev => { const n = { ...prev }; for (const k in n) n[k] = n[k].map(as => as.id === id ? { ...as, name: nameToSave } : as); return n; });
-    else if (type === 'AD') setAds(prev => { const n = { ...prev }; for (const k in n) n[k] = n[k].map(ad => ad.id === id ? { ...ad, name: nameToSave } : ad); return n; });
+  const handleUpdateName = useCallback(async (id: string, type: 'CAMPAIGN' | 'ADSET' | 'AD', resolvedName: string) => {
+    if (!resolvedName.trim()) return;
+    if (type === 'CAMPAIGN') setCampaigns(prev => prev.map(c => c.id === id ? { ...c, name: resolvedName } : c));
+    else if (type === 'ADSET') setAdSets(prev => { const n = { ...prev }; for (const k in n) n[k] = n[k].map(as => as.id === id ? { ...as, name: resolvedName } : as); return n; });
+    else if (type === 'AD') setAds(prev => { const n = { ...prev }; for (const k in n) n[k] = n[k].map(ad => ad.id === id ? { ...ad, name: resolvedName } : ad); return n; });
     setEditingId(null);
     setUpdating(true);
-    try { await adAccountApi.updateName(id, nameToSave); toast.success("Name updated"); }
+    try { await adAccountApi.updateName(id, resolvedName); toast.success("Name updated"); }
     catch { toast.error("Failed to update name"); }
     finally { setUpdating(false); }
-  }, [editValue]);
+  }, []);
 
   const toggleCampaign = useCallback(async (campaignId: string) => {
     const newExpanded = new Set(expandedCampaigns);

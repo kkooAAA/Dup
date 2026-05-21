@@ -2,6 +2,7 @@
 
 import { Navbar } from "./Navbar";
 import { Sidebar } from "./Sidebar";
+import { ErrorBoundary } from "./ErrorBoundary";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAppStore } from "@/store/useAppStore";
@@ -34,7 +35,7 @@ export const DashboardLayout = ({ children }: { children: React.ReactNode }) => 
         )}
         <Sidebar />
         <main className="flex-1 p-4 sm:p-6 lg:p-8 overflow-auto h-[calc(100vh-56px)] min-w-0">
-          {children}
+          <ErrorBoundary>{children}</ErrorBoundary>
         </main>
       </div>
     </div>

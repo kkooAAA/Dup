@@ -53,8 +53,15 @@ export const loginWithFacebook = async (req: Request, res: Response) => {
     const token = jwt.sign({ userId: user.id }, JWT_SECRET, { expiresIn: '60d' });
 
     res.json({ token, user });
-  } catch (error) {
+  } catch (error: any) {
     console.error('FB Login Error:', error);
-    res.status(401).json({ message: 'Invalid Facebook token' });
+    const prismaCode = error?.code;
+    if (prismaCode === 'P1001' || prismaCode === 'P1017' || prismaCode === 'P1002') {
+      return res.status(503).json({ message: 'Database unavailable. Please try again in a moment.' });
+    }
+    if (axios.isAxiosError(error) && error.response?.status === 400) {
+      return res.status(401).json({ message: 'Invalid Facebook token' });
+    }
+    res.status(500).json({ message: 'Login failed', detail: error?.message });
   }
 };

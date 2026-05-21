@@ -98,9 +98,13 @@ export function MetaForm({
     }
   }, [values]);
 
-  // Sync from parent only when initialValues meaningfully changes (e.g. switching nodes)
-  const prevInitialJson = useRef(JSON.stringify(initialValues));
+  // Sync from parent only when initialValues meaningfully changes (e.g. switching nodes).
+  // Fast path: reference equality. Slow path: structural compare via JSON, only when ref changes.
+  const prevInitialRef = useRef(initialValues);
+  const prevInitialJson = useRef<string | null>(null);
   useEffect(() => {
+    if (initialValues === prevInitialRef.current) return;
+    prevInitialRef.current = initialValues;
     const json = JSON.stringify(initialValues);
     if (json !== prevInitialJson.current) {
       prevInitialJson.current = json;
