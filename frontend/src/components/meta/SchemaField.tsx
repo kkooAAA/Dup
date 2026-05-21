@@ -803,6 +803,19 @@ function ArrayField({
     context.onFieldChange(path, next);
   };
 
+  const itemKey = (item: any, index: number): string => {
+    if (item && typeof item === "object") {
+      const stable = item.id ?? item.key ?? item.custom_event_type ?? item.name;
+      if (stable !== undefined && stable !== null) return String(stable);
+      try {
+        return JSON.stringify(item).slice(0, 64) + ":" + index;
+      } catch {
+        return `obj:${index}`;
+      }
+    }
+    return `${typeof item}:${String(item)}:${index}`;
+  };
+
   if (!field.arrayItemSchema) {
     return (
       <div className="space-y-1">
@@ -841,7 +854,7 @@ function ArrayField({
       {expanded && (
         <div className="ml-3 pl-3 border-l border-gray-800/40 space-y-2">
           {items.map((item, index) => (
-            <div key={index} className="relative group/item">
+            <div key={`${path}.${itemKey(item, index)}`} className="relative group/item">
               <div className="flex items-start gap-1.5">
                 <span className="text-[9px] text-gray-700 font-mono mt-2 w-4 shrink-0">
                   {index + 1}

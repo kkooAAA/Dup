@@ -279,12 +279,27 @@ export default function ExplorerPage() {
     if (selectedItemsList.some(i => i.type !== "CAMPAIGN")) { toast.error("Draft system only supports Campaigns"); return; }
     setSavingDraft(true);
     try {
-      await Promise.all(selectedItemsList.map(item => draftApi.duplicateToDraft(item.id)));
-      toast.success("Saved to Internal Drafts!");
-      setSelectedItems(new Map());
-      setPanelOpen(false);
-      resetOptimization();
-    } catch { toast.error("Failed to save draft"); }
+      const results = await Promise.allSettled(
+        selectedItemsList.map(item => draftApi.duplicateToDraft(item.id))
+      );
+      const ok = results.filter(r => r.status === "fulfilled").length;
+      const failed = results.length - ok;
+      if (failed === 0) {
+        toast.success(`Saved ${ok} to Internal Drafts!`);
+        setSelectedItems(new Map());
+        setPanelOpen(false);
+        resetOptimization();
+      } else {
+        const firstErr = (results.find(r => r.status === "rejected") as PromiseRejectedResult | undefined)?.reason;
+        const msg = firstErr?.response?.data?.message || firstErr?.message || "unknown error";
+        toast.error(`${ok} of ${results.length} succeeded. First error: ${msg}`);
+        if (ok > 0) {
+          setSelectedItems(new Map());
+          setPanelOpen(false);
+          resetOptimization();
+        }
+      }
+    }
     finally { setSavingDraft(false); }
   };
 

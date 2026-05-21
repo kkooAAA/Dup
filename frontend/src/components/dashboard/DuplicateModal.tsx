@@ -215,12 +215,24 @@ export const DuplicateModal = ({
     }
     setDraftLoading(true);
     try {
-      await Promise.all(selectedItems.map((item) => draftApi.duplicateToDraft(item.id)));
-      toast.success("Saved to Internal Drafts!");
-      onClose();
-      resetState();
-    } catch (error) {
-      toast.error("Failed to save draft");
+      const results = await Promise.allSettled(
+        selectedItems.map((item) => draftApi.duplicateToDraft(item.id))
+      );
+      const ok = results.filter((r) => r.status === "fulfilled").length;
+      const failed = results.length - ok;
+      if (failed === 0) {
+        toast.success(`Saved ${ok} to Internal Drafts!`);
+        onClose();
+        resetState();
+      } else {
+        const firstErr = (results.find((r) => r.status === "rejected") as PromiseRejectedResult | undefined)?.reason;
+        const msg = firstErr?.response?.data?.message || firstErr?.message || "unknown error";
+        toast.error(`${ok} of ${results.length} succeeded. First error: ${msg}`);
+        if (ok > 0) {
+          onClose();
+          resetState();
+        }
+      }
     } finally {
       setDraftLoading(false);
     }

@@ -6,6 +6,7 @@ vi.mock('../../src/prisma', () => ({
     draftCampaign: {
       findUnique: vi.fn(),
       update: vi.fn(),
+      updateMany: vi.fn(),
     },
     draftAdSet: {
       update: vi.fn(),
@@ -99,6 +100,7 @@ beforeEach(() => {
     adSetErrors: {},
     adErrors: {},
   });
+  mockPrisma.draftCampaign.updateMany.mockResolvedValue({ count: 1 });
 });
 
 describe('DraftPublishService.publishCampaign', () => {

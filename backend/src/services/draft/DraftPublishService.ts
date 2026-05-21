@@ -65,13 +65,19 @@ export class DraftPublishService {
     const campaignAccountId = normalizeAccountId(campaign.adAccountId);
 
     try {
-      await withDbRetry(
-        () => prisma.draftCampaign.update({
-          where: { id: campaignId },
+      const claimed = await withDbRetry(
+        () => prisma.draftCampaign.updateMany({
+          where: { id: campaignId, status: { not: DraftStatus.PUBLISHING } },
           data: { status: DraftStatus.PUBLISHING },
         }),
-        'draftCampaign.update(PUBLISHING)',
+        'draftCampaign.claim(PUBLISHING)',
       );
+      if (claimed.count === 0) {
+        throw new PublishError(
+          `Campaign ${campaignId} already publishing`,
+          'This campaign is already being published.',
+        );
+      }
 
       const campaignData = campaign.data as any;
       const isCBO = this.detectCBO(campaignData);

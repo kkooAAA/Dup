@@ -13,9 +13,9 @@ export const DashboardLayout = ({ children }: { children: React.ReactNode }) => 
 
   useEffect(() => {
     setMounted(true);
-    const token = localStorage.getItem("auth_token");
+    const token = localStorage.getItem("token");
     if (!token && !user) {
-      // router.push("/login");
+      router.push("/login");
     }
   }, [user, router]);
 

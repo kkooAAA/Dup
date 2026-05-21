@@ -346,50 +346,70 @@ export class DraftController {
         return res.status(400).json({ error: 'fieldUpdates must be a non-empty object' });
       }
 
-      let drafts: any[];
-      if (level === 'campaign') {
-        drafts = await prisma.draftCampaign.findMany({
-          where: { id: { in: draftIds }, userId, status: { not: 'PUBLISHING' } },
-        });
-      } else if (level === 'adSet') {
-        drafts = await prisma.draftAdSet.findMany({
-          where: { id: { in: draftIds } },
-          include: { campaign: { select: { objective: true, userId: true } } },
-        });
-        drafts = drafts.filter((d: any) => d.campaign?.userId === userId);
-      } else {
-        drafts = await prisma.draftAd.findMany({
-          where: { id: { in: draftIds } },
-          include: { adSet: { include: { campaign: { select: { userId: true } } } } },
-        });
-        drafts = drafts.filter((d: any) => d.adSet?.campaign?.userId === userId);
-      }
-
-      // Validate before applying
-      const validation = BulkEditCompatibilityEngine.validateBulkEdit(drafts, fieldUpdates, level);
-      if (!validation.valid) {
-        return res.status(400).json({
-          error: 'Validation failed',
-          ...validation,
-        });
-      }
-
-      // Apply updates
-      const updates = BulkEditCompatibilityEngine.applyBulkEdit(drafts, fieldUpdates, level);
-      let updatedCount = 0;
-
-      for (const update of updates) {
-        const updatePayload: any = { data: update.updatedData, status: 'DRAFT' };
-        if (update.objective) updatePayload.objective = update.objective;
-
+      const { updatedCount, validation, conflict } = await prisma.$transaction(async (tx) => {
+        let drafts: any[];
         if (level === 'campaign') {
-          await prisma.draftCampaign.update({ where: { id: update.draftId }, data: updatePayload });
+          drafts = await tx.draftCampaign.findMany({
+            where: { id: { in: draftIds }, userId, status: { not: 'PUBLISHING' } },
+          });
         } else if (level === 'adSet') {
-          await prisma.draftAdSet.update({ where: { id: update.draftId }, data: { data: update.updatedData } });
+          drafts = await tx.draftAdSet.findMany({
+            where: { id: { in: draftIds } },
+            include: { campaign: { select: { objective: true, userId: true } } },
+          });
+          drafts = drafts.filter((d: any) => d.campaign?.userId === userId);
         } else {
-          await prisma.draftAd.update({ where: { id: update.draftId }, data: { data: update.updatedData } });
+          drafts = await tx.draftAd.findMany({
+            where: { id: { in: draftIds } },
+            include: { adSet: { include: { campaign: { select: { userId: true } } } } },
+          });
+          drafts = drafts.filter((d: any) => d.adSet?.campaign?.userId === userId);
         }
-        updatedCount++;
+
+        const validation = BulkEditCompatibilityEngine.validateBulkEdit(drafts, fieldUpdates, level);
+        if (!validation.valid) {
+          return { updatedCount: 0, validation, conflict: false };
+        }
+
+        const updates = BulkEditCompatibilityEngine.applyBulkEdit(drafts, fieldUpdates, level);
+        let updatedCount = 0;
+
+        for (const update of updates) {
+          const updatePayload: any = { data: update.updatedData, status: 'DRAFT' };
+          if (update.objective) updatePayload.objective = update.objective;
+
+          let result;
+          if (level === 'campaign') {
+            result = await tx.draftCampaign.updateMany({
+              where: { id: update.draftId, status: { not: 'PUBLISHING' } },
+              data: updatePayload,
+            });
+          } else if (level === 'adSet') {
+            result = await tx.draftAdSet.updateMany({
+              where: { id: update.draftId },
+              data: { data: update.updatedData },
+            });
+          } else {
+            result = await tx.draftAd.updateMany({
+              where: { id: update.draftId },
+              data: { data: update.updatedData },
+            });
+          }
+          if (result.count === 1) updatedCount++;
+        }
+
+        return { updatedCount, validation, conflict: updatedCount < updates.length };
+      });
+
+      if (!validation.valid) {
+        return res.status(400).json({ error: 'Validation failed', ...validation });
+      }
+      if (conflict) {
+        return res.status(409).json({
+          updated: updatedCount,
+          validation,
+          error: 'one or more drafts are publishing; partial update applied',
+        });
       }
 
       res.json({ updated: updatedCount, validation });
