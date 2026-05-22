@@ -797,7 +797,13 @@ export class DraftPublishService {
     }
 
     let creative: any;
-    if (creativeId) {
+    const effectiveDestType = adSet?.metaId && adSet?.data?._original_destination_type !== undefined
+      ? adSet?.data?._original_destination_type
+      : adSet?.data?.destination_type;
+    const isMessengerDest = ['MESSENGER', 'WHATSAPP', 'INSTAGRAM_DIRECT'].includes(effectiveDestType);
+    const forceInline = isMessengerDest && hasInlineCreative;
+
+    if (creativeId && !forceInline) {
       creative = { creative_id: String(creativeId) };
     } else if (hasInlineCreative) {
       const storySpec = { ...adData.creative.object_story_spec };

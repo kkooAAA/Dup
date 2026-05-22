@@ -649,8 +649,25 @@ export class DraftValidationEngine {
             isValid = false;
           }
 
+          const adSetData = adSet.data as any;
+          const adSetDestType = adSet.metaId && adSetData._original_destination_type !== undefined
+            ? adSetData._original_destination_type
+            : adSetData?.destination_type;
+          const messengerDest = ['MESSENGER', 'WHATSAPP', 'INSTAGRAM_DIRECT'].includes(adSetDestType);
           for (const ad of adSet.ads) {
             const adValidationErrors = await this.validateAd(ad);
+            if (messengerDest) {
+              const adData = ad.data as any;
+              const creative = adData?.creative;
+              const hasCreativeId = !!(creative?.creative_id || creative?.id);
+              if (hasCreativeId) {
+                adValidationErrors.push({
+                  field: 'creative',
+                  message: `Ad set destination is "${adSetDestType}" but this ad uses a creative_id reference. ${adSetDestType} ads require a compatible object_story_spec creative. Change the destination type or update the creative.`,
+                  severity: 'error',
+                });
+              }
+            }
             adErrors[ad.id] = adValidationErrors;
             if (adValidationErrors.some(e => e.severity === 'error')) isValid = false;
           }

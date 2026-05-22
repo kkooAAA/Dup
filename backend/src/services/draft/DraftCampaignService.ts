@@ -54,6 +54,13 @@ export class DraftCampaignService {
               existingData[field] !== undefined &&
               JSON.stringify(cleanData.data[field]) !== JSON.stringify(existingData[field])) {
             warnings.push(`${field} is immutable on Meta and will not be updated when re-published`);
+            if (existingData[`_original_${field}`] === undefined) {
+              cleanData.data[`_original_${field}`] = existingData[field];
+            } else {
+              cleanData.data[`_original_${field}`] = existingData[`_original_${field}`];
+            }
+          } else if (existingData[`_original_${field}`] !== undefined) {
+            cleanData.data[`_original_${field}`] = existingData[`_original_${field}`];
           }
         }
         if (warnings.length > 0) {
