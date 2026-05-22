@@ -737,9 +737,6 @@ exports[`Ad Set Conversion Snapshots > OUTCOME_TRAFFIC adset → OUTCOME_APP_PRO
       "feed",
       "story",
     ],
-    "genders": [
-      0,
-    ],
     "geo_locations": {
       "countries": [
         "TH",
@@ -771,9 +768,6 @@ exports[`Ad Set Conversion Snapshots > OUTCOME_TRAFFIC adset → OUTCOME_AWARENE
     "facebook_positions": [
       "feed",
       "story",
-    ],
-    "genders": [
-      0,
     ],
     "geo_locations": {
       "countries": [
@@ -807,9 +801,6 @@ exports[`Ad Set Conversion Snapshots > OUTCOME_TRAFFIC adset → OUTCOME_ENGAGEM
       "feed",
       "story",
     ],
-    "genders": [
-      0,
-    ],
     "geo_locations": {
       "countries": [
         "TH",
@@ -842,9 +833,6 @@ exports[`Ad Set Conversion Snapshots > OUTCOME_TRAFFIC adset → OUTCOME_LEADS o
       "feed",
       "story",
     ],
-    "genders": [
-      0,
-    ],
     "geo_locations": {
       "countries": [
         "TH",
@@ -876,9 +864,6 @@ exports[`Ad Set Conversion Snapshots > OUTCOME_TRAFFIC adset → OUTCOME_SALES o
     "facebook_positions": [
       "feed",
       "story",
-    ],
-    "genders": [
-      0,
     ],
     "geo_locations": {
       "countries": [
@@ -913,9 +898,6 @@ exports[`Ad Set Duplication Snapshots > Bid strategy variations > OUTCOME_TRAFFI
     "facebook_positions": [
       "feed",
       "story",
-    ],
-    "genders": [
-      0,
     ],
     "geo_locations": {
       "countries": [
@@ -953,9 +935,6 @@ exports[`Ad Set Duplication Snapshots > Bid strategy variations > OUTCOME_TRAFFI
       "feed",
       "story",
     ],
-    "genders": [
-      0,
-    ],
     "geo_locations": {
       "countries": [
         "TH",
@@ -992,9 +971,6 @@ exports[`Ad Set Duplication Snapshots > Bid strategy variations > OUTCOME_TRAFFI
       "feed",
       "story",
     ],
-    "genders": [
-      0,
-    ],
     "geo_locations": {
       "countries": [
         "TH",
@@ -1029,9 +1005,6 @@ exports[`Ad Set Duplication Snapshots > Bid strategy variations > OUTCOME_TRAFFI
     "facebook_positions": [
       "feed",
       "story",
-    ],
-    "genders": [
-      0,
     ],
     "geo_locations": {
       "countries": [
@@ -1368,9 +1341,6 @@ exports[`Ad Set Duplication Snapshots > OUTCOME_TRAFFIC > CBO payload (strips bu
       "feed",
       "story",
     ],
-    "genders": [
-      0,
-    ],
     "geo_locations": {
       "countries": [
         "TH",
@@ -1402,9 +1372,6 @@ exports[`Ad Set Duplication Snapshots > OUTCOME_TRAFFIC > non-CBO payload 1`] = 
     "facebook_positions": [
       "feed",
       "story",
-    ],
-    "genders": [
-      0,
     ],
     "geo_locations": {
       "countries": [

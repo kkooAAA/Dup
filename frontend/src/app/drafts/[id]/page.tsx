@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, use } from "react";
+import { useEffect, useState, useRef, use } from "react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -246,6 +246,8 @@ export default function DraftEditorPage({ params: paramsPromise }: { params: Pro
   // In-memory edits keyed by `${type}:${id}`. Switching nodes preserves edits;
   // they are only persisted when the user clicks Save.
   const [editCache, setEditCache] = useState<Map<string, any>>(new Map());
+  const editCacheRef = useRef(editCache);
+  editCacheRef.current = editCache;
   const nodeKey = (type: string, id: string) => `${type}:${id}`;
   const currentKey = selectedNode ? nodeKey(selectedNode.type, selectedNode.id) : null;
   const isDirty = editCache.size > 0;
@@ -253,14 +255,14 @@ export default function DraftEditorPage({ params: paramsPromise }: { params: Pro
   const campaignObjective: string = draft?.data?.objective || draft?.objective || "";
   const isCBO = !!(draft?.data?.daily_budget || draft?.data?.lifetime_budget);
 
-  const fetchDraft = async () => {
+  const fetchDraft = async (silent = false) => {
     try {
-      setIsLoading(true);
+      if (!silent) setIsLoading(true);
       const response = await draftApi.getCampaign(params.id);
       setDraft(response.data);
       // Helper: prefer the cached (unsaved) version of a node over the server's value.
       const restore = (key: string, serverItem: any) => {
-        const cached = editCache.get(key);
+        const cached = editCacheRef.current.get(key);
         setEditData(cached ?? serverItem);
       };
       if (!selectedNode) {
@@ -385,8 +387,10 @@ export default function DraftEditorPage({ params: paramsPromise }: { params: Pro
         else if (type === "AD") await draftApi.updateAd(id, data);
       }
       toast.success(pending.size > 1 ? `Saved ${pending.size} changes` : "Changes saved");
-      setEditCache(new Map());
-      await fetchDraft();
+      const emptyCache = new Map();
+      setEditCache(emptyCache);
+      editCacheRef.current = emptyCache;
+      await fetchDraft(true);
       // Re-validate silently against the freshly saved state so the badge stays current.
       runValidation({ silent: true });
     } catch (err: any) {
@@ -415,7 +419,7 @@ export default function DraftEditorPage({ params: paramsPromise }: { params: Pro
         }
       }
       // Always refresh so the per-entity validationErrors render inline.
-      await fetchDraft();
+      await fetchDraft(true);
     } catch (err: any) {
       if (!silent) toast.error(extractApiError(err, "Couldn't validate this draft right now. Try again in a moment."));
     }
@@ -466,7 +470,7 @@ export default function DraftEditorPage({ params: paramsPromise }: { params: Pro
     try {
       const response = await draftApi.cleanupMetaObjects(params.id);
       toast.success(`Deleted ${response.data.deleted.length} Meta object${response.data.deleted.length === 1 ? "" : "s"}. Draft reset — you can publish again from scratch.`);
-      await fetchDraft();
+      await fetchDraft(true);
       runValidation({ silent: true });
     } catch (err: any) {
       toast.error(extractApiError(err, "Cleanup failed. The previously created Meta objects may still exist."));
@@ -1195,13 +1199,13 @@ export default function DraftEditorPage({ params: paramsPromise }: { params: Pro
                     <TabsTrigger value="json" className="text-xs flex-1">Raw JSON</TabsTrigger>
                   </TabsList>
 
-                  <TabsContent value="form" className="space-y-4 mt-4">
+                  <TabsContent value="form" keepMounted className="space-y-4 mt-4">
                     {selectedNode?.type === "CAMPAIGN" && renderCampaignForm()}
                     {selectedNode?.type === "ADSET" && renderAdSetForm()}
                     {selectedNode?.type === "AD" && renderAdForm()}
                   </TabsContent>
 
-                  <TabsContent value="schema" className="mt-4">
+                  <TabsContent value="schema" keepMounted className="mt-4">
                     <MetaForm
                       entityType={
                         selectedNode?.type === "CAMPAIGN" ? "campaign" :

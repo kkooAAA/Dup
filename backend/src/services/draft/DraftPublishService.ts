@@ -15,6 +15,14 @@ import {
 import { DraftValidationEngine } from './DraftValidationEngine';
 import { extractMetaError, extractMetaErrorInfo } from '../../utils/metaErrorHelper';
 
+const GOAL_BILLING_MAP: Record<string, string[]> = {
+  LINK_CLICKS: ['IMPRESSIONS', 'LINK_CLICKS'],
+  APP_INSTALLS: ['IMPRESSIONS', 'APP_INSTALLS'],
+  PAGE_LIKES: ['IMPRESSIONS', 'PAGE_LIKES'],
+  POST_ENGAGEMENT: ['IMPRESSIONS', 'POST_ENGAGEMENT'],
+  THRUPLAY: ['IMPRESSIONS', 'THRUPLAY'],
+};
+
 export class PublishError extends Error {
   userMessage: string;
   constructor(detail: string, userMessage: string) {
@@ -516,6 +524,7 @@ export class DraftPublishService {
       await fbService.client.post(`/${metaCampaignId}`, cleaned);
     } catch (error: any) {
       console.error(`[DraftPublishService] Failed to update Meta campaign ${metaCampaignId}:`, error.response?.data?.error || error.message);
+      throw this.toPublishError(error, 'Campaign update');
     }
   }
 
@@ -573,14 +582,20 @@ export class DraftPublishService {
       }
     }
 
+    const allowedBilling = GOAL_BILLING_MAP[adSetData.optimization_goal] || ['IMPRESSIONS'];
+    const billingEvent = allowedBilling.includes(adSetData.billing_event) ? adSetData.billing_event : 'IMPRESSIONS';
+
     const adSetPayload: any = {
       name: adSet.name,
       campaign_id: metaCampaignId,
       status: 'PAUSED',
-      billing_event: adSetData.billing_event || 'IMPRESSIONS',
+      billing_event: billingEvent,
       optimization_goal: adSetData.optimization_goal,
       targeting,
     };
+
+    if (adSetData.dsa_beneficiary) adSetPayload.dsa_beneficiary = adSetData.dsa_beneficiary;
+    if (adSetData.dsa_payor) adSetPayload.dsa_payor = adSetData.dsa_payor;
 
     if (cleanPromotedObject) {
       // SALES requires custom_event_type with pixel_id
@@ -699,13 +714,19 @@ export class DraftPublishService {
     const targeting = sanitizeTargeting(adSetData.targeting);
     this.resolveTargetingConflicts(targeting);
 
+    const allowedBillingUpd = (GOAL_BILLING_MAP[adSetData.optimization_goal] || ['IMPRESSIONS']);
+    const billingEventUpd = allowedBillingUpd.includes(adSetData.billing_event) ? adSetData.billing_event : 'IMPRESSIONS';
+
     const updatePayload: any = {
       name: adSet.name,
       status: 'PAUSED',
-      billing_event: adSetData.billing_event || 'IMPRESSIONS',
+      billing_event: billingEventUpd,
       optimization_goal: adSetData.optimization_goal,
       targeting,
     };
+
+    if (adSetData.dsa_beneficiary) updatePayload.dsa_beneficiary = adSetData.dsa_beneficiary;
+    if (adSetData.dsa_payor) updatePayload.dsa_payor = adSetData.dsa_payor;
 
     // Include attribution_spec if supported
     if (adSetData.attribution_spec && ATTRIBUTION_SPEC_OBJECTIVES.has(campaignObjective)) {

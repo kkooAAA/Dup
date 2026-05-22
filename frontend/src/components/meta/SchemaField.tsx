@@ -1,9 +1,8 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
 import {
   Lock,
@@ -12,6 +11,8 @@ import {
   ChevronDown,
   ChevronRight,
   HelpCircle,
+  X,
+  Search,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatBudget } from "@/lib/meta-schema";
@@ -20,6 +21,7 @@ import { formatBudget } from "@/lib/meta-schema";
 
 export type SchemaFieldType =
   | "string"
+  | "textarea"
   | "number"
   | "enum"
   | "boolean"
@@ -28,7 +30,9 @@ export type SchemaFieldType =
   | "currency"
   | "object"
   | "array"
-  | "multiEnum";
+  | "multiEnum"
+  | "tags"
+  | "time";
 
 export interface EnumOption {
   value: string;
@@ -77,6 +81,10 @@ export interface FieldSchema {
   invalidates?: string[];
   incompatibleWith?: string[];
   validation?: ValidationRule[];
+  searchable?: boolean;
+  rows?: number;
+  tagSuggestions?: string[];
+  visibleWhen?: { field: string; equals?: any; notEquals?: any };
 }
 
 export interface FormSection {
@@ -171,6 +179,26 @@ function resolveFieldState(
       if (incompValue !== undefined && incompValue !== null && incompValue !== "" && incompValue !== 0) {
         disabled = true;
         break;
+      }
+    }
+  }
+
+  if (field.visibleWhen) {
+    const depValue = getNestedValue(allValues, field.visibleWhen.field);
+    if (field.visibleWhen.equals !== undefined) {
+      const eq = field.visibleWhen.equals;
+      if (Array.isArray(eq) && Array.isArray(depValue)) {
+        visible = JSON.stringify(depValue.sort()) !== JSON.stringify(eq.sort()) ? false : visible;
+      } else if (depValue !== eq) {
+        visible = false;
+      }
+    }
+    if (field.visibleWhen.notEquals !== undefined) {
+      const neq = field.visibleWhen.notEquals;
+      if (Array.isArray(neq) && Array.isArray(depValue)) {
+        if (JSON.stringify(depValue.sort()) === JSON.stringify(neq.sort())) visible = false;
+      } else if (depValue === neq) {
+        visible = false;
       }
     }
   }
@@ -293,6 +321,8 @@ export function SchemaFieldRenderer({
   switch (field.type) {
     case "string":
       return <StringField field={field} value={value} onChange={handleChange} compact={compact} />;
+    case "textarea":
+      return <TextareaField field={field} value={value} onChange={handleChange} compact={compact} />;
     case "number":
       return <NumberField field={field} value={value} onChange={handleChange} compact={compact} />;
     case "currency":
@@ -322,6 +352,10 @@ export function SchemaFieldRenderer({
     case "date":
     case "datetime":
       return <DateTimeField field={field} value={value} onChange={handleChange} compact={compact} />;
+    case "time":
+      return <TimeField field={field} value={value} onChange={handleChange} compact={compact} />;
+    case "tags":
+      return <TagsField field={field} value={value} onChange={handleChange} compact={compact} />;
     case "object":
       return (
         <ObjectField
@@ -347,20 +381,25 @@ export function SchemaFieldRenderer({
 
 // ─── Primitive Fields ───
 
-function FieldLabel({ field, compact }: { field: FieldSchema; compact?: boolean }) {
+function FieldLabel({ field, compact, showHelp }: { field: FieldSchema; compact?: boolean; showHelp?: boolean }) {
   return (
-    <Label className={cn("flex items-center gap-1.5", compact ? "text-[10px]" : "text-xs", "text-gray-400")}>
-      {field.label}
-      {field.required && <span className="text-red-400">*</span>}
-      {field.helpText && (
-        <span className="group relative">
-          <HelpCircle className="w-3 h-3 text-gray-600 cursor-help" />
-          <span className="absolute left-0 bottom-full mb-1 hidden group-hover:block bg-gray-800 border border-gray-700 text-[10px] text-gray-300 px-2 py-1.5 rounded shadow-lg z-50 w-[250px]">
-            {field.helpText}
+    <div className="space-y-0.5">
+      <Label className={cn("flex items-center gap-1.5", compact ? "text-[10px]" : "text-xs", "text-gray-400")}>
+        {field.label}
+        {field.required && <span className="text-red-400">*</span>}
+        {field.helpText && !showHelp && (
+          <span className="group relative">
+            <HelpCircle className="w-3 h-3 text-gray-600 cursor-help" />
+            <span className="absolute left-0 bottom-full mb-1 hidden group-hover:block bg-gray-800 border border-gray-700 text-[10px] text-gray-300 px-2 py-1.5 rounded shadow-lg z-50 w-[250px] whitespace-normal">
+              {field.helpText}
+            </span>
           </span>
-        </span>
+        )}
+      </Label>
+      {field.helpText && showHelp && (
+        <p className="text-[10px] text-gray-600 leading-tight">{field.helpText}</p>
       )}
-    </Label>
+    </div>
   );
 }
 
@@ -380,6 +419,12 @@ function ImmutableField({
       ? options.find((o) => o.value === value)?.label || value
       : field.type === "currency" && value
       ? formatBudget(value)
+      : field.type === "tags" && Array.isArray(value)
+      ? value.join(", ") || "—"
+      : field.type === "boolean"
+      ? (value ? "Yes" : "No")
+      : field.type === "time" && typeof value === "number"
+      ? `${String(Math.floor(value / 60)).padStart(2, "0")}:${String(value % 60).padStart(2, "0")}`
       : String(value ?? "—");
 
   return (
@@ -464,31 +509,28 @@ function CurrencyField({
   onChange: (v: any) => void;
   compact?: boolean;
 }) {
-  const multiplier = field.currencyMultiplier || 100;
-
   return (
     <div className="space-y-1">
       <FieldLabel field={field} compact={compact} />
-      <div className="relative">
-        <Input
-          type="number"
-          min={field.min}
-          max={field.max}
-          step={field.step || multiplier}
-          value={value ?? ""}
-          onChange={(e) => onChange(e.target.value ? Number(e.target.value) : undefined)}
-          placeholder={field.placeholder || "Amount in smallest unit"}
-          className={cn(
-            "bg-gray-950 border-gray-800 focus:border-blue-500 font-mono text-yellow-400 pr-20",
-            compact ? "h-7 text-[11px]" : "h-8 text-sm",
-          )}
-        />
-        {value && Number(value) > 0 && (
-          <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] text-gray-600 font-mono">
-            = {(Number(value) / multiplier).toFixed(2)}
-          </span>
+      <Input
+        type="number"
+        min={field.min}
+        max={field.max}
+        step={1}
+        value={value ?? ""}
+        onChange={(e) => {
+          const raw = e.target.value;
+          if (raw === "") { onChange(undefined); return; }
+          const parsed = parseInt(raw, 10);
+          if (!isNaN(parsed)) onChange(parsed);
+        }}
+        placeholder={field.placeholder || "e.g. 500 = $5.00"}
+        className={cn(
+          "bg-gray-950 border-gray-800 focus:border-blue-500 font-mono text-yellow-400",
+          compact ? "h-7 text-[11px]" : "h-8 text-sm",
         )}
-      </div>
+      />
+      {field.helpText && <p className="text-[10px] text-gray-600">{field.helpText}</p>}
     </div>
   );
 }
@@ -506,6 +548,114 @@ function EnumField({
   options: EnumOption[];
   compact?: boolean;
 }) {
+  const useSearch = field.searchable || options.length > 8;
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [query, setQuery] = useState("");
+  const containerRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (!searchOpen) return;
+    const handler = (e: MouseEvent) => {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setSearchOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [searchOpen]);
+
+  useEffect(() => {
+    if (searchOpen) inputRef.current?.focus();
+  }, [searchOpen]);
+
+  if (useSearch) {
+    const filtered = query
+      ? options.filter((o) =>
+          o.label.toLowerCase().includes(query.toLowerCase()) ||
+          o.value.toLowerCase().includes(query.toLowerCase()),
+        )
+      : options;
+    const selectedLabel = options.find((o) => o.value === value)?.label;
+
+    return (
+      <div className="space-y-1" ref={containerRef}>
+        <FieldLabel field={field} compact={compact} />
+        <div className="relative">
+          <button
+            type="button"
+            onClick={() => { setSearchOpen(!searchOpen); setQuery(""); }}
+            className={cn(
+              "w-full rounded-md bg-gray-950 border border-gray-800 text-left px-2.5 flex items-center justify-between transition-colors hover:border-gray-700",
+              searchOpen && "border-blue-500",
+              compact ? "h-7 text-[11px]" : "h-8 text-sm",
+            )}
+          >
+            <span className={value ? "text-gray-200" : "text-gray-500"}>
+              {selectedLabel || "— Select —"}
+            </span>
+            <ChevronDown className={cn("w-3 h-3 text-gray-500 transition-transform", searchOpen && "rotate-180")} />
+          </button>
+          {searchOpen && (
+            <div className="absolute z-50 w-full mt-1 rounded-md bg-gray-900 border border-gray-700 shadow-xl overflow-hidden">
+              <div className="p-1.5 border-b border-gray-800">
+                <div className="relative">
+                  <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3 text-gray-500" />
+                  <input
+                    ref={inputRef}
+                    value={query}
+                    onChange={(e) => setQuery(e.target.value)}
+                    placeholder="Search..."
+                    className="w-full h-7 pl-7 pr-2 rounded bg-gray-950 border border-gray-800 text-xs text-gray-200 outline-none focus:border-blue-500"
+                  />
+                </div>
+              </div>
+              <div className="max-h-48 overflow-y-auto py-1">
+                {!field.required && (
+                  <button
+                    type="button"
+                    onClick={() => { onChange(undefined); setSearchOpen(false); }}
+                    className={cn(
+                      "w-full text-left px-3 py-1.5 text-xs hover:bg-gray-800/60 transition-colors",
+                      !value ? "text-blue-400" : "text-gray-500",
+                    )}
+                  >
+                    — Clear —
+                  </button>
+                )}
+                {filtered.map((o) => (
+                  <button
+                    key={o.value}
+                    type="button"
+                    disabled={o.disabled}
+                    onClick={() => { onChange(o.value); setSearchOpen(false); }}
+                    className={cn(
+                      "w-full text-left px-3 py-1.5 text-xs hover:bg-gray-800/60 transition-colors",
+                      o.value === value && "bg-blue-500/10 text-blue-400",
+                      o.disabled && "opacity-40 cursor-not-allowed",
+                      !o.disabled && o.value !== value && "text-gray-300",
+                    )}
+                  >
+                    <span>{o.label}</span>
+                    {o.description && <span className="block text-[10px] text-gray-500 mt-0.5">{o.description}</span>}
+                  </button>
+                ))}
+                {filtered.length === 0 && (
+                  <div className="px-3 py-2 text-[10px] text-gray-600">No options match "{query}"</div>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+        {value && options.find((o) => o.value === value)?.description && (
+          <p className="text-[10px] text-gray-600">
+            {options.find((o) => o.value === value)?.description}
+          </p>
+        )}
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-1">
       <FieldLabel field={field} compact={compact} />
@@ -548,18 +698,46 @@ function MultiEnumField({
   compact?: boolean;
 }) {
   const selected: string[] = Array.isArray(value) ? value : value ? [value] : [];
+  const isSearchable = field.searchable || options.length > 12;
 
   const toggle = (optVal: string) => {
-    const next = selected.includes(optVal)
-      ? selected.filter((v) => v !== optVal)
-      : [...selected, optVal];
+    if (optVal === '__all__') {
+      onChange(selected.includes('__all__') ? undefined : ['__all__']);
+      return;
+    }
+    const without = selected.filter((v) => v !== '__all__' && v !== optVal);
+    const next = selected.includes(optVal) ? without : [...without, optVal];
     onChange(next.length > 0 ? next : undefined);
   };
+
+  if (isSearchable) {
+    return (
+      <SearchableMultiEnum
+        field={field}
+        selected={selected}
+        toggle={toggle}
+        options={options}
+        compact={compact}
+      />
+    );
+  }
+
+  const optionValues = new Set(options.map((o) => o.value));
+  const unknownSelected = selected.filter((v) => !optionValues.has(v));
 
   return (
     <div className="space-y-1.5">
       <FieldLabel field={field} compact={compact} />
       <div className="flex flex-wrap gap-1.5">
+        {unknownSelected.map((v) => (
+          <button
+            key={v}
+            onClick={() => toggle(v)}
+            className="px-2 py-1 rounded-md border text-[10px] font-medium transition-colors bg-red-500/15 border-red-500/40 text-red-300"
+          >
+            {v} ×
+          </button>
+        ))}
         {options.map((o) => {
           const isActive = selected.includes(o.value);
           return (
@@ -584,6 +762,112 @@ function MultiEnumField({
   );
 }
 
+function SearchableMultiEnum({
+  field,
+  selected,
+  toggle,
+  options,
+  compact,
+}: {
+  field: FieldSchema;
+  selected: string[];
+  toggle: (v: string) => void;
+  options: EnumOption[];
+  compact?: boolean;
+}) {
+  const [search, setSearch] = useState("");
+  const [open, setOpen] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e: MouseEvent) => {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [open]);
+
+  const filtered = options.filter(
+    (o) =>
+      !selected.includes(o.value) &&
+      o.label.toLowerCase().includes(search.toLowerCase()),
+  );
+  const optionMap = new Map(options.map((o) => [o.value, o]));
+  const selectedItems = selected.map((v) => optionMap.get(v) || { value: v, label: v });
+
+  return (
+    <div className="space-y-1.5" ref={containerRef}>
+      <FieldLabel field={field} compact={compact} />
+      {selectedItems.length > 0 && (
+        <div className="flex flex-wrap gap-1">
+          {selectedItems.map((o) => (
+            <span
+              key={o.value}
+              className={cn(
+                "inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-medium",
+                optionMap.has(o.value)
+                  ? "bg-blue-500/15 border border-blue-500/40 text-blue-300"
+                  : "bg-red-500/15 border border-red-500/40 text-red-300",
+              )}
+            >
+              {o.label}
+              <button
+                onClick={() => toggle(o.value)}
+                className={cn(
+                  "ml-0.5",
+                  optionMap.has(o.value) ? "text-blue-400 hover:text-blue-200" : "text-red-400 hover:text-red-200",
+                )}
+              >
+                ×
+              </button>
+            </span>
+          ))}
+        </div>
+      )}
+      <div className="relative">
+        <input
+          type="text"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          onFocus={() => setOpen(true)}
+          placeholder={`Search ${field.label?.toLowerCase() || "options"}...`}
+          className="w-full px-2.5 py-1.5 bg-gray-900/50 border border-gray-800/60 rounded-md text-xs text-gray-200 placeholder:text-gray-600 focus:outline-none focus:border-blue-500/50"
+        />
+        {open && filtered.length > 0 && (
+          <div className="absolute z-20 mt-1 w-full max-h-48 overflow-y-auto bg-gray-900 border border-gray-700 rounded-md shadow-xl">
+            {filtered.slice(0, 50).map((o) => (
+              <button
+                key={o.value}
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={() => {
+                  toggle(o.value);
+                  setSearch("");
+                }}
+                className="w-full text-left px-2.5 py-1.5 text-xs text-gray-300 hover:bg-gray-800 hover:text-white transition-colors"
+              >
+                {o.label}
+              </button>
+            ))}
+            {filtered.length > 50 && (
+              <div className="px-2.5 py-1.5 text-[10px] text-gray-600">
+                {filtered.length - 50} more — type to narrow
+              </div>
+            )}
+          </div>
+        )}
+        {open && filtered.length === 0 && search && (
+          <div className="absolute z-20 mt-1 w-full bg-gray-900 border border-gray-700 rounded-md shadow-xl p-2 text-xs text-gray-500">
+            No matches
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function BooleanField({
   field,
   value,
@@ -595,21 +879,33 @@ function BooleanField({
   onChange: (v: any) => void;
   compact?: boolean;
 }) {
+  const isOn = !!value;
   return (
-    <div className="flex items-center gap-2.5 py-1">
-      <Checkbox
-        checked={!!value}
-        onCheckedChange={(checked) => onChange(!!checked)}
-        className="shrink-0"
-      />
-      <div className="space-y-0">
+    <div className="flex items-center justify-between gap-3 py-1.5">
+      <div className="space-y-0 min-w-0">
         <label className={cn("font-medium cursor-pointer", compact ? "text-[11px]" : "text-xs", "text-gray-300")}>
           {field.label}
+          {field.required && <span className="text-red-400 ml-1">*</span>}
         </label>
         {field.helpText && (
           <p className="text-[10px] text-gray-600">{field.helpText}</p>
         )}
       </div>
+      <button
+        type="button"
+        role="switch"
+        aria-checked={isOn}
+        onClick={() => onChange(!isOn)}
+        className={cn(
+          "relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors",
+          isOn ? "bg-blue-600" : "bg-gray-700",
+        )}
+      >
+        <span className={cn(
+          "pointer-events-none inline-block h-4 w-4 rounded-full bg-white shadow-sm transition-transform",
+          isOn ? "translate-x-4" : "translate-x-0",
+        )} />
+      </button>
     </div>
   );
 }
@@ -695,6 +991,214 @@ function DateTimeField({
           {minutes.map((m) => <option key={m} value={m}>{m}</option>)}
         </select>
       </div>
+    </div>
+  );
+}
+
+function TextareaField({
+  field,
+  value,
+  onChange,
+  compact,
+}: {
+  field: FieldSchema;
+  value: any;
+  onChange: (v: any) => void;
+  compact?: boolean;
+}) {
+  const charCount = (value || "").length;
+  const maxLen = field.max;
+  return (
+    <div className="space-y-1">
+      <FieldLabel field={field} compact={compact} />
+      <textarea
+        value={value || ""}
+        onChange={(e) => onChange(e.target.value || undefined)}
+        placeholder={field.placeholder}
+        rows={field.rows || 3}
+        className={cn(
+          "w-full rounded-md bg-gray-950 border border-gray-800 focus:border-blue-500 text-gray-200 px-2.5 py-2 resize-y outline-none transition-colors",
+          compact ? "text-[11px]" : "text-sm",
+        )}
+      />
+      <div className="flex justify-between">
+        {field.helpText && <p className="text-[10px] text-gray-600">{field.helpText}</p>}
+        {maxLen ? (
+          <span className={cn("text-[10px] font-mono ml-auto", charCount > maxLen ? "text-red-400" : "text-gray-600")}>
+            {charCount}/{maxLen}
+          </span>
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
+function TagsField({
+  field,
+  value,
+  onChange,
+  compact,
+}: {
+  field: FieldSchema;
+  value: any;
+  onChange: (v: any) => void;
+  compact?: boolean;
+}) {
+  const tags: string[] = Array.isArray(value) ? value : value ? [value] : [];
+  const [inputValue, setInputValue] = useState("");
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const suggestions = field.tagSuggestions || [];
+  const filteredSuggestions = inputValue
+    ? suggestions.filter(
+        (s) => s.toLowerCase().includes(inputValue.toLowerCase()) && !tags.includes(s),
+      )
+    : suggestions.filter((s) => !tags.includes(s));
+
+  useEffect(() => {
+    if (!showSuggestions) return;
+    const handler = (e: MouseEvent) => {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setShowSuggestions(false);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [showSuggestions]);
+
+  const addTag = (tag: string) => {
+    const trimmed = tag.trim().toUpperCase();
+    if (!trimmed || tags.includes(trimmed)) return;
+    onChange([...tags, trimmed]);
+    setInputValue("");
+  };
+
+  const removeTag = (tag: string) => {
+    const next = tags.filter((t) => t !== tag);
+    onChange(next.length > 0 ? next : undefined);
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter" || e.key === "," || e.key === "Tab") {
+      e.preventDefault();
+      if (inputValue.trim()) addTag(inputValue);
+    } else if (e.key === "Backspace" && !inputValue && tags.length > 0) {
+      removeTag(tags[tags.length - 1]);
+    }
+  };
+
+  return (
+    <div className="space-y-1" ref={containerRef}>
+      <FieldLabel field={field} compact={compact} />
+      <div
+        className={cn(
+          "min-h-[2rem] rounded-md bg-gray-950 border border-gray-800 focus-within:border-blue-500 px-2 py-1.5 flex flex-wrap gap-1.5 items-center transition-colors cursor-text",
+        )}
+        onClick={() => inputRef.current?.focus()}
+      >
+        {tags.map((tag) => (
+          <span
+            key={tag}
+            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-blue-500/15 border border-blue-500/30 text-[11px] font-medium text-blue-300"
+          >
+            {tag}
+            <button type="button" onClick={() => removeTag(tag)} className="hover:text-red-400 transition-colors">
+              <X className="w-2.5 h-2.5" />
+            </button>
+          </span>
+        ))}
+        <div className="relative flex-1 min-w-[60px]">
+          <input
+            ref={inputRef}
+            value={inputValue}
+            onChange={(e) => { setInputValue(e.target.value); setShowSuggestions(true); }}
+            onKeyDown={handleKeyDown}
+            onFocus={() => setShowSuggestions(true)}
+            placeholder={tags.length === 0 ? (field.placeholder || "Type and press Enter...") : ""}
+            className="w-full bg-transparent text-[11px] text-gray-200 outline-none placeholder:text-gray-600"
+          />
+          {showSuggestions && filteredSuggestions.length > 0 && (
+            <div className="absolute z-50 left-0 top-full mt-1 w-48 max-h-40 overflow-y-auto rounded-md bg-gray-900 border border-gray-700 shadow-xl py-1">
+              {filteredSuggestions.slice(0, 20).map((s) => (
+                <button
+                  key={s}
+                  type="button"
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={() => addTag(s)}
+                  className="w-full text-left px-3 py-1 text-[11px] text-gray-300 hover:bg-gray-800/60 transition-colors"
+                >
+                  {s}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+      {field.helpText && <p className="text-[10px] text-gray-600">{field.helpText}</p>}
+    </div>
+  );
+}
+
+function TimeField({
+  field,
+  value,
+  onChange,
+  compact,
+}: {
+  field: FieldSchema;
+  value: any;
+  onChange: (v: any) => void;
+  compact?: boolean;
+}) {
+  const totalMinutes = typeof value === "number" ? value : 0;
+  const hours = Math.floor(totalMinutes / 60);
+  const mins = totalMinutes % 60;
+  const hourOptions = Array.from({ length: 24 }, (_, i) => i);
+  const minuteOptions = [0, 15, 30, 45];
+
+  const formatTime = (h: number, m: number) => {
+    const period = h >= 12 ? "PM" : "AM";
+    const h12 = h === 0 ? 12 : h > 12 ? h - 12 : h;
+    return `${h12}:${String(m).padStart(2, "0")} ${period}`;
+  };
+
+  return (
+    <div className="space-y-1">
+      <FieldLabel field={field} compact={compact} />
+      <div className="flex items-center gap-2">
+        <select
+          value={hours}
+          onChange={(e) => onChange(Number(e.target.value) * 60 + mins)}
+          className={cn(
+            "rounded-md bg-gray-950 border border-gray-800 text-gray-200 px-2 focus:border-blue-500 focus:outline-none transition-colors",
+            compact ? "h-7 text-[11px]" : "h-8 text-sm",
+          )}
+        >
+          {hourOptions.map((h) => (
+            <option key={h} value={h}>
+              {String(h).padStart(2, "0")}
+            </option>
+          ))}
+        </select>
+        <span className="text-gray-500 text-xs">:</span>
+        <select
+          value={minuteOptions.includes(mins) ? mins : 0}
+          onChange={(e) => onChange(hours * 60 + Number(e.target.value))}
+          className={cn(
+            "rounded-md bg-gray-950 border border-gray-800 text-gray-200 px-2 focus:border-blue-500 focus:outline-none transition-colors",
+            compact ? "h-7 text-[11px]" : "h-8 text-sm",
+          )}
+        >
+          {minuteOptions.map((m) => (
+            <option key={m} value={m}>
+              {String(m).padStart(2, "0")}
+            </option>
+          ))}
+        </select>
+        <span className="text-[10px] text-gray-500 ml-1">{formatTime(hours, mins)}</span>
+      </div>
+      {field.helpText && <p className="text-[10px] text-gray-600">{field.helpText}</p>}
     </div>
   );
 }

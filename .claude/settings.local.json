@@ -48,7 +48,8 @@
       "Bash(python3 -c ' *)",
       "Bash(python3 -c \"import sys,json;data=json.load\\(sys.stdin\\);[print\\(d['promoted_object']\\) for d in data['data'] if 'promoted_object' in d and 'application_id' in d.get\\('promoted_object',{}\\)]\")",
       "Bash(grep -E '^<\\(ChevronRight|ChevronDown|Megaphone|Layers|ImageIcon|Search|Loader2|Edit2|Copy|Checkbox\\)$')",
-      "Bash(npm install *)"
+      "Bash(npm install *)",
+      "Bash(python3 -c \"import json,sys; d=json.load\\(sys.stdin\\); [print\\(k,v\\) for k,v in {**d.get\\('dependencies',{}\\),**d.get\\('devDependencies',{}\\)}.items\\(\\) if 'radix' in k or 'shadcn' in k or 'base-ui' in k]\")"
     ]
   }
 }

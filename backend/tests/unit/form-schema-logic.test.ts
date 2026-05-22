@@ -147,7 +147,7 @@ describe('Targeting Schema Structure', () => {
     expect(geoField.type).toBe('object');
 
     const countriesField = geoField.objectSchema!.find(f => f.key === 'countries')!;
-    expect(countriesField.type).toBe('array');
+    expect(countriesField.type).toBe('tags');
   });
 
   it('has age fields', () => {
@@ -156,10 +156,12 @@ describe('Targeting Schema Structure', () => {
     const targetingField = targetingSection.fields[0];
     const ageMin = targetingField.objectSchema!.find(f => f.key === 'age_min')!;
     const ageMax = targetingField.objectSchema!.find(f => f.key === 'age_max')!;
-    expect(ageMin.min).toBe(13);
-    expect(ageMin.max).toBe(65);
-    expect(ageMax.min).toBe(13);
-    expect(ageMax.max).toBe(65);
+    expect(ageMin.type).toBe('enum');
+    expect(ageMin.options!.length).toBe(53);
+    expect(ageMin.options![0].value).toBe('13');
+    expect(ageMax.type).toBe('enum');
+    expect(ageMax.options!.length).toBe(53);
+    expect(ageMax.options![52].value).toBe('65');
   });
 
   it('has platform and placement fields', () => {

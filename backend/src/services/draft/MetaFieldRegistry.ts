@@ -488,6 +488,31 @@ export function sanitizeTargeting(targeting: any): any {
     if (!sanitized.age_min) {
       sanitized.age_min = 18;
     }
+    if (Array.isArray(sanitized.genders)) {
+      sanitized.genders = [...new Set(sanitized.genders.map(Number))];
+      if (sanitized.genders.length === 1 && sanitized.genders[0] === 0) delete sanitized.genders;
+    }
+    if (Array.isArray(sanitized.locales)) {
+      sanitized.locales = sanitized.locales.filter((l: any) => l !== '__all__');
+      if (sanitized.locales.length === 0) delete sanitized.locales;
+    }
+    const VALID_FB_POSITIONS = new Set([
+      'feed', 'right_hand_column', 'instant_article', 'marketplace',
+      'video_feeds', 'story', 'search', 'instream_video', 'profile_feed',
+    ]);
+    if (Array.isArray(sanitized.facebook_positions)) {
+      sanitized.facebook_positions = sanitized.facebook_positions
+        .filter((p: string) => VALID_FB_POSITIONS.has(p));
+      if (sanitized.facebook_positions.length === 0) delete sanitized.facebook_positions;
+    }
+    const VALID_IG_POSITIONS = new Set([
+      'stream', 'story', 'explore', 'reels', 'shop', 'ig_search', 'profile_feed',
+    ]);
+    if (Array.isArray(sanitized.instagram_positions)) {
+      sanitized.instagram_positions = sanitized.instagram_positions
+        .filter((p: string) => VALID_IG_POSITIONS.has(p));
+      if (sanitized.instagram_positions.length === 0) delete sanitized.instagram_positions;
+    }
     if (sanitized.geo_locations?.zips) {
       sanitized.geo_locations.zips = sanitized.geo_locations.zips
         .map((z: any) => (typeof z === 'string' ? { key: z } : z))

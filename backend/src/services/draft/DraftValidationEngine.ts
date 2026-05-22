@@ -153,6 +153,24 @@ export class DraftValidationEngine {
       errors.push({ field: 'optimization_goal', message: 'Optimization goal is required.', severity: 'error' });
     }
 
+    if (data.billing_event && data.optimization_goal) {
+      const VALID_BILLING: Record<string, string[]> = {
+        LINK_CLICKS: ['IMPRESSIONS', 'LINK_CLICKS'],
+        APP_INSTALLS: ['IMPRESSIONS', 'APP_INSTALLS'],
+        PAGE_LIKES: ['IMPRESSIONS', 'PAGE_LIKES'],
+        POST_ENGAGEMENT: ['IMPRESSIONS', 'POST_ENGAGEMENT'],
+        THRUPLAY: ['IMPRESSIONS', 'THRUPLAY'],
+      };
+      const allowed = VALID_BILLING[data.optimization_goal] || ['IMPRESSIONS'];
+      if (!allowed.includes(data.billing_event)) {
+        errors.push({
+          field: 'billing_event',
+          message: `Billing event "${data.billing_event}" is not valid for optimization goal "${data.optimization_goal}". Use one of: ${allowed.join(', ')}.`,
+          severity: 'error',
+        });
+      }
+    }
+
     if (!data.targeting) {
       errors.push({ field: 'targeting', message: 'Targeting is required. Add at least a country or region.', severity: 'error' });
     }
@@ -313,6 +331,15 @@ export class DraftValidationEngine {
       });
     }
 
+    // Search position requires Facebook News Feed (Meta error 100/2490047).
+    if (fbPositions.includes('search') && !fbPositions.includes('feed')) {
+      errors.push({
+        field: 'targeting.facebook_positions',
+        message: 'Facebook Search placement also requires Facebook News Feed. Add "feed" or remove "search".',
+        severity: 'error',
+      });
+    }
+
     // Missing geo targeting
     if (data.targeting && typeof data.targeting === 'object') {
       const geo = data.targeting.geo_locations;
@@ -333,6 +360,31 @@ export class DraftValidationEngine {
         message: 'Thailand requires minimum age of 20.',
         severity: 'error',
       });
+    }
+
+    // EU DSA compliance — dsa_beneficiary and dsa_payor required when targeting EU/EEA countries (Meta error 100/3858081)
+    const EU_COUNTRIES = new Set([
+      'AT', 'BE', 'BG', 'HR', 'CY', 'CZ', 'DK', 'EE', 'FI', 'FR',
+      'DE', 'GR', 'HU', 'IE', 'IT', 'LV', 'LT', 'LU', 'MT', 'NL',
+      'PL', 'PT', 'RO', 'SK', 'SI', 'ES', 'SE',
+      'IS', 'LI', 'NO',
+    ]);
+    const targetsEU = geoCountries.some(c => EU_COUNTRIES.has(c));
+    if (targetsEU) {
+      if (!data.dsa_beneficiary) {
+        errors.push({
+          field: 'dsa_beneficiary',
+          message: 'DSA Beneficiary is required when targeting EU/EEA countries. Enter the person or organization being promoted.',
+          severity: 'error',
+        });
+      }
+      if (!data.dsa_payor) {
+        errors.push({
+          field: 'dsa_payor',
+          message: 'DSA Payor is required when targeting EU/EEA countries. Enter the entity paying for the ad.',
+          severity: 'error',
+        });
+      }
     }
 
     // age_min must be <= age_max
@@ -553,13 +605,13 @@ export class DraftValidationEngine {
           const ageMin = t.age_min !== undefined ? Number(t.age_min) : 18;
           const ageMax = t.age_max !== undefined ? Number(t.age_max) : 65;
           if (ageMin !== 18 || ageMax < 65) {
-            campaignErrors.push({
+            if (!adSetErrors[adSet.id]) adSetErrors[adSet.id] = [];
+            adSetErrors[adSet.id].push({
               field: 'special_ad_categories',
-              message: `Ad set "${adSet.name}" uses a custom age range (${ageMin}–${ageMax}), but Special Ad Categories require ages 18–65+. Reset the age range or remove Special Ad Categories.`,
+              message: `Custom age range (${ageMin}–${ageMax}) not allowed with Special Ad Categories. Reset to 18–65+ or remove Special Ad Categories from the campaign.`,
               severity: 'error',
             });
             isValid = false;
-            break;
           }
         }
 
@@ -571,25 +623,25 @@ export class DraftValidationEngine {
           const t = (adSet.data as any)?.targeting;
           const countries: string[] = t?.geo_locations?.countries || [];
           if (countries.includes('TH')) {
-            campaignErrors.push({
+            if (!adSetErrors[adSet.id]) adSetErrors[adSet.id] = [];
+            adSetErrors[adSet.id].push({
               field: 'special_ad_categories',
-              message: `Ad set "${adSet.name}" targets Thailand, which requires minimum age 20 — but Special Ad Categories require ages 18–65+. These cannot coexist. Either remove Thailand from targeting or remove Special Ad Categories from the campaign.`,
+              message: `Targets Thailand (requires age 20+), but Special Ad Categories require ages 18–65+. These cannot coexist. Either remove Thailand from targeting or remove Special Ad Categories from the campaign.`,
               severity: 'error',
             });
             isValid = false;
-            break;
           }
         }
       }
 
       for (const adSet of campaign.adSets) {
         const errors = await this.validateAdSet(adSet, campaignObjective, isCBO);
-        adSetErrors[adSet.id] = errors;
+        adSetErrors[adSet.id] = [...(adSetErrors[adSet.id] || []), ...errors];
         if (errors.some(e => e.severity === 'error')) isValid = false;
 
         if (adSet.ads) {
           if (adSet.ads.length === 0) {
-            errors.push({
+            adSetErrors[adSet.id].push({
               field: 'ads',
               message: `Ad set "${adSet.name}" has no ads. Add at least one ad before publishing.`,
               severity: 'error',

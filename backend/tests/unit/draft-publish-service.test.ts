@@ -1190,12 +1190,15 @@ describe('DraftPublishService.publishCampaign', () => {
     expect(campaignCall[1]).not.toHaveProperty('lifetime_budget');
   });
 
-  it('updateMetaCampaign catches error without throwing', async () => {
+  it('updateMetaCampaign throws and stops publish on error', async () => {
     const campaign = makeDraftCampaign({ metaId: 'existing_camp' });
     mockPrisma.draftCampaign.findUnique.mockResolvedValue(campaign);
     mockPrisma.draftCampaign.update.mockResolvedValue({});
     mockPrisma.draftAdSet.update.mockResolvedValue({});
+    mockPrisma.draftAdSet.updateMany.mockResolvedValue({});
     mockPrisma.draftAd.update.mockResolvedValue({});
+    mockPrisma.draftAd.updateMany.mockResolvedValue({});
+    mockPrisma.draftPublishLog.create.mockResolvedValue({});
     mockCheckExistence.mockResolvedValue(true);
 
     mockFbPost
@@ -1203,8 +1206,7 @@ describe('DraftPublishService.publishCampaign', () => {
       .mockResolvedValueOnce({ data: { id: 'meta_adset_1' } })
       .mockResolvedValueOnce({ data: { id: 'meta_ad_1' } });
 
-    const result = await DraftPublishService.publishCampaign('camp-1', 'token');
-    expect(result.success).toBe(true);
+    await expect(DraftPublishService.publishCampaign('camp-1', 'token')).rejects.toThrow();
   });
 
   it('handles updateMetaAdSet error gracefully (does not throw)', async () => {
