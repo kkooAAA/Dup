@@ -498,7 +498,7 @@ export function sanitizeTargeting(targeting: any): any {
     }
     const VALID_FB_POSITIONS = new Set([
       'feed', 'right_hand_column', 'instant_article', 'marketplace',
-      'video_feeds', 'story', 'search', 'instream_video', 'profile_feed',
+      'story', 'search', 'instream_video', 'profile_feed',
     ]);
     if (Array.isArray(sanitized.facebook_positions)) {
       sanitized.facebook_positions = sanitized.facebook_positions
@@ -506,7 +506,7 @@ export function sanitizeTargeting(targeting: any): any {
       if (sanitized.facebook_positions.length === 0) delete sanitized.facebook_positions;
     }
     const VALID_IG_POSITIONS = new Set([
-      'stream', 'story', 'explore', 'reels', 'shop', 'ig_search', 'profile_feed',
+      'stream', 'story', 'explore', 'reels', 'ig_search', 'profile_feed',
     ]);
     if (Array.isArray(sanitized.instagram_positions)) {
       sanitized.instagram_positions = sanitized.instagram_positions

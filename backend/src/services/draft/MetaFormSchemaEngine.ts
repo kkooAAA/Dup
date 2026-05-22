@@ -1640,7 +1640,6 @@ export class MetaFormSchemaEngine {
           { value: 'right_hand_column', label: 'Right Column' },
           { value: 'instant_article', label: 'Instant Articles' },
           { value: 'marketplace', label: 'Marketplace' },
-          { value: 'video_feeds', label: 'Video Feeds' },
           { value: 'story', label: 'Stories' },
           { value: 'search', label: 'Search Results', description: 'Requires Feed to also be selected' },
         ],
@@ -1663,7 +1662,6 @@ export class MetaFormSchemaEngine {
           { value: 'story', label: 'Stories' },
           { value: 'explore', label: 'Explore' },
           { value: 'reels', label: 'Reels' },
-          { value: 'shop', label: 'Shop' },
         ],
         dependsOn: [{
           field: 'publisher_platforms',
