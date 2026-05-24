@@ -364,8 +364,10 @@ export class FacebookService {
       return response.data;
     } catch (error: any) {
       const fbError = error.response?.data?.error;
-      if (fbError?.error_subcode === 1885621 || (fbError?.code === 100 && fbError?.message?.includes('budget'))) {
-        console.warn(`[FacebookService] Budget conflict detected (CBO mismatch). Retrying WITHOUT budget fields...`);
+
+      // CBO mismatch — retry without budget (campaign owns it)
+      if (fbError?.error_subcode === 1885621) {
+        console.warn(`[FacebookService] CBO mismatch. Retrying WITHOUT budget fields...`);
         const retryPayload = buildPayload(false);
         const response = await this.withRetry(
           () => this.client.post(`/${adAccountId}/adsets`, retryPayload),
@@ -373,6 +375,24 @@ export class FacebookService {
         );
         return response.data;
       }
+
+      // Budget too low — parse minimum from error and retry with it
+      if (fbError?.error_subcode === 1885272) {
+        const minMatch = fbError.error_user_msg?.match(/more than [^\d]*([\d,.]+)/);
+        if (minMatch) {
+          const minBudget = Math.ceil(parseFloat(minMatch[1].replace(/,/g, '')) * 100);
+          console.warn(`[FacebookService] Budget too low. Retrying with minimum: ${minBudget} (cents)`);
+          const retryPayload = buildPayload(!isCBO);
+          if (retryPayload.lifetime_budget) retryPayload.lifetime_budget = String(minBudget);
+          else if (retryPayload.daily_budget) retryPayload.daily_budget = String(minBudget);
+          const response = await this.withRetry(
+            () => this.client.post(`/${adAccountId}/adsets`, retryPayload),
+            `duplicateAdSet:create-minBudget`
+          );
+          return response.data;
+        }
+      }
+
       console.error(`[FacebookService] AdSet Duplication Failed:`, error.response?.data || error.message);
       throw error;
     }

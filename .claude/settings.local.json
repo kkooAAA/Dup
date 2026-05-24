@@ -54,7 +54,10 @@
       "Bash(grep -n 'it\\(`' /home/konony/vscode/Dup/backend/tests/unit/wide-creation.test.ts)",
       "Bash(grep -n \"validateTemplate\\\\|', \\(\\) => {\" /home/konony/vscode/Dup/backend/tests/unit/wide-creation-per-objective.test.ts)",
       "Bash(kill -0 12675)",
-      "Bash(kill 12675)"
+      "Bash(kill 12675)",
+      "Bash(npx tsx *)",
+      "Bash(python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\(json.dumps\\({'id':d['id'],'name':d['name'],'obj':d['objective'],'data_keys':list\\(\\(d.get\\('data'\\) or {}\\).keys\\(\\)\\)},indent=2\\)\\)\")",
+      "Bash(python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\(json.dumps\\(d, indent=2\\)\\)\")"
     ]
   }
 }

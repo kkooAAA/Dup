@@ -93,7 +93,7 @@ export class DraftService {
 
     // 1. Fetch original campaign
     const originalCampaign = await fbService.get(`/${campaignId}`, {
-      fields: 'name,objective,bid_strategy,daily_budget,lifetime_budget,special_ad_categories,account_id'
+      fields: 'name,objective,bid_strategy,buying_type,daily_budget,lifetime_budget,special_ad_categories,account_id'
     });
     const campaignData = originalCampaign.data;
 

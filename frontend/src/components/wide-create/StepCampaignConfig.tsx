@@ -28,6 +28,20 @@ const OBJECTIVE_LABELS: Record<string, string> = {
   OUTCOME_APP_PROMOTION: "App Promotion",
 };
 
+const VALID_BUYING_TYPES: Record<string, string[]> = {
+  OUTCOME_AWARENESS: ["AUCTION", "RESERVED"],
+  OUTCOME_ENGAGEMENT: ["AUCTION", "RESERVED"],
+  OUTCOME_TRAFFIC: ["AUCTION"],
+  OUTCOME_LEADS: ["AUCTION"],
+  OUTCOME_SALES: ["AUCTION"],
+  OUTCOME_APP_PROMOTION: ["AUCTION"],
+};
+
+const BUYING_TYPE_LABELS: Record<string, string> = {
+  AUCTION: "Auction",
+  RESERVED: "Reach & Frequency",
+};
+
 interface FormSchema {
   sections: Array<{
     id: string;
@@ -244,6 +258,26 @@ function FallbackCampaignForm({
             </Select>
           </div>
         </div>
+        {(VALID_BUYING_TYPES[objective] || []).length > 1 && (
+          <div>
+            <Label className="text-xs text-gray-500">Buying Type</Label>
+            <Select
+              value={firstCampaign.fields.buying_type || "AUCTION"}
+              onValueChange={(v) => v && handleChange("buying_type", v)}
+            >
+              <SelectTrigger className="bg-gray-800 border-gray-700 mt-1">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {VALID_BUYING_TYPES[objective].map((bt) => (
+                  <SelectItem key={bt} value={bt}>
+                    {BUYING_TYPE_LABELS[bt] || bt}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        )}
       </CardContent>
     </Card>
   );

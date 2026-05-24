@@ -1397,7 +1397,6 @@ exports[`Ad Set Duplication Snapshots > OUTCOME_TRAFFIC > non-CBO payload 3`] = 
 exports[`Campaign Duplication Snapshots > OUTCOME_APP_PROMOTION campaign payload 1`] = `
 {
   "bid_strategy": "LOWEST_COST_WITH_BID_CAP",
-  "buying_type": "AUCTION",
   "daily_budget": "15000",
   "name": "App Install Campaign",
   "objective": "OUTCOME_APP_PROMOTION",
@@ -1451,7 +1450,6 @@ exports[`Campaign Duplication Snapshots > OUTCOME_ENGAGEMENT campaign payload 3`
 exports[`Campaign Duplication Snapshots > OUTCOME_LEADS campaign payload 1`] = `
 {
   "bid_strategy": "COST_CAP",
-  "buying_type": "AUCTION",
   "daily_budget": "10000",
   "name": "Lead Gen Campaign",
   "objective": "OUTCOME_LEADS",
@@ -1469,7 +1467,6 @@ exports[`Campaign Duplication Snapshots > OUTCOME_LEADS campaign payload 3`] = `
 exports[`Campaign Duplication Snapshots > OUTCOME_SALES campaign payload 1`] = `
 {
   "bid_strategy": "LOWEST_COST_WITHOUT_CAP",
-  "buying_type": "AUCTION",
   "lifetime_budget": "200000",
   "name": "Conversion Campaign",
   "objective": "OUTCOME_SALES",
@@ -1487,7 +1484,6 @@ exports[`Campaign Duplication Snapshots > OUTCOME_SALES campaign payload 3`] = `
 exports[`Campaign Duplication Snapshots > OUTCOME_TRAFFIC campaign payload 1`] = `
 {
   "bid_strategy": "LOWEST_COST_WITHOUT_CAP",
-  "buying_type": "AUCTION",
   "daily_budget": "5000",
   "name": "Traffic Campaign - TH",
   "objective": "OUTCOME_TRAFFIC",
@@ -1533,7 +1529,6 @@ exports[`Objective Conversion Snapshots > OUTCOME_APP_PROMOTION → OUTCOME_ENGA
 exports[`Objective Conversion Snapshots > OUTCOME_APP_PROMOTION → OUTCOME_LEADS campaign conversion 1`] = `
 {
   "bid_strategy": "LOWEST_COST_WITHOUT_CAP",
-  "buying_type": "AUCTION",
   "daily_budget": "15000",
   "name": "Converted OUTCOME_APP_PROMOTION to OUTCOME_LEADS",
   "objective": "OUTCOME_LEADS",
@@ -1547,7 +1542,6 @@ exports[`Objective Conversion Snapshots > OUTCOME_APP_PROMOTION → OUTCOME_LEAD
 exports[`Objective Conversion Snapshots > OUTCOME_APP_PROMOTION → OUTCOME_SALES campaign conversion 1`] = `
 {
   "bid_strategy": "LOWEST_COST_WITHOUT_CAP",
-  "buying_type": "AUCTION",
   "daily_budget": "15000",
   "name": "Converted OUTCOME_APP_PROMOTION to OUTCOME_SALES",
   "objective": "OUTCOME_SALES",
@@ -1561,7 +1555,6 @@ exports[`Objective Conversion Snapshots > OUTCOME_APP_PROMOTION → OUTCOME_SALE
 exports[`Objective Conversion Snapshots > OUTCOME_APP_PROMOTION → OUTCOME_TRAFFIC campaign conversion 1`] = `
 {
   "bid_strategy": "LOWEST_COST_WITHOUT_CAP",
-  "buying_type": "AUCTION",
   "daily_budget": "15000",
   "name": "Converted OUTCOME_APP_PROMOTION to OUTCOME_TRAFFIC",
   "objective": "OUTCOME_TRAFFIC",
@@ -1575,7 +1568,6 @@ exports[`Objective Conversion Snapshots > OUTCOME_APP_PROMOTION → OUTCOME_TRAF
 exports[`Objective Conversion Snapshots > OUTCOME_AWARENESS → OUTCOME_APP_PROMOTION campaign conversion 1`] = `
 {
   "bid_strategy": "LOWEST_COST_WITHOUT_CAP",
-  "buying_type": "AUCTION",
   "daily_budget": "3000",
   "name": "Converted OUTCOME_AWARENESS to OUTCOME_APP_PROMOTION",
   "objective": "OUTCOME_APP_PROMOTION",
@@ -1603,7 +1595,6 @@ exports[`Objective Conversion Snapshots > OUTCOME_AWARENESS → OUTCOME_ENGAGEME
 exports[`Objective Conversion Snapshots > OUTCOME_AWARENESS → OUTCOME_LEADS campaign conversion 1`] = `
 {
   "bid_strategy": "LOWEST_COST_WITHOUT_CAP",
-  "buying_type": "AUCTION",
   "daily_budget": "3000",
   "name": "Converted OUTCOME_AWARENESS to OUTCOME_LEADS",
   "objective": "OUTCOME_LEADS",
@@ -1617,7 +1608,6 @@ exports[`Objective Conversion Snapshots > OUTCOME_AWARENESS → OUTCOME_LEADS ca
 exports[`Objective Conversion Snapshots > OUTCOME_AWARENESS → OUTCOME_SALES campaign conversion 1`] = `
 {
   "bid_strategy": "LOWEST_COST_WITHOUT_CAP",
-  "buying_type": "AUCTION",
   "daily_budget": "3000",
   "name": "Converted OUTCOME_AWARENESS to OUTCOME_SALES",
   "objective": "OUTCOME_SALES",
@@ -1631,7 +1621,6 @@ exports[`Objective Conversion Snapshots > OUTCOME_AWARENESS → OUTCOME_SALES ca
 exports[`Objective Conversion Snapshots > OUTCOME_AWARENESS → OUTCOME_TRAFFIC campaign conversion 1`] = `
 {
   "bid_strategy": "LOWEST_COST_WITHOUT_CAP",
-  "buying_type": "AUCTION",
   "daily_budget": "3000",
   "name": "Converted OUTCOME_AWARENESS to OUTCOME_TRAFFIC",
   "objective": "OUTCOME_TRAFFIC",
@@ -1645,7 +1634,6 @@ exports[`Objective Conversion Snapshots > OUTCOME_AWARENESS → OUTCOME_TRAFFIC 
 exports[`Objective Conversion Snapshots > OUTCOME_ENGAGEMENT → OUTCOME_APP_PROMOTION campaign conversion 1`] = `
 {
   "bid_strategy": "LOWEST_COST_WITHOUT_CAP",
-  "buying_type": "AUCTION",
   "daily_budget": "8000",
   "name": "Converted OUTCOME_ENGAGEMENT to OUTCOME_APP_PROMOTION",
   "objective": "OUTCOME_APP_PROMOTION",
@@ -1673,7 +1661,6 @@ exports[`Objective Conversion Snapshots > OUTCOME_ENGAGEMENT → OUTCOME_AWARENE
 exports[`Objective Conversion Snapshots > OUTCOME_ENGAGEMENT → OUTCOME_LEADS campaign conversion 1`] = `
 {
   "bid_strategy": "LOWEST_COST_WITHOUT_CAP",
-  "buying_type": "AUCTION",
   "daily_budget": "8000",
   "name": "Converted OUTCOME_ENGAGEMENT to OUTCOME_LEADS",
   "objective": "OUTCOME_LEADS",
@@ -1687,7 +1674,6 @@ exports[`Objective Conversion Snapshots > OUTCOME_ENGAGEMENT → OUTCOME_LEADS c
 exports[`Objective Conversion Snapshots > OUTCOME_ENGAGEMENT → OUTCOME_SALES campaign conversion 1`] = `
 {
   "bid_strategy": "LOWEST_COST_WITHOUT_CAP",
-  "buying_type": "AUCTION",
   "daily_budget": "8000",
   "name": "Converted OUTCOME_ENGAGEMENT to OUTCOME_SALES",
   "objective": "OUTCOME_SALES",
@@ -1701,7 +1687,6 @@ exports[`Objective Conversion Snapshots > OUTCOME_ENGAGEMENT → OUTCOME_SALES c
 exports[`Objective Conversion Snapshots > OUTCOME_ENGAGEMENT → OUTCOME_TRAFFIC campaign conversion 1`] = `
 {
   "bid_strategy": "LOWEST_COST_WITHOUT_CAP",
-  "buying_type": "AUCTION",
   "daily_budget": "8000",
   "name": "Converted OUTCOME_ENGAGEMENT to OUTCOME_TRAFFIC",
   "objective": "OUTCOME_TRAFFIC",
@@ -1715,7 +1700,6 @@ exports[`Objective Conversion Snapshots > OUTCOME_ENGAGEMENT → OUTCOME_TRAFFIC
 exports[`Objective Conversion Snapshots > OUTCOME_LEADS → OUTCOME_APP_PROMOTION campaign conversion 1`] = `
 {
   "bid_strategy": "LOWEST_COST_WITHOUT_CAP",
-  "buying_type": "AUCTION",
   "daily_budget": "10000",
   "name": "Converted OUTCOME_LEADS to OUTCOME_APP_PROMOTION",
   "objective": "OUTCOME_APP_PROMOTION",
@@ -1757,7 +1741,6 @@ exports[`Objective Conversion Snapshots > OUTCOME_LEADS → OUTCOME_ENGAGEMENT c
 exports[`Objective Conversion Snapshots > OUTCOME_LEADS → OUTCOME_SALES campaign conversion 1`] = `
 {
   "bid_strategy": "LOWEST_COST_WITHOUT_CAP",
-  "buying_type": "AUCTION",
   "daily_budget": "10000",
   "name": "Converted OUTCOME_LEADS to OUTCOME_SALES",
   "objective": "OUTCOME_SALES",
@@ -1771,7 +1754,6 @@ exports[`Objective Conversion Snapshots > OUTCOME_LEADS → OUTCOME_SALES campai
 exports[`Objective Conversion Snapshots > OUTCOME_LEADS → OUTCOME_TRAFFIC campaign conversion 1`] = `
 {
   "bid_strategy": "LOWEST_COST_WITHOUT_CAP",
-  "buying_type": "AUCTION",
   "daily_budget": "10000",
   "name": "Converted OUTCOME_LEADS to OUTCOME_TRAFFIC",
   "objective": "OUTCOME_TRAFFIC",
@@ -1785,7 +1767,6 @@ exports[`Objective Conversion Snapshots > OUTCOME_LEADS → OUTCOME_TRAFFIC camp
 exports[`Objective Conversion Snapshots > OUTCOME_SALES → OUTCOME_APP_PROMOTION campaign conversion 1`] = `
 {
   "bid_strategy": "LOWEST_COST_WITHOUT_CAP",
-  "buying_type": "AUCTION",
   "lifetime_budget": "200000",
   "name": "Converted OUTCOME_SALES to OUTCOME_APP_PROMOTION",
   "objective": "OUTCOME_APP_PROMOTION",
@@ -1827,7 +1808,6 @@ exports[`Objective Conversion Snapshots > OUTCOME_SALES → OUTCOME_ENGAGEMENT c
 exports[`Objective Conversion Snapshots > OUTCOME_SALES → OUTCOME_LEADS campaign conversion 1`] = `
 {
   "bid_strategy": "LOWEST_COST_WITHOUT_CAP",
-  "buying_type": "AUCTION",
   "lifetime_budget": "200000",
   "name": "Converted OUTCOME_SALES to OUTCOME_LEADS",
   "objective": "OUTCOME_LEADS",
@@ -1841,7 +1821,6 @@ exports[`Objective Conversion Snapshots > OUTCOME_SALES → OUTCOME_LEADS campai
 exports[`Objective Conversion Snapshots > OUTCOME_SALES → OUTCOME_TRAFFIC campaign conversion 1`] = `
 {
   "bid_strategy": "LOWEST_COST_WITHOUT_CAP",
-  "buying_type": "AUCTION",
   "lifetime_budget": "200000",
   "name": "Converted OUTCOME_SALES to OUTCOME_TRAFFIC",
   "objective": "OUTCOME_TRAFFIC",
@@ -1855,7 +1834,6 @@ exports[`Objective Conversion Snapshots > OUTCOME_SALES → OUTCOME_TRAFFIC camp
 exports[`Objective Conversion Snapshots > OUTCOME_TRAFFIC → OUTCOME_APP_PROMOTION campaign conversion 1`] = `
 {
   "bid_strategy": "LOWEST_COST_WITHOUT_CAP",
-  "buying_type": "AUCTION",
   "daily_budget": "5000",
   "name": "Converted OUTCOME_TRAFFIC to OUTCOME_APP_PROMOTION",
   "objective": "OUTCOME_APP_PROMOTION",
@@ -1897,7 +1875,6 @@ exports[`Objective Conversion Snapshots > OUTCOME_TRAFFIC → OUTCOME_ENGAGEMENT
 exports[`Objective Conversion Snapshots > OUTCOME_TRAFFIC → OUTCOME_LEADS campaign conversion 1`] = `
 {
   "bid_strategy": "LOWEST_COST_WITHOUT_CAP",
-  "buying_type": "AUCTION",
   "daily_budget": "5000",
   "name": "Converted OUTCOME_TRAFFIC to OUTCOME_LEADS",
   "objective": "OUTCOME_LEADS",
@@ -1911,7 +1888,6 @@ exports[`Objective Conversion Snapshots > OUTCOME_TRAFFIC → OUTCOME_LEADS camp
 exports[`Objective Conversion Snapshots > OUTCOME_TRAFFIC → OUTCOME_SALES campaign conversion 1`] = `
 {
   "bid_strategy": "LOWEST_COST_WITHOUT_CAP",
-  "buying_type": "AUCTION",
   "daily_budget": "5000",
   "name": "Converted OUTCOME_TRAFFIC to OUTCOME_SALES",
   "objective": "OUTCOME_SALES",

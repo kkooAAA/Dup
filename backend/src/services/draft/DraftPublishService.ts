@@ -131,17 +131,16 @@ export class DraftPublishService {
             'draftCampaign.update(metaId after recreate)',
           );
         } else {
-          // Check if objective matches — objective is immutable on Meta
-          const needsRecreate = await this.checkObjectiveMismatch(fbService, metaCampaignId, campaignData.objective);
+          const needsRecreate = await this.checkImmutableMismatch(fbService, metaCampaignId, campaignData);
           if (needsRecreate) {
-            console.warn(`[DraftPublishService] Objective mismatch on ${metaCampaignId}, deleting and recreating`);
+            console.warn(`[DraftPublishService] Immutable field mismatch on ${metaCampaignId}, deleting and recreating`);
             await this.deleteMetaCampaign(fbService, metaCampaignId);
             await withDbRetry(
               () => prisma.draftCampaign.update({
                 where: { id: campaignId },
                 data: { metaId: null },
               }),
-              'draftCampaign.update(clear metaId objective mismatch)',
+              'draftCampaign.update(clear metaId immutable mismatch)',
             );
             // Clear child metaIds — they were under the old campaign
             for (const adSet of campaign.adSets) {
@@ -170,7 +169,7 @@ export class DraftPublishService {
                 where: { id: campaignId },
                 data: { metaId: metaCampaignId },
               }),
-              'draftCampaign.update(metaId after objective recreate)',
+              'draftCampaign.update(metaId after immutable recreate)',
             );
           } else {
             await this.updateMetaCampaign(fbService, metaCampaignId, campaign.name, campaignData, isCBO);
@@ -366,15 +365,19 @@ export class DraftPublishService {
     return hasCampaignBudget;
   }
 
-  private static async checkObjectiveMismatch(
+  private static async checkImmutableMismatch(
     fbService: FacebookService,
     metaCampaignId: string,
-    targetObjective: string,
+    campaignData: any,
   ): Promise<boolean> {
     try {
-      const resp = await fbService.client.get(`/${metaCampaignId}`, { params: { fields: 'objective' } });
-      const metaObjective = resp.data.objective;
-      return metaObjective && metaObjective !== targetObjective;
+      const resp = await fbService.client.get(`/${metaCampaignId}`, { params: { fields: 'objective,buying_type' } });
+      const meta = resp.data;
+      if (meta.objective && meta.objective !== campaignData.objective) return true;
+      const metaBuyingType = meta.buying_type || 'AUCTION';
+      const draftBuyingType = campaignData.buying_type || 'AUCTION';
+      if (metaBuyingType !== draftBuyingType) return true;
+      return false;
     } catch {
       return false;
     }

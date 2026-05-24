@@ -230,6 +230,7 @@ export default function ExplorerPage() {
       else newSelected.set(id, { id, type, name });
       return newSelected;
     });
+    resetOptimization();
   }, []);
 
   const resetOptimization = () => {

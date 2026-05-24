@@ -89,6 +89,12 @@ export const BulkEditModal = ({
     [selectedDrafts]
   );
 
+  const RESERVATION_OBJECTIVES = new Set(['OUTCOME_AWARENESS', 'OUTCOME_ENGAGEMENT']);
+  const showBuyingType = useMemo(
+    () => selectedDrafts.length > 0 && selectedDrafts.every((d) => RESERVATION_OBJECTIVES.has(d.objective)),
+    [selectedDrafts]
+  );
+
   const fields = useMemo(() => ({
     objective: computeCommonValue(selectedDrafts, (d) => d.objective),
     bid_strategy: computeCommonValue(selectedDrafts, (d) => d.data?.bid_strategy),
@@ -408,7 +414,7 @@ export const BulkEditModal = ({
 
           {renderDropdownField("bid_strategy", "Bid Strategy", fields.bid_strategy, BID_STRATEGIES)}
 
-          {renderDropdownField("buying_type", "Buying Type", fields.buying_type, BUYING_TYPES,
+          {showBuyingType && renderDropdownField("buying_type", "Buying Type", fields.buying_type, BUYING_TYPES,
             "Cannot be changed after publishing to Meta.", true
           )}
 

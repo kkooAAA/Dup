@@ -23,6 +23,7 @@ import { MetaForm } from "@/components/meta/MetaForm";
 import {
   OBJECTIVE_LABELS, BID_STRATEGIES,
   VALID_OPTIMIZATION_GOALS, VALID_DESTINATION_TYPES,
+  VALID_BUYING_TYPES,
   PROMOTED_OBJECT_REQUIREMENTS, PROMOTED_OBJECT_FIELD_LABELS,
 } from "@/lib/meta-schema";
 
@@ -504,8 +505,11 @@ export default function DraftEditorPage({ params: paramsPromise }: { params: Pro
       <MetaField label="Campaign Name" value={editData.name || ""} onChange={(v) => handleUpdateField("name", v)} />
       <MetaField label="Objective" value={campaignObjective} type="enum"
         options={Object.entries(OBJECTIVE_LABELS).map(([v, l]) => ({ value: v, label: l }))} immutable />
-      <MetaField label="Buying Type" value={editData.data?.buying_type || "AUCTION"} type="enum"
-        options={[{ value: "AUCTION", label: "Auction" }, { value: "RESERVED", label: "Reach & Frequency" }]} immutable />
+      {(VALID_BUYING_TYPES[campaignObjective] || []).length > 1 && (
+        <MetaField label="Buying Type" value={editData.data?.buying_type || "AUCTION"} type="enum"
+          options={VALID_BUYING_TYPES[campaignObjective].map(v => ({ value: v, label: v === 'RESERVED' ? 'Reach & Frequency' : 'Auction' }))}
+          onChange={(v: string) => handleUpdateDataField("buying_type", v)} />
+      )}
 
       <div className="pt-2 border-t border-gray-800/40">
         <span className="text-[10px] font-semibold text-gray-600 uppercase tracking-wider">Budget & Bidding</span>

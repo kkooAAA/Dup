@@ -9,6 +9,7 @@ import {
   ATTRIBUTION_SPEC_OBJECTIVES,
   BID_CAP_STRATEGIES,
   COST_CAP_INCOMPATIBLE_GOALS,
+  VALID_BUYING_TYPES,
   OBJECTIVE_DEFAULTS,
   OPTIMIZATION_GOAL_LABELS,
   DESTINATION_TYPE_LABELS,
@@ -84,6 +85,10 @@ export class FieldOptimizationEngine {
       }
 
       if (key === 'is_adset_budget_sharing_enabled') continue;
+
+      if (key === 'buying_type') {
+        if ((VALID_BUYING_TYPES[objective] || []).length <= 1) continue;
+      }
 
       if (value !== undefined && value !== null) {
         payload[key] = value;
@@ -334,6 +339,8 @@ export class FieldOptimizationEngine {
       bid_strategy: 'LOWEST_COST_WITHOUT_CAP',
     });
 
+    const validBuyingTypes = VALID_BUYING_TYPES[targetObjective] || ['AUCTION'];
+
     for (const f of result.fields) {
       if (f.field === 'objective' && f.originalValue !== targetObjective) {
         f.action = 'transformed';
@@ -345,6 +352,13 @@ export class FieldOptimizationEngine {
       if (f.field === 'bid_strategy') {
         f.action = 'auto_mapped';
         f.reason = 'Reset to safest strategy for conversion';
+      }
+      if (f.field === 'buying_type' && !validBuyingTypes.includes(f.newValue)) {
+        f.originalValue = f.newValue;
+        f.newValue = 'AUCTION';
+        f.action = 'auto_mapped';
+        f.reason = `${f.originalValue} not supported for ${targetObjective}, reset to AUCTION`;
+        result.payload.buying_type = 'AUCTION';
       }
     }
 
@@ -474,6 +488,13 @@ export class FieldOptimizationEngine {
       if (config.required === true && !payload[key] && key !== 'status') {
         if (key === 'campaign_id' || key === 'adset_id') continue;
         errors.push(`${config.label} (${key}) is required`);
+      }
+    }
+
+    if (entityType === 'campaign' && payload.objective && payload.buying_type) {
+      const validTypes = VALID_BUYING_TYPES[payload.objective] || ['AUCTION'];
+      if (!validTypes.includes(payload.buying_type)) {
+        errors.push(`Buying type ${payload.buying_type === 'RESERVED' ? 'Reach & Frequency' : payload.buying_type} is not supported for ${payload.objective}`);
       }
     }
 

@@ -191,21 +191,21 @@ export class MetaFormSchemaEngine {
               })),
               invalidates: ['optimization_goal', 'destination_type', 'promoted_object', 'billing_event'],
             },
-            {
+            ...((VALID_BUYING_TYPES[objective] || []).length > 1 ? [{
               key: 'buying_type',
               label: 'Buying Type',
-              type: 'enum',
+              type: 'enum' as const,
               required: false,
               editable: true,
-              options: (VALID_BUYING_TYPES[objective] || ['AUCTION']).map(v => ({
+              options: VALID_BUYING_TYPES[objective].map(v => ({
                 value: v,
                 label: CAMPAIGN_FIELDS.buying_type.enumLabels![v] || v,
               })),
-            },
+            }] : []),
             {
               key: 'status',
               label: 'Status',
-              type: 'enum',
+              type: 'enum' as const,
               required: true,
               editable: false,
               defaultValue: 'PAUSED',

@@ -97,6 +97,15 @@ export const VALID_DESTINATION_TYPES: Record<string, { value: string; label: str
   OUTCOME_APP_PROMOTION: [{ value: 'APP', label: 'App' }, { value: 'UNDEFINED', label: 'Default' }],
 };
 
+export const VALID_BUYING_TYPES: Record<string, string[]> = {
+  OUTCOME_AWARENESS:     ['AUCTION', 'RESERVED'],
+  OUTCOME_ENGAGEMENT:    ['AUCTION', 'RESERVED'],
+  OUTCOME_TRAFFIC:       ['AUCTION'],
+  OUTCOME_LEADS:         ['AUCTION'],
+  OUTCOME_SALES:         ['AUCTION'],
+  OUTCOME_APP_PROMOTION: ['AUCTION'],
+};
+
 export const PROMOTED_OBJECT_REQUIREMENTS: Record<string, string[]> = {
   OUTCOME_SALES: ['pixel_id'],
   OUTCOME_LEADS: ['page_id'],

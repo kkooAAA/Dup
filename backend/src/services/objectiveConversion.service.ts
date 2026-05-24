@@ -1,4 +1,5 @@
 import { FacebookService } from './facebook.service';
+import { VALID_BUYING_TYPES } from './draft/MetaFieldRegistry';
 
 export interface ConversionMapping {
   objective: string;
@@ -66,7 +67,7 @@ export class ObjectiveConversionService {
 
   private async previewCampaign(campaignId: string, targetObjective: string, newName?: string) {
     const original = await this.fbService.get(`/${campaignId}`, {
-      fields: 'name,objective,bid_strategy,daily_budget,lifetime_budget,special_ad_categories'
+      fields: 'name,objective,bid_strategy,buying_type,daily_budget,lifetime_budget,special_ad_categories'
     });
 
     const campaignData = original.data;
@@ -171,6 +172,11 @@ export class ObjectiveConversionService {
       special_ad_categories: data.special_ad_categories || [],
       bid_strategy: 'LOWEST_COST_WITHOUT_CAP'
     };
+
+    if (data.buying_type) {
+      const validTypes = VALID_BUYING_TYPES[targetObjective] || ['AUCTION'];
+      payload.buying_type = validTypes.includes(data.buying_type) ? data.buying_type : 'AUCTION';
+    }
 
     if (isCBO) {
       if (data.daily_budget) payload.daily_budget = String(data.daily_budget);
@@ -363,7 +369,7 @@ export class ObjectiveConversionService {
 
     // 1. Fetch original campaign
     const originalCampaign = await this.fbService.get(`/${campaignId}`, {
-      fields: 'name,objective,bid_strategy,daily_budget,lifetime_budget,special_ad_categories'
+      fields: 'name,objective,bid_strategy,buying_type,daily_budget,lifetime_budget,special_ad_categories'
     });
     console.log(`[ObjectiveConversionService] Original Campaign Data:`, originalCampaign.data);
 

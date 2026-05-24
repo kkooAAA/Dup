@@ -23,11 +23,23 @@ describe('Campaign Form Schema', () => {
     expect(objectiveField.options).toHaveLength(6);
   });
 
-  it('buying_type is editable for new drafts', () => {
-    const schema = MetaFormSchemaEngine.getCampaignFormSchema();
-    const identity = schema.sections.find(s => s.id === 'identity')!;
-    const btField = identity.fields.find(f => f.key === 'buying_type')!;
-    expect(btField.editable).toBe(true);
+  it('buying_type is editable for awareness/engagement', () => {
+    for (const obj of ['OUTCOME_AWARENESS', 'OUTCOME_ENGAGEMENT']) {
+      const schema = MetaFormSchemaEngine.getCampaignFormSchema({ objective: obj });
+      const identity = schema.sections.find(s => s.id === 'identity')!;
+      const btField = identity.fields.find(f => f.key === 'buying_type')!;
+      expect(btField.editable).toBe(true);
+      expect(btField.options).toHaveLength(2);
+    }
+  });
+
+  it('buying_type is hidden for other objectives', () => {
+    for (const obj of ['OUTCOME_TRAFFIC', 'OUTCOME_LEADS', 'OUTCOME_SALES', 'OUTCOME_APP_PROMOTION']) {
+      const schema = MetaFormSchemaEngine.getCampaignFormSchema({ objective: obj });
+      const identity = schema.sections.find(s => s.id === 'identity')!;
+      const btField = identity.fields.find(f => f.key === 'buying_type');
+      expect(btField).toBeUndefined();
+    }
   });
 
   it('status defaults to PAUSED', () => {
