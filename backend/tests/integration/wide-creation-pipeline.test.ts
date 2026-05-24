@@ -134,7 +134,7 @@ describe('Wide Creation → FieldOptimizationEngine Compatibility', () => {
 // ─── Inheritance + Override Scenarios ───
 
 describe('Wide Creation Inheritance Scenarios', () => {
-  it('template defaults flow through to validation without errors', () => {
+  it('template defaults flow through to validation without errors', async () => {
     const template: WideCreationTemplate = {
       name: 'Inheritance Flow',
       adAccountId: 'act_123',
@@ -156,26 +156,31 @@ describe('Wide Creation Inheritance Scenarios', () => {
         adSet: '{parent} AS-{index}',
         ad: '{parent} Ad-{index}',
       },
-      campaigns: ALL_OBJECTIVES.map(obj => ({
-        fields: {
-          objective: obj,
-          daily_budget: '5000',
-        },
-        adSetCount: 0,
-        adSets: [{
+      campaigns: ALL_OBJECTIVES.map(obj => {
+        const promotedObj: Record<string, any> = {};
+        const reqs = PROMOTED_OBJECT_REQUIREMENTS[obj] || [];
+        if (reqs.length > 0) promotedObj[reqs[0]] = '12345';
+        if (obj === 'OUTCOME_SALES') promotedObj.custom_event_type = 'PURCHASE';
+        if (obj === 'OUTCOME_APP_PROMOTION') promotedObj.object_store_url = 'https://play.google.com/store/apps/details?id=com.test';
+        return {
           fields: {
-            optimization_goal: OBJECTIVE_DEFAULTS[obj].optimization_goal,
-            destination_type: OBJECTIVE_DEFAULTS[obj].destination_type,
-            ...(PROMOTED_OBJECT_REQUIREMENTS[obj]?.length
-              ? { promoted_object: { [PROMOTED_OBJECT_REQUIREMENTS[obj][0]]: '12345' } }
-              : {}),
+            objective: obj,
+            daily_budget: '5000',
           },
-          adCount: 2,
-        }],
-      })),
+          adSetCount: 0,
+          adSets: [{
+            fields: {
+              optimization_goal: OBJECTIVE_DEFAULTS[obj].optimization_goal,
+              destination_type: OBJECTIVE_DEFAULTS[obj].destination_type,
+              ...(Object.keys(promotedObj).length > 0 ? { promoted_object: promotedObj } : {}),
+            },
+            adCount: 2,
+          }],
+        };
+      }),
     };
 
-    const result = WideCreationService.validateTemplate(template);
+    const result = await WideCreationService.validateTemplate(template);
     expect(result.valid).toBe(true);
     expect(result.errors).toHaveLength(0);
     expect(result.totalEntities.campaigns).toBe(6);
@@ -183,7 +188,7 @@ describe('Wide Creation Inheritance Scenarios', () => {
     expect(result.totalEntities.ads).toBe(12);
   });
 
-  it('child-level override does not affect sibling validation', () => {
+  it('child-level override does not affect sibling validation', async () => {
     const template: WideCreationTemplate = {
       name: 'Override',
       adAccountId: 'act_123',
@@ -200,7 +205,7 @@ describe('Wide Creation Inheritance Scenarios', () => {
         ],
       }],
     };
-    const result = WideCreationService.validateTemplate(template);
+    const result = await WideCreationService.validateTemplate(template);
     expect(result.valid).toBe(true);
   });
 });
@@ -214,7 +219,12 @@ describe('Wide Creation Budget×Bid Combinatorial', () => {
     for (const bidStrategy of bidStrategies) {
       const requiresBidAmount = BID_CAP_STRATEGIES.has(bidStrategy);
 
-      it(`${objective} / ${bidStrategy} ${requiresBidAmount ? '(errors on missing bid_amount)' : '(valid)'}`, () => {
+      it(`${objective} / ${bidStrategy} ${requiresBidAmount ? '(errors on missing bid_amount)' : '(valid)'}`, async () => {
+        const promotedObj: Record<string, any> = {};
+        const reqs = PROMOTED_OBJECT_REQUIREMENTS[objective] || [];
+        if (reqs.length > 0) promotedObj[reqs[0]] = '12345';
+        if (objective === 'OUTCOME_SALES') promotedObj.custom_event_type = 'PURCHASE';
+        if (objective === 'OUTCOME_APP_PROMOTION') promotedObj.object_store_url = 'https://play.google.com/store/apps/details?id=com.test';
         const template: WideCreationTemplate = {
           name: 'Bid Test',
           adAccountId: 'act_123',
@@ -225,19 +235,16 @@ describe('Wide Creation Budget×Bid Combinatorial', () => {
             adSets: [{
               fields: {
                 bid_strategy: bidStrategy,
-                ...(requiresBidAmount ? {} : {}),
-                ...(PROMOTED_OBJECT_REQUIREMENTS[objective]?.length
-                  ? { promoted_object: { [PROMOTED_OBJECT_REQUIREMENTS[objective][0]]: '12345' } }
-                  : {}),
+                ...(Object.keys(promotedObj).length > 0 ? { promoted_object: promotedObj } : {}),
               },
               adCount: 1,
             }],
           }],
         };
-        const result = WideCreationService.validateTemplate(template);
+        const result = await WideCreationService.validateTemplate(template);
         if (requiresBidAmount) {
           expect(result.valid).toBe(false);
-          expect(result.errors.some(e => e.message.includes('bid_amount'))).toBe(true);
+          expect(result.errors.some(e => e.message.includes('bid amount'))).toBe(true);
         } else {
           expect(result.valid).toBe(true);
         }
@@ -251,7 +258,12 @@ describe('Wide Creation Budget×Bid Combinatorial', () => {
 describe('Wide Creation Attribution Spec', () => {
   for (const objective of ALL_OBJECTIVES) {
     const supported = ATTRIBUTION_SPEC_OBJECTIVES.has(objective);
-    it(`${objective}: attribution_spec ${supported ? 'supported' : 'not needed'}`, () => {
+    it(`${objective}: attribution_spec ${supported ? 'supported' : 'not needed'}`, async () => {
+      const promotedObj: Record<string, any> = {};
+      const reqs = PROMOTED_OBJECT_REQUIREMENTS[objective] || [];
+      if (reqs.length > 0) promotedObj[reqs[0]] = '12345';
+      if (objective === 'OUTCOME_SALES') promotedObj.custom_event_type = 'PURCHASE';
+      if (objective === 'OUTCOME_APP_PROMOTION') promotedObj.object_store_url = 'https://play.google.com/store/apps/details?id=com.test';
       const template: WideCreationTemplate = {
         name: 'Attr',
         adAccountId: 'act_123',
@@ -262,15 +274,13 @@ describe('Wide Creation Attribution Spec', () => {
           adSets: [{
             fields: {
               attribution_spec: [{ event_type: 'CLICK_THROUGH', window_days: 7 }],
-              ...(PROMOTED_OBJECT_REQUIREMENTS[objective]?.length
-                ? { promoted_object: { [PROMOTED_OBJECT_REQUIREMENTS[objective][0]]: '12345' } }
-                : {}),
+              ...(Object.keys(promotedObj).length > 0 ? { promoted_object: promotedObj } : {}),
             },
             adCount: 1,
           }],
         }],
       };
-      const result = WideCreationService.validateTemplate(template);
+      const result = await WideCreationService.validateTemplate(template);
       expect(result.valid).toBe(true);
     });
   }

@@ -26,7 +26,7 @@ export interface WideCampaignNode {
 }
 
 export interface WideCreationState {
-  step: 1 | 2 | 3 | 4 | 5;
+  step: 1 | 2 | 3;
   templateName: string;
 
   // Step 1: Objective selection
@@ -60,7 +60,7 @@ export interface WideCreationState {
   setAdsPerAdSet: (count: number) => void;
 
   // Step transitions
-  setStep: (step: 1 | 2 | 3 | 4 | 5) => void;
+  setStep: (step: 1 | 2 | 3) => void;
   generateStructure: () => void;
 
   // Navigation

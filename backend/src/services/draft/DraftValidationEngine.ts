@@ -2,9 +2,11 @@ import { DraftCampaign, DraftAdSet, DraftAd } from '@prisma/client';
 import {
   VALID_OPTIMIZATION_GOALS,
   VALID_DESTINATION_TYPES,
+  VALID_BUYING_TYPES,
   PROMOTED_OBJECT_REQUIREMENTS,
   ATTRIBUTION_SPEC_OBJECTIVES,
   BID_CAP_STRATEGIES,
+  COST_CAP_INCOMPATIBLE_GOALS,
   IMMUTABLE_CAMPAIGN_FIELDS,
   IMMUTABLE_ADSET_FIELDS,
   OPTIMIZATION_GOAL_LABELS,
@@ -65,6 +67,17 @@ export class DraftValidationEngine {
 
     if (!VALID_OPTIMIZATION_GOALS[objective] && objective) {
       errors.push({ field: 'objective', message: `"${objective}" is not a recognized campaign objective.`, severity: 'error' });
+    }
+
+    if (objective && data.buying_type) {
+      const validBuyingTypes = VALID_BUYING_TYPES[objective] || ['AUCTION'];
+      if (!validBuyingTypes.includes(data.buying_type)) {
+        errors.push({
+          field: 'buying_type',
+          message: `${data.buying_type === 'RESERVED' ? 'Reach & Frequency' : data.buying_type} buying type is not available for ${labelObj(objective)} campaigns. Only ${validBuyingTypes.map((b: string) => b === 'RESERVED' ? 'Reach & Frequency' : b).join(', ')} is supported.`,
+          severity: 'error',
+        });
+      }
     }
 
     const hasDailyBudget = data.daily_budget && Number(data.daily_budget) > 0;
@@ -226,6 +239,26 @@ export class DraftValidationEngine {
           severity: 'error',
         });
       }
+
+      // APP destination_type requires promoted_object with application_id regardless of objective
+      if (data.destination_type === 'APP' && campaignObjective !== 'OUTCOME_APP_PROMOTION') {
+        if (!data.promoted_object?.application_id) {
+          errors.push({
+            field: 'promoted_object',
+            message: 'App destination type requires an Application ID in Promoted Object.',
+            severity: 'error',
+          });
+        }
+      }
+
+      // APP_PROMOTION requires object_store_url in promoted_object
+      if (campaignObjective === 'OUTCOME_APP_PROMOTION' && data.promoted_object?.application_id && !data.promoted_object?.object_store_url) {
+        errors.push({
+          field: 'promoted_object.object_store_url',
+          message: 'App Promotion campaigns require an App Store URL (object_store_url) in Promoted Object.',
+          severity: 'error',
+        });
+      }
     }
 
     if (!isCBO && data.bid_strategy && BID_CAP_STRATEGIES.has(data.bid_strategy)) {
@@ -242,6 +275,24 @@ export class DraftValidationEngine {
           severity: 'error',
         });
       }
+    }
+
+    // COST_CAP is incompatible with awareness-type optimization goals
+    if (data.optimization_goal && data.bid_strategy === 'COST_CAP' && COST_CAP_INCOMPATIBLE_GOALS.has(data.optimization_goal)) {
+      errors.push({
+        field: 'optimization_goal',
+        message: `"${labelGoal(data.optimization_goal)}" is not compatible with Cost Per Result Goal (Cost Cap). Choose a different optimization goal or switch to Highest Volume.`,
+        severity: 'error',
+      });
+    }
+
+    // Bid-cap strategies require billing_event: IMPRESSIONS
+    if (data.billing_event && data.billing_event !== 'IMPRESSIONS' && BID_CAP_STRATEGIES.has(data.bid_strategy)) {
+      errors.push({
+        field: 'billing_event',
+        message: `${labelBid(data.bid_strategy)} only supports Impressions as billing event. Change billing event to Impressions.`,
+        severity: 'error',
+      });
     }
 
     if (campaignObjective && data.attribution_spec) {
@@ -269,7 +320,7 @@ export class DraftValidationEngine {
         errors.push({
           field: 'budget',
           message: 'Ad set needs a Daily or Lifetime Budget when Campaign Budget Optimization is off.',
-          severity: 'warning',
+          severity: 'error',
         });
       }
       if (hasDailyBudget && hasLifetimeBudget) {
@@ -570,6 +621,22 @@ export class DraftValidationEngine {
           severity: 'error',
         });
         isValid = false;
+      }
+
+      // CBO-level COST_CAP cross-validation with ad set optimization goals
+      if (isCBO && campaignData.bid_strategy === 'COST_CAP') {
+        for (const adSet of campaign.adSets) {
+          const adSetGoal = (adSet.data as any)?.optimization_goal;
+          if (adSetGoal && COST_CAP_INCOMPATIBLE_GOALS.has(adSetGoal)) {
+            if (!adSetErrors[adSet.id]) adSetErrors[adSet.id] = [];
+            adSetErrors[adSet.id].push({
+              field: 'optimization_goal',
+              message: `"${labelGoal(adSetGoal)}" is not compatible with the campaign's Cost Per Result Goal (Cost Cap) bid strategy. Change the optimization goal or switch the campaign to Highest Volume.`,
+              severity: 'error',
+            });
+            isValid = false;
+          }
+        }
       }
 
       // Cross-validate: special_ad_category_country must cover ad set targeting countries.

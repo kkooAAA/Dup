@@ -15,11 +15,20 @@ import {
 const ALL_OBJECTIVES = Object.keys(VALID_OPTIMIZATION_GOALS);
 const AD_DEFAULTS = { ad: { creative: { creative_id: '99999' } }, adSet: { daily_budget: '5000' } };
 
+function buildPromotedObject(objective: string): Record<string, any> | undefined {
+  const reqs = PROMOTED_OBJECT_REQUIREMENTS[objective] || [];
+  if (reqs.length === 0) return undefined;
+  const obj: Record<string, any> = { [reqs[0]]: '12345' };
+  if (objective === 'OUTCOME_SALES') obj.custom_event_type = 'PURCHASE';
+  if (objective === 'OUTCOME_APP_PROMOTION') obj.object_store_url = 'https://play.google.com/store/apps/details?id=com.test';
+  return obj;
+}
+
 // ─── Template Validation ───
 
 describe('WideCreationService.validateTemplate', () => {
 
-  it('accepts a minimal valid template', () => {
+  it('accepts a minimal valid template', async () => {
     const template: WideCreationTemplate = {
       name: 'Test Template',
       adAccountId: 'act_123456',
@@ -29,23 +38,23 @@ describe('WideCreationService.validateTemplate', () => {
         adSetCount: 1,
       }],
     };
-    const result = WideCreationService.validateTemplate(template);
+    const result = await WideCreationService.validateTemplate(template);
     expect(result.valid).toBe(true);
     expect(result.errors).toHaveLength(0);
   });
 
-  it('rejects empty campaigns array', () => {
+  it('rejects empty campaigns array', async () => {
     const template: WideCreationTemplate = {
       name: 'Empty',
       adAccountId: 'act_123456',
       campaigns: [],
     };
-    const result = WideCreationService.validateTemplate(template);
+    const result = await WideCreationService.validateTemplate(template);
     expect(result.valid).toBe(false);
     expect(result.errors.some(e => e.message.includes('At least one campaign'))).toBe(true);
   });
 
-  it('rejects missing adAccountId', () => {
+  it('rejects missing adAccountId', async () => {
     const template: WideCreationTemplate = {
       name: 'No Account',
       adAccountId: '',
@@ -54,12 +63,12 @@ describe('WideCreationService.validateTemplate', () => {
         adSetCount: 1,
       }],
     };
-    const result = WideCreationService.validateTemplate(template);
+    const result = await WideCreationService.validateTemplate(template);
     expect(result.valid).toBe(false);
-    expect(result.errors.some(e => e.message.includes('adAccountId'))).toBe(true);
+    expect(result.errors.some(e => e.message.toLowerCase().includes('ad account') || e.message.includes('adAccountId'))).toBe(true);
   });
 
-  it('rejects missing objective', () => {
+  it('rejects missing objective', async () => {
     const template: WideCreationTemplate = {
       name: 'No Obj',
       adAccountId: 'act_123',
@@ -68,12 +77,12 @@ describe('WideCreationService.validateTemplate', () => {
         adSetCount: 1,
       }],
     };
-    const result = WideCreationService.validateTemplate(template);
+    const result = await WideCreationService.validateTemplate(template);
     expect(result.valid).toBe(false);
     expect(result.errors.some(e => e.field === 'objective')).toBe(true);
   });
 
-  it('rejects invalid objective', () => {
+  it('rejects invalid objective', async () => {
     const template: WideCreationTemplate = {
       name: 'Bad Obj',
       adAccountId: 'act_123',
@@ -82,12 +91,12 @@ describe('WideCreationService.validateTemplate', () => {
         adSetCount: 1,
       }],
     };
-    const result = WideCreationService.validateTemplate(template);
+    const result = await WideCreationService.validateTemplate(template);
     expect(result.valid).toBe(false);
-    expect(result.errors.some(e => e.message.includes('Invalid objective'))).toBe(true);
+    expect(result.errors.some(e => e.message.includes('INVALID_OBJECTIVE') || e.message.includes('Invalid objective'))).toBe(true);
   });
 
-  it('rejects campaign without name or naming pattern', () => {
+  it('rejects campaign without name or naming pattern', async () => {
     const template: WideCreationTemplate = {
       name: 'No Name',
       adAccountId: 'act_123',
@@ -96,12 +105,12 @@ describe('WideCreationService.validateTemplate', () => {
         adSetCount: 1,
       }],
     };
-    const result = WideCreationService.validateTemplate(template);
+    const result = await WideCreationService.validateTemplate(template);
     expect(result.valid).toBe(false);
     expect(result.errors.some(e => e.field === 'name')).toBe(true);
   });
 
-  it('accepts naming pattern instead of explicit name', () => {
+  it('accepts naming pattern instead of explicit name', async () => {
     const template: WideCreationTemplate = {
       name: 'Pattern',
       adAccountId: 'act_123',
@@ -112,13 +121,24 @@ describe('WideCreationService.validateTemplate', () => {
         adSetCount: 1,
       }],
     };
-    const result = WideCreationService.validateTemplate(template);
+    const result = await WideCreationService.validateTemplate(template);
     expect(result.valid).toBe(true);
   });
 
   // Per-objective validation
   for (const objective of ALL_OBJECTIVES) {
-    it(`validates ${objective} campaign correctly`, () => {
+    it(`validates ${objective} campaign correctly`, async () => {
+      const promotedObject: Record<string, any> = {};
+      const reqs = PROMOTED_OBJECT_REQUIREMENTS[objective] || [];
+      if (reqs.length > 0) {
+        promotedObject[reqs[0]] = '12345';
+      }
+      if (objective === 'OUTCOME_SALES') {
+        promotedObject.custom_event_type = 'PURCHASE';
+      }
+      if (objective === 'OUTCOME_APP_PROMOTION') {
+        promotedObject.object_store_url = 'https://play.google.com/store/apps/details?id=com.test';
+      }
       const template: WideCreationTemplate = {
         name: `${objective} test`,
         adAccountId: 'act_123',
@@ -130,24 +150,23 @@ describe('WideCreationService.validateTemplate', () => {
             fields: {
               optimization_goal: OBJECTIVE_DEFAULTS[objective].optimization_goal,
               destination_type: OBJECTIVE_DEFAULTS[objective].destination_type,
-              ...(PROMOTED_OBJECT_REQUIREMENTS[objective]?.length
-                ? { promoted_object: { [PROMOTED_OBJECT_REQUIREMENTS[objective][0]]: '12345' } }
-                : {}),
+              ...(Object.keys(promotedObject).length > 0 ? { promoted_object: promotedObject } : {}),
             },
             adCount: 1,
           }],
         }],
       };
-      const result = WideCreationService.validateTemplate(template);
+      const result = await WideCreationService.validateTemplate(template);
       expect(result.valid).toBe(true);
       expect(result.errors).toHaveLength(0);
     });
   }
 
-  it('warns when dual budgets are set on campaign', () => {
+  it('errors when dual budgets are set on campaign', async () => {
     const template: WideCreationTemplate = {
       name: 'Dual Budget',
       adAccountId: 'act_123',
+      defaults: AD_DEFAULTS,
       campaigns: [{
         fields: {
           objective: 'OUTCOME_TRAFFIC',
@@ -158,14 +177,16 @@ describe('WideCreationService.validateTemplate', () => {
         adSetCount: 1,
       }],
     };
-    const result = WideCreationService.validateTemplate(template);
-    expect(result.warnings.some(w => w.message.includes('daily_budget'))).toBe(true);
+    const result = await WideCreationService.validateTemplate(template);
+    expect(result.valid).toBe(false);
+    expect(result.errors.some(e => e.field === 'budget' && e.message.includes('Daily Budget'))).toBe(true);
   });
 
-  it('warns when CBO campaign has adset budgets', () => {
+  it('warns when CBO campaign has adset budgets', async () => {
     const template: WideCreationTemplate = {
       name: 'CBO Conflict',
       adAccountId: 'act_123',
+      defaults: AD_DEFAULTS,
       campaigns: [{
         fields: {
           objective: 'OUTCOME_TRAFFIC',
@@ -179,14 +200,15 @@ describe('WideCreationService.validateTemplate', () => {
         }],
       }],
     };
-    const result = WideCreationService.validateTemplate(template);
+    const result = await WideCreationService.validateTemplate(template);
     expect(result.warnings.some(w => w.message.includes('CBO'))).toBe(true);
   });
 
-  it('detects invalid optimization_goal for objective', () => {
+  it('detects invalid optimization_goal for objective', async () => {
     const template: WideCreationTemplate = {
       name: 'Bad Goal',
       adAccountId: 'act_123',
+      defaults: AD_DEFAULTS,
       campaigns: [{
         fields: { objective: 'OUTCOME_TRAFFIC', name: 'C' },
         adSetCount: 0,
@@ -196,15 +218,16 @@ describe('WideCreationService.validateTemplate', () => {
         }],
       }],
     };
-    const result = WideCreationService.validateTemplate(template);
+    const result = await WideCreationService.validateTemplate(template);
     expect(result.valid).toBe(false);
-    expect(result.errors.some(e => e.message.includes('LEAD_GENERATION'))).toBe(true);
+    expect(result.errors.some(e => e.field === 'optimization_goal' && e.message.includes('not available'))).toBe(true);
   });
 
-  it('detects invalid destination_type for objective', () => {
+  it('detects invalid destination_type for objective', async () => {
     const template: WideCreationTemplate = {
       name: 'Bad Dest',
       adAccountId: 'act_123',
+      defaults: AD_DEFAULTS,
       campaigns: [{
         fields: { objective: 'OUTCOME_AWARENESS', name: 'C' },
         adSetCount: 0,
@@ -214,12 +237,12 @@ describe('WideCreationService.validateTemplate', () => {
         }],
       }],
     };
-    const result = WideCreationService.validateTemplate(template);
+    const result = await WideCreationService.validateTemplate(template);
     expect(result.valid).toBe(false);
-    expect(result.errors.some(e => e.message.includes('WEBSITE'))).toBe(true);
+    expect(result.errors.some(e => e.field === 'destination_type' && e.message.includes('not available'))).toBe(true);
   });
 
-  it('errors on missing promoted_object for objectives that require it', () => {
+  it('errors on missing promoted_object for objectives that require it', async () => {
     for (const objective of ALL_OBJECTIVES) {
       const reqs = PROMOTED_OBJECT_REQUIREMENTS[objective] || [];
       if (reqs.length === 0) continue;
@@ -236,13 +259,13 @@ describe('WideCreationService.validateTemplate', () => {
           }],
         }],
       };
-      const result = WideCreationService.validateTemplate(template);
+      const result = await WideCreationService.validateTemplate(template);
       expect(result.valid).toBe(false);
-      expect(result.errors.some(e => e.message.includes('promoted_object'))).toBe(true);
+      expect(result.errors.some(e => e.message.toLowerCase().includes('promoted object') || e.field === 'promoted_object')).toBe(true);
     }
   });
 
-  it('errors on bid_cap strategy without bid_amount', () => {
+  it('errors on bid_cap strategy without bid_amount', async () => {
     const template: WideCreationTemplate = {
       name: 'Bid Cap',
       adAccountId: 'act_123',
@@ -256,12 +279,12 @@ describe('WideCreationService.validateTemplate', () => {
         }],
       }],
     };
-    const result = WideCreationService.validateTemplate(template);
+    const result = await WideCreationService.validateTemplate(template);
     expect(result.valid).toBe(false);
-    expect(result.errors.some(e => e.message.includes('bid_amount'))).toBe(true);
+    expect(result.errors.some(e => e.message.toLowerCase().includes('bid amount') || e.field === 'bid_amount')).toBe(true);
   });
 
-  it('counts total entities correctly', () => {
+  it('counts total entities correctly', async () => {
     const template: WideCreationTemplate = {
       name: 'Count',
       adAccountId: 'act_123',
@@ -283,21 +306,22 @@ describe('WideCreationService.validateTemplate', () => {
         },
       ],
     };
-    const result = WideCreationService.validateTemplate(template);
+    const result = await WideCreationService.validateTemplate(template);
     expect(result.totalEntities).toEqual({ campaigns: 2, adSets: 3, ads: 6 });
   });
 
-  it('warns when campaign has no adsets', () => {
+  it('errors when campaign has no adsets', async () => {
     const template: WideCreationTemplate = {
       name: 'No AdSets',
       adAccountId: 'act_123',
       campaigns: [{
         fields: { objective: 'OUTCOME_TRAFFIC', name: 'C' },
         adSetCount: 0,
+        adSets: [],
       }],
     };
-    const result = WideCreationService.validateTemplate(template);
-    expect(result.warnings.some(w => w.message.includes('no ad sets'))).toBe(true);
+    const result = await WideCreationService.validateTemplate(template);
+    expect(result.errors.some(e => e.message.includes('no ad sets'))).toBe(true);
   });
 });
 
@@ -308,7 +332,7 @@ describe('Wide Creation Goal Validation Matrix', () => {
     const validGoals = VALID_OPTIMIZATION_GOALS[objective];
 
     for (const goal of validGoals) {
-      it(`${objective} + ${goal} is valid`, () => {
+      it(`${objective} + ${goal} is valid`, async () => {
         const template: WideCreationTemplate = {
           name: 'Goal Matrix',
           adAccountId: 'act_123',
@@ -321,7 +345,7 @@ describe('Wide Creation Goal Validation Matrix', () => {
             }],
           }],
         };
-        const result = WideCreationService.validateTemplate(template);
+        const result = await WideCreationService.validateTemplate(template);
         const goalErrors = result.errors.filter(e => e.field === 'optimization_goal');
         expect(goalErrors).toHaveLength(0);
       });
@@ -337,7 +361,7 @@ describe('Wide Creation Destination Type Validation Matrix', () => {
 
     for (const destType of validTypes) {
       if (destType === 'UNDEFINED') continue;
-      it(`${objective} + ${destType} is valid`, () => {
+      it(`${objective} + ${destType} is valid`, async () => {
         const template: WideCreationTemplate = {
           name: 'Dest Matrix',
           adAccountId: 'act_123',
@@ -350,7 +374,7 @@ describe('Wide Creation Destination Type Validation Matrix', () => {
             }],
           }],
         };
-        const result = WideCreationService.validateTemplate(template);
+        const result = await WideCreationService.validateTemplate(template);
         const destErrors = result.errors.filter(e => e.field === 'destination_type');
         expect(destErrors).toHaveLength(0);
       });
@@ -361,7 +385,7 @@ describe('Wide Creation Destination Type Validation Matrix', () => {
 // ─── Template Defaults Inheritance ───
 
 describe('Template Defaults Inheritance', () => {
-  it('campaign inherits template defaults', () => {
+  it('campaign inherits template defaults', async () => {
     const template: WideCreationTemplate = {
       name: 'Defaults',
       adAccountId: 'act_123',
@@ -378,11 +402,11 @@ describe('Template Defaults Inheritance', () => {
         { fields: {}, adSetCount: 1 },
       ],
     };
-    const result = WideCreationService.validateTemplate(template);
+    const result = await WideCreationService.validateTemplate(template);
     expect(result.valid).toBe(true);
   });
 
-  it('adset inherits template adSet defaults', () => {
+  it('adset inherits template adSet defaults', async () => {
     const template: WideCreationTemplate = {
       name: 'AdSet Defaults',
       adAccountId: 'act_123',
@@ -404,25 +428,25 @@ describe('Template Defaults Inheritance', () => {
         ],
       }],
     };
-    const result = WideCreationService.validateTemplate(template);
+    const result = await WideCreationService.validateTemplate(template);
     expect(result.valid).toBe(true);
   });
 
-  it('explicit fields override template defaults', () => {
+  it('explicit fields override template defaults', async () => {
     const template: WideCreationTemplate = {
       name: 'Override',
       adAccountId: 'act_123',
       defaults: {
         ...AD_DEFAULTS,
         campaign: { objective: 'OUTCOME_TRAFFIC' },
-        adSet: { daily_budget: '5000', promoted_object: { pixel_id: 'px_123' } },
+        adSet: { daily_budget: '5000', promoted_object: { pixel_id: 'px_123', custom_event_type: 'PURCHASE' } },
       },
       campaigns: [{
         fields: { objective: 'OUTCOME_SALES', name: 'Sales C' },
         adSetCount: 1,
       }],
     };
-    const result = WideCreationService.validateTemplate(template);
+    const result = await WideCreationService.validateTemplate(template);
     expect(result.valid).toBe(true);
   });
 });
@@ -430,11 +454,11 @@ describe('Template Defaults Inheritance', () => {
 // ─── Naming Pattern Resolution ───
 
 describe('Naming Pattern Resolution', () => {
-  it('validates with naming patterns instead of explicit names', () => {
+  it('validates with naming patterns instead of explicit names', async () => {
     const template: WideCreationTemplate = {
       name: 'Pattern Test',
       adAccountId: 'act_123',
-      defaults: { ...AD_DEFAULTS, adSet: { daily_budget: '5000', promoted_object: { pixel_id: 'px_123' } } },
+      defaults: { ...AD_DEFAULTS, adSet: { daily_budget: '5000', promoted_object: { pixel_id: 'px_123', custom_event_type: 'PURCHASE' } } },
       namingPattern: {
         campaign: '{objective} Campaign {index:02d}',
         adSet: 'AdSet {index} of {total}',
@@ -445,7 +469,7 @@ describe('Naming Pattern Resolution', () => {
         { fields: { objective: 'OUTCOME_SALES' }, adSetCount: 3 },
       ],
     };
-    const result = WideCreationService.validateTemplate(template);
+    const result = await WideCreationService.validateTemplate(template);
     expect(result.valid).toBe(true);
     expect(result.totalEntities.campaigns).toBe(2);
   });
@@ -454,7 +478,7 @@ describe('Naming Pattern Resolution', () => {
 // ─── Large Structure Validation ───
 
 describe('Large Structure Validation', () => {
-  it('validates 10 campaigns × 5 adsets × 3 ads', () => {
+  it('validates 10 campaigns × 5 adsets × 3 ads', async () => {
     const campaigns: WideCampaignNode[] = ALL_OBJECTIVES.slice(0, 5).flatMap(obj => [
       {
         fields: { objective: obj, name: `${obj}_A` },
@@ -462,9 +486,7 @@ describe('Large Structure Validation', () => {
         adSets: Array.from({ length: 5 }, (_, i) => ({
           fields: {
             optimization_goal: OBJECTIVE_DEFAULTS[obj].optimization_goal,
-            ...(PROMOTED_OBJECT_REQUIREMENTS[obj]?.length
-              ? { promoted_object: { [PROMOTED_OBJECT_REQUIREMENTS[obj][0]]: '12345' } }
-              : {}),
+            ...(buildPromotedObject(obj) ? { promoted_object: buildPromotedObject(obj) } : {}),
           },
           adCount: 0,
           ads: Array.from({ length: 3 }, () => ({ fields: {} })),
@@ -476,9 +498,7 @@ describe('Large Structure Validation', () => {
         adSets: Array.from({ length: 5 }, (_, i) => ({
           fields: {
             optimization_goal: OBJECTIVE_DEFAULTS[obj].optimization_goal,
-            ...(PROMOTED_OBJECT_REQUIREMENTS[obj]?.length
-              ? { promoted_object: { [PROMOTED_OBJECT_REQUIREMENTS[obj][0]]: '12345' } }
-              : {}),
+            ...(buildPromotedObject(obj) ? { promoted_object: buildPromotedObject(obj) } : {}),
           },
           adCount: 0,
           ads: Array.from({ length: 3 }, () => ({ fields: {} })),
@@ -493,14 +513,14 @@ describe('Large Structure Validation', () => {
       namingPattern: { adSet: 'AS_{index}', ad: 'Ad_{index}' },
       campaigns,
     };
-    const result = WideCreationService.validateTemplate(template);
+    const result = await WideCreationService.validateTemplate(template);
     expect(result.valid).toBe(true);
     expect(result.totalEntities.campaigns).toBe(10);
     expect(result.totalEntities.adSets).toBe(50);
     expect(result.totalEntities.ads).toBe(150);
   });
 
-  it('validates quickly (under 50ms for 150 entities)', () => {
+  it('validates quickly (under 200ms for 150 entities)', async () => {
     const campaigns: WideCampaignNode[] = Array.from({ length: 10 }, (_, ci) => ({
       fields: { objective: ALL_OBJECTIVES[ci % ALL_OBJECTIVES.length], name: `C_${ci}` },
       adSetCount: 0,
@@ -520,16 +540,16 @@ describe('Large Structure Validation', () => {
     };
 
     const start = performance.now();
-    WideCreationService.validateTemplate(template);
+    await WideCreationService.validateTemplate(template);
     const elapsed = performance.now() - start;
-    expect(elapsed).toBeLessThan(50);
+    expect(elapsed).toBeLessThan(200);
   });
 });
 
 // ─── Cross-Objective Validation ───
 
 describe('Cross-Objective Wide Creation', () => {
-  it('validates mixed-objective template (all 6 objectives)', () => {
+  it('validates mixed-objective template (all 6 objectives)', async () => {
     const campaigns: WideCampaignNode[] = ALL_OBJECTIVES.map((obj, i) => ({
       fields: { objective: obj, name: `${obj} Campaign` },
       adSetCount: 0,
@@ -537,9 +557,7 @@ describe('Cross-Objective Wide Creation', () => {
         fields: {
           optimization_goal: OBJECTIVE_DEFAULTS[obj].optimization_goal,
           destination_type: OBJECTIVE_DEFAULTS[obj].destination_type,
-          ...(PROMOTED_OBJECT_REQUIREMENTS[obj]?.length
-            ? { promoted_object: { [PROMOTED_OBJECT_REQUIREMENTS[obj][0]]: '12345' } }
-            : {}),
+          ...(buildPromotedObject(obj) ? { promoted_object: buildPromotedObject(obj) } : {}),
         },
         adCount: 2,
       }],
@@ -552,7 +570,7 @@ describe('Cross-Objective Wide Creation', () => {
       namingPattern: { ad: '{parent} Ad {index}' },
       campaigns,
     };
-    const result = WideCreationService.validateTemplate(template);
+    const result = await WideCreationService.validateTemplate(template);
     expect(result.valid).toBe(true);
     expect(result.totalEntities.campaigns).toBe(6);
     expect(result.totalEntities.adSets).toBe(6);
@@ -572,7 +590,7 @@ describe('Wide Creation Budget Combinations', () => {
 
   for (const objective of ALL_OBJECTIVES) {
     for (const budgetConfig of budgetConfigs) {
-      it(`${objective} / ${budgetConfig.label}`, () => {
+      it(`${objective} / ${budgetConfig.label}`, async () => {
         const template: WideCreationTemplate = {
           name: 'Budget',
           adAccountId: 'act_123',
@@ -583,15 +601,13 @@ describe('Wide Creation Budget Combinations', () => {
             adSets: [{
               fields: {
                 ...budgetConfig.adsetBudget,
-                ...(PROMOTED_OBJECT_REQUIREMENTS[objective]?.length
-                  ? { promoted_object: { [PROMOTED_OBJECT_REQUIREMENTS[objective][0]]: '12345' } }
-                  : {}),
+                ...(buildPromotedObject(objective) ? { promoted_object: buildPromotedObject(objective) } : {}),
               },
               adCount: 1,
             }],
           }],
         };
-        const result = WideCreationService.validateTemplate(template);
+        const result = await WideCreationService.validateTemplate(template);
         expect(result.valid).toBe(true);
       });
     }

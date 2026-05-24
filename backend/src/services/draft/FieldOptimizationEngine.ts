@@ -8,6 +8,7 @@ import {
   PROMOTED_OBJECT_REQUIREMENTS,
   ATTRIBUTION_SPEC_OBJECTIVES,
   BID_CAP_STRATEGIES,
+  COST_CAP_INCOMPATIBLE_GOALS,
   OBJECTIVE_DEFAULTS,
   OPTIMIZATION_GOAL_LABELS,
   DESTINATION_TYPE_LABELS,
@@ -90,7 +91,7 @@ export class FieldOptimizationEngine {
           field: key, label: config.label,
           action: overrideVal !== undefined ? 'transformed' : 'kept',
           originalValue: sourceVal, newValue: value,
-          editable: key !== 'objective' && key !== 'buying_type',
+          editable: key !== 'objective',
           type: config.type,
           enumValues: config.enumValues, enumLabels: config.enumLabels,
         });
@@ -440,6 +441,10 @@ export class FieldOptimizationEngine {
 
       if (BID_CAP_STRATEGIES.has(payload.bid_strategy) && !payload.bid_amount) {
         warnings.push(`${payload.bid_strategy} requires bid_amount`);
+      }
+
+      if (payload.bid_strategy === 'COST_CAP' && COST_CAP_INCOMPATIBLE_GOALS.has(payload.optimization_goal)) {
+        errors.push(`${payload.optimization_goal} is not compatible with COST_CAP. Use a different optimization goal or switch to LOWEST_COST_WITHOUT_CAP.`);
       }
 
       if (payload.daily_budget && payload.lifetime_budget) {

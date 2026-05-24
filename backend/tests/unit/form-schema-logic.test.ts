@@ -23,11 +23,11 @@ describe('Campaign Form Schema', () => {
     expect(objectiveField.options).toHaveLength(6);
   });
 
-  it('buying_type is not editable', () => {
+  it('buying_type is editable for new drafts', () => {
     const schema = MetaFormSchemaEngine.getCampaignFormSchema();
     const identity = schema.sections.find(s => s.id === 'identity')!;
     const btField = identity.fields.find(f => f.key === 'buying_type')!;
-    expect(btField.editable).toBe(false);
+    expect(btField.editable).toBe(true);
   });
 
   it('status defaults to PAUSED', () => {

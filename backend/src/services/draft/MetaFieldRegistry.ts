@@ -326,6 +326,19 @@ export const BID_CAP_STRATEGIES = new Set([
   'LOWEST_COST_WITH_BID_CAP', 'COST_CAP', 'LOWEST_COST_WITH_MIN_ROAS',
 ]);
 
+export const COST_CAP_INCOMPATIBLE_GOALS = new Set([
+  'IMPRESSIONS', 'REACH', 'AD_RECALL_LIFT',
+]);
+
+export const VALID_BUYING_TYPES: Record<string, string[]> = {
+  OUTCOME_AWARENESS:     ['AUCTION', 'RESERVED'],
+  OUTCOME_ENGAGEMENT:    ['AUCTION', 'RESERVED'],
+  OUTCOME_TRAFFIC:       ['AUCTION'],
+  OUTCOME_LEADS:         ['AUCTION'],
+  OUTCOME_SALES:         ['AUCTION'],
+  OUTCOME_APP_PROMOTION: ['AUCTION'],
+};
+
 // ─── Objective conversion defaults ───
 // When converting from one objective to another, use these as safe defaults
 
@@ -490,7 +503,12 @@ export function sanitizeTargeting(targeting: any): any {
     }
     if (Array.isArray(sanitized.genders)) {
       sanitized.genders = [...new Set(sanitized.genders.map(Number))];
-      if (sanitized.genders.length === 1 && sanitized.genders[0] === 0) delete sanitized.genders;
+      if (sanitized.genders.length === 1 && sanitized.genders[0] === 0) {
+        delete sanitized.genders;
+      } else if (sanitized.genders.includes(0)) {
+        sanitized.genders = sanitized.genders.filter((g: number) => g !== 0);
+        if (sanitized.genders.length === 0) delete sanitized.genders;
+      }
     }
     if (Array.isArray(sanitized.locales)) {
       sanitized.locales = sanitized.locales.filter((l: any) => l !== '__all__');

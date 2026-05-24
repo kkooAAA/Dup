@@ -4,6 +4,7 @@ import { DraftStatus } from '@prisma/client';
 import { withDbRetry } from '../../utils/dbRetry';
 import {
   BID_CAP_STRATEGIES,
+  COST_CAP_INCOMPATIBLE_GOALS,
   ATTRIBUTION_SPEC_OBJECTIVES,
   VALID_DESTINATION_TYPES,
   OBJECTIVE_DEFAULTS,
@@ -582,15 +583,49 @@ export class DraftPublishService {
       }
     }
 
-    const allowedBilling = GOAL_BILLING_MAP[adSetData.optimization_goal] || ['IMPRESSIONS'];
-    const billingEvent = allowedBilling.includes(adSetData.billing_event) ? adSetData.billing_event : 'IMPRESSIONS';
+    // Determine effective bid strategy to constrain billing_event and optimization_goal
+    const effectiveBidStrategy = isCBO ? campaignData.bid_strategy : adSetData.bid_strategy;
+
+    let optimizationGoal = adSetData.optimization_goal;
+    let resolvedBidStrategy = effectiveBidStrategy;
+    if (effectiveBidStrategy === 'COST_CAP' && COST_CAP_INCOMPATIBLE_GOALS.has(optimizationGoal)) {
+      console.warn(`[DraftPublishService] COST_CAP incompatible with ${optimizationGoal}, falling back to LOWEST_COST_WITHOUT_CAP`);
+      resolvedBidStrategy = 'LOWEST_COST_WITHOUT_CAP';
+    }
+
+    const resolvedIsBidCap = BID_CAP_STRATEGIES.has(resolvedBidStrategy);
+
+    // COST_CAP / bid-cap strategies require billing_event: IMPRESSIONS
+    let billingEvent: string;
+    if (resolvedIsBidCap) {
+      billingEvent = 'IMPRESSIONS';
+    } else {
+      const allowedBilling = GOAL_BILLING_MAP[optimizationGoal] || ['IMPRESSIONS'];
+      billingEvent = allowedBilling.includes(adSetData.billing_event) ? adSetData.billing_event : 'IMPRESSIONS';
+    }
+
+    // APP destination_type requires promoted_object with application_id
+    if (destinationType === 'APP' && campaignObjective !== 'OUTCOME_APP_PROMOTION') {
+      if (!cleanPromotedObject?.application_id) {
+        throw new Error(
+          'APP destination type requires promoted_object with application_id'
+        );
+      }
+    }
+
+    // APP_PROMOTION requires object_store_url in promoted_object
+    if (campaignObjective === 'OUTCOME_APP_PROMOTION' && cleanPromotedObject?.application_id && !cleanPromotedObject.object_store_url) {
+      throw new Error(
+        'App Promotion campaigns require object_store_url in promoted_object (e.g. App Store or Play Store URL)'
+      );
+    }
 
     const adSetPayload: any = {
       name: adSet.name,
       campaign_id: metaCampaignId,
       status: 'PAUSED',
       billing_event: billingEvent,
-      optimization_goal: adSetData.optimization_goal,
+      optimization_goal: optimizationGoal,
       targeting,
     };
 
@@ -615,7 +650,10 @@ export class DraftPublishService {
     }
 
     if (!isCBO) {
-      const adSetBidStrategy: string | undefined = adSetData.bid_strategy;
+      // Use resolved strategy (falls back from COST_CAP when goal is incompatible)
+      const adSetBidStrategy: string | undefined = resolvedBidStrategy !== effectiveBidStrategy
+        ? resolvedBidStrategy
+        : adSetData.bid_strategy;
       const adSetBidAmount: number | string | undefined = adSetData.bid_amount;
 
       if (adSetBidStrategy) {
@@ -714,8 +752,16 @@ export class DraftPublishService {
     const targeting = sanitizeTargeting(adSetData.targeting);
     this.resolveTargetingConflicts(targeting);
 
-    const allowedBillingUpd = (GOAL_BILLING_MAP[adSetData.optimization_goal] || ['IMPRESSIONS']);
-    const billingEventUpd = allowedBillingUpd.includes(adSetData.billing_event) ? adSetData.billing_event : 'IMPRESSIONS';
+    const effectiveBidStrategyUpd = isCBO ? campaignData.bid_strategy : adSetData.bid_strategy;
+    const isBidCapUpd = BID_CAP_STRATEGIES.has(effectiveBidStrategyUpd);
+
+    let billingEventUpd: string;
+    if (isBidCapUpd) {
+      billingEventUpd = 'IMPRESSIONS';
+    } else {
+      const allowedBillingUpd = (GOAL_BILLING_MAP[adSetData.optimization_goal] || ['IMPRESSIONS']);
+      billingEventUpd = allowedBillingUpd.includes(adSetData.billing_event) ? adSetData.billing_event : 'IMPRESSIONS';
+    }
 
     const updatePayload: any = {
       name: adSet.name,

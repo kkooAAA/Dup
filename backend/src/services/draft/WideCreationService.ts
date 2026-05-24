@@ -2,16 +2,15 @@ import { prisma } from '../../prisma';
 import { DraftStatus } from '@prisma/client';
 import {
   VALID_OPTIMIZATION_GOALS,
-  VALID_DESTINATION_TYPES,
   OBJECTIVE_DEFAULTS,
+  CAMPAIGN_FIELDS,
   PROMOTED_OBJECT_REQUIREMENTS,
   ATTRIBUTION_SPEC_OBJECTIVES,
-  BID_CAP_STRATEGIES,
-  CAMPAIGN_FIELDS,
   sanitizeTargeting,
   sanitizePromotedObject,
 } from './MetaFieldRegistry';
 import { FieldOptimizationEngine } from './FieldOptimizationEngine';
+import { DraftValidationEngine, ValidationError } from './DraftValidationEngine';
 
 // ─── Types ───
 
@@ -61,15 +60,17 @@ export interface WideValidationResult {
 }
 
 export interface WideValidationError {
-  path: string; // e.g. "campaigns[0].adSets[1]"
+  path: string;
   field?: string;
   message: string;
+  entityLabel?: string;
 }
 
 export interface WideValidationWarning {
   path: string;
   field?: string;
   message: string;
+  entityLabel?: string;
 }
 
 export interface WideGenerationResult {
@@ -146,27 +147,27 @@ const TEMPLATE_AD_INHERITABLE = [
 export class WideCreationService {
 
   // ── Validate entire template tree without persisting ──
+  // Delegates entity-level checks to DraftValidationEngine for consistency
+  // with the draft editor and publish flows.
 
-  static validateTemplate(template: WideCreationTemplate): WideValidationResult {
+  static async validateTemplate(template: WideCreationTemplate): Promise<WideValidationResult> {
     const errors: WideValidationError[] = [];
     const warnings: WideValidationWarning[] = [];
     let totalAdSets = 0;
     let totalAds = 0;
 
     if (!template.campaigns || template.campaigns.length === 0) {
-      errors.push({ path: 'template', message: 'At least one campaign is required' });
+      errors.push({ path: 'template', message: 'At least one campaign is required.', entityLabel: 'Template' });
       return { valid: false, totalEntities: { campaigns: 0, adSets: 0, ads: 0 }, errors, warnings };
     }
 
     if (!template.adAccountId) {
-      errors.push({ path: 'template', message: 'adAccountId is required' });
+      errors.push({ path: 'template', message: 'Ad account is required. Select an ad account before validating.', entityLabel: 'Template' });
     }
 
     for (let ci = 0; ci < template.campaigns.length; ci++) {
       const campaign = template.campaigns[ci];
-      const campaignPath = `campaigns[${ci}]`;
 
-      // Resolve campaign fields with template defaults
       const campaignFields = resolveInheritedFields(
         campaign.fields,
         undefined,
@@ -174,39 +175,45 @@ export class WideCreationService {
         Object.keys(CAMPAIGN_FIELDS),
       );
 
-      // Validate campaign
       const objective = campaignFields.objective;
+      const campaignName = campaignFields.name || resolveNamingPattern(
+        template.namingPattern?.campaign,
+        { index: ci, objective: objective || 'UNKNOWN', total: template.campaigns.length },
+      );
+      const campaignPath = `campaigns[${ci}]`;
+      const campaignLabel = campaignName || `Campaign ${ci + 1}`;
+
       if (!objective) {
-        errors.push({ path: campaignPath, field: 'objective', message: 'Objective is required' });
+        errors.push({ path: campaignPath, field: 'objective', message: 'Campaign objective is required.', entityLabel: campaignLabel });
       } else if (!VALID_OPTIMIZATION_GOALS[objective]) {
-        errors.push({ path: campaignPath, field: 'objective', message: `Invalid objective: ${objective}` });
+        errors.push({ path: campaignPath, field: 'objective', message: `"${objective}" is not a recognized campaign objective.`, entityLabel: campaignLabel });
       }
 
       if (!campaignFields.name && !template.namingPattern?.campaign) {
-        errors.push({ path: campaignPath, field: 'name', message: 'Campaign name or naming pattern is required' });
+        errors.push({ path: campaignPath, field: 'name', message: 'Campaign name or naming pattern is required.', entityLabel: campaignLabel });
       }
 
-      if (campaignFields.daily_budget && campaignFields.lifetime_budget) {
-        warnings.push({ path: campaignPath, message: 'Both daily_budget and lifetime_budget set. daily_budget will be used.' });
-      }
+      const isCBO = !!(campaignFields.daily_budget || campaignFields.lifetime_budget);
 
-      // Determine CBO
-      const isCBO = campaignFields.daily_budget || campaignFields.lifetime_budget || campaignFields.bid_strategy;
+      // Build synthetic campaign for DraftValidationEngine
+      const syntheticCampaignData = {
+        ...campaignFields,
+        name: campaignName,
+        objective: objective || '',
+        status: 'PAUSED',
+        special_ad_categories: campaignFields.special_ad_categories || ['NONE'],
+      };
 
-      // Validate ad sets
-      const adSetCount = campaign.adSetCount || 0;
-      if (adSetCount === 0 && (!campaign.adSets || campaign.adSets.length === 0)) {
-        warnings.push({ path: campaignPath, message: 'Campaign has no ad sets defined' });
-      }
-
-      const adSetsToValidate: WideAdSetNode[] = campaign.adSets || Array.from({ length: adSetCount }, () => ({ fields: {}, adCount: 0, ads: [] }));
+      const adSetsToValidate: WideAdSetNode[] = campaign.adSets || Array.from(
+        { length: campaign.adSetCount || 1 },
+        () => ({ fields: {}, adCount: 1 } as WideAdSetNode),
+      );
       totalAdSets += adSetsToValidate.length;
+
+      const syntheticAdSets: any[] = [];
 
       for (let ai = 0; ai < adSetsToValidate.length; ai++) {
         const adSet = adSetsToValidate[ai];
-        const adSetPath = `${campaignPath}.adSets[${ai}]`;
-
-        // Resolve fields with inheritance
         const adSetFields = resolveInheritedFields(
           adSet.fields,
           campaignFields,
@@ -214,96 +221,111 @@ export class WideCreationService {
           TEMPLATE_ADSET_INHERITABLE,
         );
 
-        if (objective) {
-          // Validate optimization_goal
-          if (adSetFields.optimization_goal) {
-            const validGoals = VALID_OPTIMIZATION_GOALS[objective] || [];
-            if (!validGoals.includes(adSetFields.optimization_goal)) {
-              errors.push({
-                path: adSetPath,
-                field: 'optimization_goal',
-                message: `${adSetFields.optimization_goal} is not valid for ${objective}`,
-              });
-            }
-          }
+        const defaults = objective ? OBJECTIVE_DEFAULTS[objective] : undefined;
+        const adSetName = adSetFields.name || resolveNamingPattern(
+          template.namingPattern?.adSet,
+          { index: ai, objective: objective || '', parentName: campaignName, total: adSetsToValidate.length },
+        );
 
-          // Validate destination_type
-          if (adSetFields.destination_type && adSetFields.destination_type !== 'UNDEFINED') {
-            const validTypes = VALID_DESTINATION_TYPES[objective] || [];
-            if (!validTypes.includes(adSetFields.destination_type)) {
-              errors.push({
-                path: adSetPath,
-                field: 'destination_type',
-                message: `${adSetFields.destination_type} is not valid for ${objective}`,
-              });
-            }
-          }
+        const syntheticAdSetData: Record<string, any> = {
+          name: adSetName,
+          optimization_goal: adSetFields.optimization_goal || defaults?.optimization_goal,
+          billing_event: adSetFields.billing_event || defaults?.billing_event || 'IMPRESSIONS',
+          destination_type: adSetFields.destination_type || defaults?.destination_type,
+          targeting: adSetFields.targeting || { geo_locations: { countries: ['TH'] }, age_min: 20 },
+          status: 'PAUSED',
+        };
 
-          // Check promoted_object requirements
-          const promotedReqs = PROMOTED_OBJECT_REQUIREMENTS[objective] || [];
-          if (promotedReqs.length > 0 && !adSetFields.promoted_object) {
-            errors.push({
-              path: adSetPath,
-              field: 'promoted_object',
-              message: `${objective} requires promoted_object with ${promotedReqs.join('/')}`,
-            });
-          }
-
-          // Budget conflicts with CBO
-          if (isCBO && (adSetFields.daily_budget || adSetFields.lifetime_budget)) {
-            warnings.push({
-              path: adSetPath,
-              message: 'Campaign uses CBO — ad set budget fields will be stripped on publish',
-            });
-          }
-
-          // Non-CBO campaigns require budget at ad set level
-          if (!isCBO && !adSetFields.daily_budget && !adSetFields.lifetime_budget) {
-            errors.push({
-              path: adSetPath,
-              field: 'daily_budget',
-              message: 'Ad set requires daily_budget or lifetime_budget (campaign has no CBO budget)',
-            });
-          }
-
-          // Bid cap without bid_amount
-          if (adSetFields.bid_strategy && BID_CAP_STRATEGIES.has(adSetFields.bid_strategy) && !adSetFields.bid_amount) {
-            errors.push({
-              path: adSetPath,
-              field: 'bid_amount',
-              message: `${adSetFields.bid_strategy} requires bid_amount`,
-            });
-          }
+        if (!isCBO) {
+          if (adSetFields.daily_budget) syntheticAdSetData.daily_budget = adSetFields.daily_budget;
+          if (adSetFields.lifetime_budget && !adSetFields.daily_budget) syntheticAdSetData.lifetime_budget = adSetFields.lifetime_budget;
+          if (adSetFields.bid_strategy) syntheticAdSetData.bid_strategy = adSetFields.bid_strategy;
+          if (adSetFields.bid_amount) syntheticAdSetData.bid_amount = adSetFields.bid_amount;
+        } else if (adSetFields.daily_budget || adSetFields.lifetime_budget) {
+          const adSetPath = `${campaignPath}.adSets[${ai}]`;
+          const adSetLabel = `${campaignLabel} > ${adSetFields.name || resolveNamingPattern(template.namingPattern?.adSet, { index: ai, objective: objective || '', parentName: campaignName, total: adSetsToValidate.length })}`;
+          warnings.push({ path: adSetPath, field: 'budget', message: 'Ad set budgets are ignored under CBO campaigns. Budget is managed at campaign level.', entityLabel: adSetLabel });
         }
+        if (adSetFields.promoted_object) syntheticAdSetData.promoted_object = adSetFields.promoted_object;
+        if (adSetFields.attribution_spec) syntheticAdSetData.attribution_spec = adSetFields.attribution_spec;
+        if (adSetFields.start_time) syntheticAdSetData.start_time = adSetFields.start_time;
+        if (adSetFields.end_time) syntheticAdSetData.end_time = adSetFields.end_time;
+        if (adSetFields.dsa_beneficiary) syntheticAdSetData.dsa_beneficiary = adSetFields.dsa_beneficiary;
+        if (adSetFields.dsa_payor) syntheticAdSetData.dsa_payor = adSetFields.dsa_payor;
 
-        // Validate ads
-        const adCount = adSet.adCount || 0;
-        const adsToValidate = adSet.ads || Array.from({ length: adCount }, () => ({ fields: {} }));
+        const adsToValidate = adSet.ads || Array.from({ length: adSet.adCount || 1 }, () => ({ fields: {} }));
         totalAds += adsToValidate.length;
 
+        const syntheticAds: any[] = [];
         for (let adi = 0; adi < adsToValidate.length; adi++) {
           const ad = adsToValidate[adi];
-          const adPath = `${adSetPath}.ads[${adi}]`;
-
           const adFields = resolveInheritedFields(
             ad.fields,
             undefined,
             template.defaults?.ad,
             TEMPLATE_AD_INHERITABLE,
           );
+          const adName = adFields.name || resolveNamingPattern(
+            template.namingPattern?.ad,
+            { index: adi, objective: objective || '', parentName: adSetName, total: adsToValidate.length },
+          );
+          syntheticAds.push({
+            id: `wide-ad-${ci}-${ai}-${adi}`,
+            name: adName,
+            data: { name: adName, status: 'PAUSED', creative: adFields.creative, tracking_specs: adFields.tracking_specs },
+            metaId: null,
+          });
+        }
 
-          if (!adFields.creative && !adFields.creative_id) {
-            errors.push({ path: adPath, field: 'creative', message: 'Creative (creative_id or object_story_spec) is required' });
-          } else if (adFields.creative?.object_story_spec && !adFields.creative?.creative_id) {
-            // object_story_spec needs page_id — check spec, adSet, or promoted_object
-            const specPageId = adFields.creative.object_story_spec.page_id;
-            const adSetPageId = adSetFields.page_id || adSetFields.promoted_object?.page_id;
-            if (!specPageId && !adSetPageId) {
-              errors.push({ path: adPath, field: 'page_id', message: 'page_id is required when using object_story_spec (set in adSet defaults or creative)' });
-            }
+        syntheticAdSets.push({
+          id: `wide-adset-${ci}-${ai}`,
+          name: adSetName,
+          data: syntheticAdSetData,
+          metaId: null,
+          ads: syntheticAds,
+        });
+      }
+
+      const syntheticCampaign = {
+        id: `wide-campaign-${ci}`,
+        name: campaignName,
+        objective: objective || '',
+        data: syntheticCampaignData,
+        metaId: null,
+        adSets: syntheticAdSets,
+      };
+
+      // Run DraftValidationEngine for full cross-entity validation
+      if (objective) {
+        const result = await DraftValidationEngine.validateFullDraft(syntheticCampaign);
+
+        for (const err of result.campaignErrors) {
+          const entry = { path: campaignPath, field: err.field, message: err.message, entityLabel: campaignLabel };
+          if (err.severity === 'error') errors.push(entry);
+          else warnings.push(entry);
+        }
+
+        for (const [synId, adSetErrs] of Object.entries(result.adSetErrors)) {
+          const ai = syntheticAdSets.findIndex(s => s.id === synId);
+          const adSetPath = `${campaignPath}.adSets[${ai}]`;
+          const adSetLabel = `${campaignLabel} > ${syntheticAdSets[ai]?.name || `Ad Set ${ai + 1}`}`;
+          for (const err of adSetErrs) {
+            const entry = { path: adSetPath, field: err.field, message: err.message, entityLabel: adSetLabel };
+            if (err.severity === 'error') errors.push(entry);
+            else warnings.push(entry);
           }
-          if (!adFields.name && !template.namingPattern?.ad) {
-            warnings.push({ path: adPath, message: 'Ad has no name configured' });
+        }
+
+        for (const [synId, adErrs] of Object.entries(result.adErrors)) {
+          const parts = synId.replace('wide-ad-', '').split('-');
+          const ai = parseInt(parts[1], 10);
+          const adi = parseInt(parts[2], 10);
+          const adPath = `${campaignPath}.adSets[${ai}].ads[${adi}]`;
+          const adLabel = `${campaignLabel} > ${syntheticAdSets[ai]?.name || `Ad Set ${ai + 1}`} > ${syntheticAdSets[ai]?.ads[adi]?.name || `Ad ${adi + 1}`}`;
+          for (const err of adErrs) {
+            const entry = { path: adPath, field: err.field, message: err.message, entityLabel: adLabel };
+            if (err.severity === 'error') errors.push(entry);
+            else warnings.push(entry);
           }
         }
       }

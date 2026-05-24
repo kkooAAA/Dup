@@ -6,7 +6,7 @@ export class WideCreationController {
   static async validate(req: AuthRequest, res: Response) {
     try {
       const template = req.body as WideCreationTemplate;
-      const result = WideCreationService.validateTemplate(template);
+      const result = await WideCreationService.validateTemplate(template);
       res.json(result);
     } catch (error: any) {
       console.error(`[WideCreation] Error in validate:`, error);
@@ -43,7 +43,7 @@ export class WideCreationController {
       }
 
       // Full validation before generating
-      const validation = WideCreationService.validateTemplate(template);
+      const validation = await WideCreationService.validateTemplate(template);
       if (!validation.valid) {
         return res.status(400).json({ error: 'Validation failed', errors: validation.errors });
       }

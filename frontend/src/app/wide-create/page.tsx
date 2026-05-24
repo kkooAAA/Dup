@@ -11,9 +11,7 @@ import { wideCreationApi } from "@/services/api";
 import { toast } from "sonner";
 import { StepObjectives } from "@/components/wide-create/StepObjectives";
 import { StepStructure } from "@/components/wide-create/StepStructure";
-import { StepCampaignConfig } from "@/components/wide-create/StepCampaignConfig";
-import { StepAdSetConfig } from "@/components/wide-create/StepAdSetConfig";
-import { StepAdConfig } from "@/components/wide-create/StepAdConfig";
+import { StepConfigure } from "@/components/wide-create/StepConfigure";
 import {
   Grid3X3,
   ArrowRight,
@@ -29,9 +27,7 @@ import { extractApiError } from "@/lib/utils";
 const STEP_LABELS = [
   { n: 1, label: "Objectives" },
   { n: 2, label: "Structure" },
-  { n: 3, label: "Campaigns" },
-  { n: 4, label: "Ad Sets" },
-  { n: 5, label: "Ads" },
+  { n: 3, label: "Configure" },
 ];
 
 export default function WideCreatePage() {
@@ -57,7 +53,7 @@ export default function WideCreatePage() {
   const handleNext = () => {
     if (store.step === 1) {
       store.generateStructure();
-    } else if (store.step < 5) {
+    } else if (store.step < 3) {
       store.setStep((store.step + 1) as any);
     }
   };
@@ -199,9 +195,7 @@ export default function WideCreatePage() {
         {/* Step Content */}
         {store.step === 1 && <StepObjectives />}
         {store.step === 2 && <StepStructure />}
-        {store.step === 3 && <StepCampaignConfig />}
-        {store.step === 4 && <StepAdSetConfig />}
-        {store.step === 5 && <StepAdConfig />}
+        {store.step === 3 && <StepConfigure />}
 
         {/* Navigation + Actions */}
         <Card className="bg-gray-900 border-gray-800">
@@ -266,7 +260,7 @@ export default function WideCreatePage() {
                   </>
                 )}
 
-                {store.step < 5 && (
+                {store.step < 3 && (
                   <Button
                     size="sm"
                     onClick={handleNext}
@@ -282,13 +276,15 @@ export default function WideCreatePage() {
 
             {/* Validation errors */}
             {validation && !validation.valid && (
-              <div className="mt-3 space-y-1 max-h-32 overflow-y-auto">
+              <div className="mt-3 space-y-1 max-h-48 overflow-y-auto">
                 {validation.errors.map((err: any, i: number) => (
                   <div key={i} className="text-xs text-red-400 flex items-start gap-1.5">
                     <AlertCircle className="w-3 h-3 mt-0.5 shrink-0" />
                     <span>
-                      <span className="text-red-300 font-mono">{err.path}</span>
-                      {err.field && <span>.{err.field}</span>}: {err.message}
+                      <span className="text-red-300 font-medium">{err.entityLabel || err.path}</span>
+                      {err.field && <span className="text-red-400/70"> ({err.field})</span>}
+                      <span className="text-red-400/60"> — </span>
+                      {err.message}
                     </span>
                   </div>
                 ))}

@@ -5,6 +5,7 @@ import {
   FieldConfig,
   VALID_OPTIMIZATION_GOALS,
   VALID_DESTINATION_TYPES,
+  VALID_BUYING_TYPES,
   PROMOTED_OBJECT_REQUIREMENTS,
   ATTRIBUTION_SPEC_OBJECTIVES,
   BID_CAP_STRATEGIES,
@@ -195,8 +196,8 @@ export class MetaFormSchemaEngine {
               label: 'Buying Type',
               type: 'enum',
               required: false,
-              editable: false,
-              options: CAMPAIGN_FIELDS.buying_type.enumValues!.map(v => ({
+              editable: true,
+              options: (VALID_BUYING_TYPES[objective] || ['AUCTION']).map(v => ({
                 value: v,
                 label: CAMPAIGN_FIELDS.buying_type.enumLabels![v] || v,
               })),
@@ -1877,9 +1878,10 @@ export class MetaFormSchemaEngine {
         key: 'object_store_url',
         label: 'App Store URL',
         type: 'string',
-        required: false,
+        required: objective === 'OUTCOME_APP_PROMOTION',
         editable: true,
         placeholder: 'https://play.google.com/store/apps/...',
+        helpText: objective === 'OUTCOME_APP_PROMOTION' ? 'Required for App Promotion campaigns' : undefined,
         dependsOn: [{
           field: 'application_id',
           condition: 'exists',

@@ -20,6 +20,7 @@ function makeAdSet(overrides: any = {}) {
       billing_event: 'IMPRESSIONS',
       optimization_goal: 'LINK_CLICKS',
       targeting: { geo_locations: { countries: ['TH'] } },
+      daily_budget: '5000',
     },
     metaId: null,
     ...overrides,
@@ -269,7 +270,7 @@ describe('DraftValidationEngine.validateAdSet', () => {
     expect(errors.some(e => e.field === 'budget' && e.message.includes('CBO'))).toBe(true);
   });
 
-  it('warns about missing budget for non-CBO', async () => {
+  it('errors on missing budget for non-CBO', async () => {
     const errors = await DraftValidationEngine.validateAdSet(
       makeAdSet({
         data: {
@@ -281,7 +282,7 @@ describe('DraftValidationEngine.validateAdSet', () => {
       'OUTCOME_TRAFFIC',
       false
     );
-    expect(errors.some(e => e.field === 'budget' && e.severity === 'warning')).toBe(true);
+    expect(errors.some(e => e.field === 'budget' && e.severity === 'error')).toBe(true);
   });
 
   it('rejects both daily and lifetime budget on non-CBO adset', async () => {
