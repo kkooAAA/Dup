@@ -916,12 +916,12 @@ function BooleanField({
   );
 }
 
-function parseDateTimeParts(v: any): { date: string; hour: string; minute: string } {
-  if (!v) return { date: "", hour: "", minute: "" };
+function parseDateTimeParts(v: any): { date: string; time: string } {
+  if (!v) return { date: "", time: "00:00" };
   const s = String(v);
-  const match = s.match(/^(\d{4}-\d{2}-\d{2})(?:T(\d{2}):(\d{2}))?/);
-  if (!match) return { date: "", hour: "", minute: "" };
-  return { date: match[1], hour: match[2] || "00", minute: match[3] || "00" };
+  const match = s.match(/^(\d{4}-\d{2}-\d{2})(?:T(\d{2}:\d{2}))?/);
+  if (!match) return { date: "", time: "00:00" };
+  return { date: match[1], time: match[2] || "00:00" };
 }
 
 function DateTimeField({
@@ -954,12 +954,10 @@ function DateTimeField({
   }
 
   const parts = parseDateTimeParts(value);
-  const hours = Array.from({ length: 24 }, (_, i) => String(i).padStart(2, "0"));
-  const minutes = ["00", "15", "30", "45"];
 
-  const update = (date: string, hour: string, minute: string) => {
+  const update = (date: string, time: string) => {
     if (!date) { onChange(undefined); return; }
-    onChange(`${date}T${hour.padStart(2, "0")}:${minute.padStart(2, "0")}:00`);
+    onChange(`${date}T${time || "00:00"}:00`);
   };
 
   return (
@@ -969,33 +967,21 @@ function DateTimeField({
         <Input
           type="date"
           value={parts.date}
-          onChange={(e) => update(e.target.value, parts.hour, parts.minute)}
+          onChange={(e) => update(e.target.value, parts.time)}
           className={cn(
             "bg-gray-950 border-gray-800 focus:border-blue-500 text-gray-200 flex-1",
             compact ? "h-7 text-[11px]" : "h-8 text-sm",
           )}
         />
-        <select
-          value={parts.hour}
-          onChange={(e) => update(parts.date, e.target.value, parts.minute)}
+        <Input
+          type="time"
+          value={parts.time}
+          onChange={(e) => update(parts.date, e.target.value)}
           className={cn(
-            "w-14 rounded-md bg-gray-950 border border-gray-800 text-gray-200 px-1 focus:border-blue-500",
+            "bg-gray-950 border-gray-800 focus:border-blue-500 text-gray-200 w-[120px]",
             compact ? "h-7 text-[11px]" : "h-8 text-sm",
           )}
-        >
-          {hours.map((h) => <option key={h} value={h}>{h}</option>)}
-        </select>
-        <span className="text-gray-500 self-center text-xs">:</span>
-        <select
-          value={minutes.includes(parts.minute) ? parts.minute : "00"}
-          onChange={(e) => update(parts.date, parts.hour, e.target.value)}
-          className={cn(
-            "w-14 rounded-md bg-gray-950 border border-gray-800 text-gray-200 px-1 focus:border-blue-500",
-            compact ? "h-7 text-[11px]" : "h-8 text-sm",
-          )}
-        >
-          {minutes.map((m) => <option key={m} value={m}>{m}</option>)}
-        </select>
+        />
       </div>
     </div>
   );

@@ -706,3 +706,110 @@ describe('DraftValidationEngine.validateAdSet edge cases', () => {
     expect(errors.some(e => e.field === 'budget')).toBe(false);
   });
 });
+
+describe('DraftValidationEngine — minimum budget warnings', () => {
+  it('warns when ad set daily_budget is below floor', async () => {
+    const errors = await DraftValidationEngine.validateAdSet(
+      makeAdSet({
+        data: {
+          billing_event: 'IMPRESSIONS',
+          optimization_goal: 'LINK_CLICKS',
+          targeting: { geo_locations: { countries: ['TH'] } },
+          daily_budget: '500',
+        },
+      }),
+      'OUTCOME_TRAFFIC',
+      false
+    );
+    expect(errors.some(e => e.field === 'daily_budget' && e.severity === 'warning' && e.message.includes('minimum'))).toBe(true);
+  });
+
+  it('no warning when ad set daily_budget is above floor', async () => {
+    const errors = await DraftValidationEngine.validateAdSet(
+      makeAdSet({
+        data: {
+          billing_event: 'IMPRESSIONS',
+          optimization_goal: 'LINK_CLICKS',
+          targeting: { geo_locations: { countries: ['TH'] } },
+          daily_budget: '5000',
+        },
+      }),
+      'OUTCOME_TRAFFIC',
+      false
+    );
+    expect(errors.some(e => e.field === 'daily_budget' && e.severity === 'warning')).toBe(false);
+  });
+
+  it('warns when ad set lifetime_budget daily equivalent is below floor', async () => {
+    const errors = await DraftValidationEngine.validateAdSet(
+      makeAdSet({
+        data: {
+          billing_event: 'IMPRESSIONS',
+          optimization_goal: 'LINK_CLICKS',
+          targeting: { geo_locations: { countries: ['TH'] } },
+          lifetime_budget: '10000',
+          start_time: '2026-05-25T00:00:00',
+          end_time: '2026-05-31T00:00:00',
+        },
+      }),
+      'OUTCOME_TRAFFIC',
+      false
+    );
+    expect(errors.some(e => e.field === 'lifetime_budget' && e.severity === 'warning' && e.message.includes('minimum'))).toBe(true);
+  });
+
+  it('no warning when ad set lifetime_budget daily equivalent is above floor', async () => {
+    const errors = await DraftValidationEngine.validateAdSet(
+      makeAdSet({
+        data: {
+          billing_event: 'IMPRESSIONS',
+          optimization_goal: 'LINK_CLICKS',
+          targeting: { geo_locations: { countries: ['TH'] } },
+          lifetime_budget: '100000',
+          start_time: '2026-05-25T00:00:00',
+          end_time: '2026-05-31T00:00:00',
+        },
+      }),
+      'OUTCOME_TRAFFIC',
+      false
+    );
+    expect(errors.some(e => e.field === 'lifetime_budget' && e.severity === 'warning')).toBe(false);
+  });
+
+  it('warns when CBO campaign daily_budget is below floor', async () => {
+    const errors = await DraftValidationEngine.validateCampaign(
+      makeCampaign({ data: { objective: 'OUTCOME_TRAFFIC', daily_budget: '500' } })
+    );
+    expect(errors.some(e => e.field === 'daily_budget' && e.severity === 'warning' && e.message.includes('minimum'))).toBe(true);
+  });
+
+  it('warns when CBO campaign lifetime_budget daily equivalent is below floor', async () => {
+    const errors = await DraftValidationEngine.validateCampaign(
+      makeCampaign({
+        data: {
+          objective: 'OUTCOME_TRAFFIC',
+          lifetime_budget: '5000',
+          start_time: '2026-05-25T00:00:00',
+          stop_time: '2026-05-31T00:00:00',
+        },
+      })
+    );
+    expect(errors.some(e => e.field === 'lifetime_budget' && e.severity === 'warning' && e.message.includes('minimum'))).toBe(true);
+  });
+
+  it('skips budget floor check for CBO ad set (budget not allowed at ad set level)', async () => {
+    const errors = await DraftValidationEngine.validateAdSet(
+      makeAdSet({
+        data: {
+          billing_event: 'IMPRESSIONS',
+          optimization_goal: 'LINK_CLICKS',
+          targeting: { geo_locations: { countries: ['TH'] } },
+          daily_budget: '500',
+        },
+      }),
+      'OUTCOME_TRAFFIC',
+      true
+    );
+    expect(errors.some(e => e.field === 'daily_budget' && e.severity === 'warning')).toBe(false);
+  });
+});

@@ -51,6 +51,10 @@ function labelBid(b: string): string { return BID_STRATEGY_LABELS[b] || b; }
 function labelField(f: string): string { return FIELD_LABELS[f] || f.replace(/_/g, ' '); }
 function labelPromoted(f: string): string { return PROMOTED_OBJECT_FIELD_LABELS[f] || f; }
 
+// Meta enforces a per-day minimum that varies by currency. Without knowing the
+// account currency we use a heuristic floor in the smallest currency unit.
+const MIN_DAILY_BUDGET_FLOOR = 2000;
+
 export class DraftValidationEngine {
   static async validateCampaign(campaign: DraftCampaign): Promise<ValidationError[]> {
     const errors: ValidationError[] = [];
@@ -108,6 +112,30 @@ export class DraftValidationEngine {
         message: 'Campaign Budget Optimization is enabled but no campaign budget is set. Add a Daily or Lifetime Budget.',
         severity: 'error',
       });
+    }
+
+    // CBO budget floor check
+    if (isCBO) {
+      if (hasDailyBudget && Number(data.daily_budget) < MIN_DAILY_BUDGET_FLOOR) {
+        errors.push({
+          field: 'daily_budget',
+          message: `Daily budget of ${Number(data.daily_budget)} may be below Meta's minimum for your currency. Increase the budget to avoid rejection.`,
+          severity: 'warning',
+        });
+      }
+      if (hasLifetimeBudget && data.stop_time) {
+        const start = data.start_time ? new Date(data.start_time).getTime() : Date.now();
+        const end = new Date(data.stop_time).getTime();
+        const days = Math.max(1, Math.ceil((end - start) / 86_400_000));
+        const dailyEquiv = Math.floor(Number(data.lifetime_budget) / days);
+        if (dailyEquiv < MIN_DAILY_BUDGET_FLOOR) {
+          errors.push({
+            field: 'lifetime_budget',
+            message: `Lifetime budget averages ~${dailyEquiv}/day over ${days} days, which may be below Meta's minimum for your currency. Increase the budget or shorten the schedule.`,
+            severity: 'warning',
+          });
+        }
+      }
     }
 
     // special_ad_categories: NONE must not coexist with real categories
@@ -329,6 +357,26 @@ export class DraftValidationEngine {
           message: 'Choose either Daily Budget or Lifetime Budget — you cannot use both on an ad set.',
           severity: 'error',
         });
+      }
+      if (hasDailyBudget && Number(data.daily_budget) < MIN_DAILY_BUDGET_FLOOR) {
+        errors.push({
+          field: 'daily_budget',
+          message: `Daily budget of ${Number(data.daily_budget)} may be below Meta's minimum for your currency. Increase the budget to avoid rejection.`,
+          severity: 'warning',
+        });
+      }
+      if (hasLifetimeBudget && data.end_time) {
+        const start = data.start_time ? new Date(data.start_time).getTime() : Date.now();
+        const end = new Date(data.end_time).getTime();
+        const days = Math.max(1, Math.ceil((end - start) / 86_400_000));
+        const dailyEquiv = Math.floor(Number(data.lifetime_budget) / days);
+        if (dailyEquiv < MIN_DAILY_BUDGET_FLOOR) {
+          errors.push({
+            field: 'lifetime_budget',
+            message: `Lifetime budget averages ~${dailyEquiv}/day over ${days} days, which may be below Meta's minimum for your currency. Increase the budget or shorten the schedule.`,
+            severity: 'warning',
+          });
+        }
       }
     }
 
