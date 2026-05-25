@@ -51,11 +51,14 @@ export const cleanupHistory = async (req: AuthRequest, res: Response) => {
 
     const fbService = new FacebookService(req.userAccessToken!);
 
+    // Skip DRAFT_DUPLICATE entries — their targetId is a local draft ID, not a Meta object
+    const metaJobs = jobs.filter(job => (job.details as any)?.operation !== 'DRAFT_DUPLICATE');
+
     let deletedCount = 0;
     const toDelete: string[] = [];
-    for (let i = 0; i < jobs.length; i++) {
+    for (let i = 0; i < metaJobs.length; i++) {
       if (i > 0) await sleep(150);
-      const job = jobs[i];
+      const job = metaJobs[i];
       if (!job.targetId) continue;
       const exists = await fbService.checkExistence(job.targetId);
       if (!exists) toDelete.push(job.id);

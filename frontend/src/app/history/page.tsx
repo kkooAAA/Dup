@@ -18,6 +18,23 @@ import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { cn, extractApiError } from "@/lib/utils";
 
+type OperationType = 'PUBLISH' | 'DRAFT_DUPLICATE' | 'CONVERSION' | 'DUPLICATE';
+
+function getOperation(details: any): OperationType {
+  const op = details?.operation;
+  if (op === 'PUBLISH') return 'PUBLISH';
+  if (op === 'DRAFT_DUPLICATE') return 'DRAFT_DUPLICATE';
+  if (details?.isConversion) return 'CONVERSION';
+  return 'DUPLICATE';
+}
+
+const OPERATION_BADGE: Record<OperationType, { label: string; className: string }> = {
+  PUBLISH:        { label: 'PUBLISH',    className: 'bg-emerald-500/10 text-emerald-400' },
+  DRAFT_DUPLICATE:{ label: 'DRAFT DUP', className: 'bg-amber-500/10 text-amber-400' },
+  CONVERSION:     { label: 'CONVERSION', className: 'bg-blue-500/10 text-blue-400' },
+  DUPLICATE:      { label: 'DUPLICATE',  className: 'bg-violet-500/10 text-violet-400' },
+};
+
 export default function HistoryPage() {
   const [history, setHistory] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -79,7 +96,7 @@ export default function HistoryPage() {
           <div className="flex-1 min-w-0">
             <h2 className="text-2xl font-bold text-gray-100">History</h2>
             <p className="text-gray-500 mt-1 text-sm">
-              Audit log of all duplication actions.
+              Audit log of all actions — duplications, conversions, draft publishes.
               {!loading && history.length > 0 && (
                 <span className="ml-2 text-gray-600">
                   Last: {formatDistanceToNow(new Date(history[0].createdAt), { addSuffix: true })}
@@ -123,7 +140,7 @@ export default function HistoryPage() {
             <div className="p-16 text-center">
               <Clock className="w-10 h-10 text-gray-700 mx-auto mb-3" />
               <p className="text-gray-400 font-medium">No history yet</p>
-              <p className="text-gray-600 text-sm mt-1">Duplication actions will appear here.</p>
+              <p className="text-gray-600 text-sm mt-1">Duplications, conversions, and draft publishes will appear here.</p>
             </div>
           ) : (
             <div className="overflow-x-auto">
@@ -152,15 +169,15 @@ export default function HistoryPage() {
                         <span className="text-[10px] font-semibold px-2 py-0.5 rounded-md bg-gray-800/50 text-gray-400 w-fit">
                           {job.type}
                         </span>
-                        {job.details?.isConversion ? (
-                          <span className="text-[10px] font-semibold px-2 py-0.5 rounded-md bg-blue-500/10 text-blue-400 w-fit">
-                            CONVERSION
-                          </span>
-                        ) : (
-                          <span className="text-[10px] font-semibold px-2 py-0.5 rounded-md bg-violet-500/10 text-violet-400 w-fit">
-                            DUPLICATE
-                          </span>
-                        )}
+                        {(() => {
+                          const op = getOperation(job.details);
+                          const badge = OPERATION_BADGE[op];
+                          return (
+                            <span className={cn("text-[10px] font-semibold px-2 py-0.5 rounded-md w-fit", badge.className)}>
+                              {badge.label}
+                            </span>
+                          );
+                        })()}
                       </div>
                     </TableCell>
                     <TableCell className="font-mono text-xs text-gray-500">{job.sourceId}</TableCell>
@@ -168,7 +185,9 @@ export default function HistoryPage() {
                       {job.targetId ? (
                         <span className="flex items-center gap-1 text-blue-400 text-xs font-mono">
                           {job.targetId}
-                          <ExternalLink className="w-2.5 h-2.5" />
+                          {getOperation(job.details) !== 'DRAFT_DUPLICATE' && (
+                            <ExternalLink className="w-2.5 h-2.5" />
+                          )}
                         </span>
                       ) : (
                         <span className="text-gray-700">--</span>

@@ -33,6 +33,16 @@ export class DraftController {
           { iteration: numCopies > 1 ? i + 1 : 0 },
         );
         drafts.push(draft);
+        await prisma.duplicateJob.create({
+          data: {
+            userId: authReq.userId!,
+            status: 'COMPLETED',
+            type: 'CAMPAIGN',
+            sourceId: campaignId,
+            targetId: draft.id,
+            details: { operation: 'DRAFT_DUPLICATE', name: draft.name },
+          },
+        });
       } catch (error: any) {
         const msg = error?.response?.data?.error?.error_user_msg
           || error?.response?.data?.error?.message
@@ -40,6 +50,15 @@ export class DraftController {
           || 'unknown error';
         console.error(`[DraftController] duplicateToDraft copy ${i + 1}/${numCopies} failed:`, msg);
         failures.push({ iteration: i + 1, error: msg });
+        prisma.duplicateJob.create({
+          data: {
+            userId: authReq.userId!,
+            status: 'FAILED',
+            type: 'CAMPAIGN',
+            sourceId: campaignId,
+            details: { operation: 'DRAFT_DUPLICATE', iteration: i + 1, error: msg },
+          },
+        }).catch(() => {});
       }
     }
 
@@ -148,11 +167,20 @@ export class DraftController {
   }
 
   static async publishDraft(req: Request, res: Response) {
+    const id = req.params.id as string;
+    const authReq = req as AuthRequest;
     try {
-      const id = req.params.id as string;
-      const authReq = req as AuthRequest;
-
       const result = await DraftPublishService.publishCampaign(id, authReq.userAccessToken!);
+      await prisma.duplicateJob.create({
+        data: {
+          userId: authReq.userId!,
+          status: 'COMPLETED',
+          type: 'CAMPAIGN',
+          sourceId: id,
+          targetId: result.metaCampaignId,
+          details: { operation: 'PUBLISH' },
+        },
+      });
       res.json(result);
     } catch (error: any) {
       console.error(`[DraftController] Error in publishDraft:`, error);
@@ -160,6 +188,15 @@ export class DraftController {
         return res.status(401).json({ error: error.message, code: 'TOKEN_EXPIRED' });
       }
       const userMessage = error instanceof PublishError ? error.userMessage : error.message;
+      prisma.duplicateJob.create({
+        data: {
+          userId: authReq.userId!,
+          status: 'FAILED',
+          type: 'CAMPAIGN',
+          sourceId: id,
+          details: { operation: 'PUBLISH', error: userMessage },
+        },
+      }).catch(() => {});
       res.status(500).json({ error: error.message, userMessage });
     }
   }
@@ -178,12 +215,31 @@ export class DraftController {
         try {
           const result = await DraftPublishService.publishCampaign(id, authReq.userAccessToken!);
           results.push({ id, success: true, metaCampaignId: result.metaCampaignId });
+          await prisma.duplicateJob.create({
+            data: {
+              userId: authReq.userId!,
+              status: 'COMPLETED',
+              type: 'CAMPAIGN',
+              sourceId: id,
+              targetId: result.metaCampaignId,
+              details: { operation: 'PUBLISH' },
+            },
+          });
         } catch (error: any) {
           if (isFacebookAuthError(error.message)) {
             return res.status(401).json({ error: error.message, code: 'TOKEN_EXPIRED' });
           }
           const userMessage = error instanceof PublishError ? error.userMessage : error.message;
           results.push({ id, success: false, error: error.message, userMessage });
+          prisma.duplicateJob.create({
+            data: {
+              userId: authReq.userId!,
+              status: 'FAILED',
+              type: 'CAMPAIGN',
+              sourceId: id,
+              details: { operation: 'PUBLISH', error: userMessage },
+            },
+          }).catch(() => {});
         }
       }
 
