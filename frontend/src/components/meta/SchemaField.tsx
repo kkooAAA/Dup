@@ -1303,16 +1303,13 @@ function ArrayField({
     context.onFieldChange(path, next);
   };
 
-  // Use stable identifiers (id, key) when available so deleting a middle item doesn't bleed
-  // state into siblings. Fall back to index — using user-editable fields (name, free-text value)
-  // would re-mount the input on every keystroke and steal focus.
-  const itemKey = (item: any, index: number): string => {
-    if (item && typeof item === "object") {
-      const stable = item.id ?? item.key;
-      if (stable !== undefined && stable !== null) return String(stable);
-    }
-    return String(index);
-  };
+  // Key array items by index only. We must NOT key off item content (id, key, name, etc.):
+  // for Meta targeting arrays those fields ARE user-editable inputs — regions/cities/zips edit
+  // `key`, detailed targeting/custom audiences edit `id`. Deriving the React key from them means
+  // typing a single character changes the key, which unmounts/remounts the row and steals focus.
+  // Items here are only ever appended or removed (never reordered) via the Add/Remove buttons, and
+  // every input is fully controlled by `value` from props, so index keys reconcile correctly.
+  const itemKey = (_item: any, index: number): string => String(index);
 
   if (!field.arrayItemSchema) {
     return (

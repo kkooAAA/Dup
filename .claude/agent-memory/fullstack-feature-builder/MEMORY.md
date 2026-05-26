@@ -1,0 +1,2 @@
+- [Targeting fields are schema-driven arrays](project_targeting-schema-rendering.md) — region/city/postal/detailed/custom-audience UI comes from MetaFormSchemaEngine, not hand-written form code
+- [ArrayField React-key focus-loss pitfall](feedback_arrayfield-react-key-focus.md) — never key schema array items off item content; id/key/name are user-editable in targeting arrays
