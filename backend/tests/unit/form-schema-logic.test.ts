@@ -15,11 +15,11 @@ describe('Campaign Form Schema', () => {
     expect(sectionIds).toContain('special');
   });
 
-  it('objective field is not editable (immutable)', () => {
+  it('objective field is editable on new drafts, immutable once published', () => {
     const schema = MetaFormSchemaEngine.getCampaignFormSchema();
     const identity = schema.sections.find(s => s.id === 'identity')!;
     const objectiveField = identity.fields.find(f => f.key === 'objective')!;
-    expect(objectiveField.editable).toBe(false);
+    expect(objectiveField.editable).toBe(true); // editable before publishing
     expect(objectiveField.options).toHaveLength(6);
   });
 

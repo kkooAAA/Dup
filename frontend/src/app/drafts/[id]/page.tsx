@@ -11,6 +11,7 @@ import { draftApi } from "@/services/api";
 import {
   Save, Send, ShieldCheck, AlertTriangle, FileText, Layers,
   Megaphone, Loader2, ArrowLeft, Trash2, CheckCircle2, CircleHelp,
+  Zap, ZapOff,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
@@ -145,6 +146,7 @@ export default function DraftEditorPage({ params: paramsPromise }: { params: Pro
   const [isValidating, setIsValidating] = useState(false);
   const [isPublishing, setIsPublishing] = useState(false);
   const [isCleaning, setIsCleaning] = useState(false);
+  const [isAutoSaveEnabled, setIsAutoSaveEnabled] = useState(true);
   const [validationResults, setValidationResults] = useState<any>(null);
   // In-memory edits keyed by `${type}:${id}`. Switching nodes preserves edits;
   // they are only persisted when the user clicks Save.
@@ -214,7 +216,7 @@ export default function DraftEditorPage({ params: paramsPromise }: { params: Pro
   // Auto-save after 3s of inactivity whenever there are pending edits.
   const autoSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => {
-    if (!isDirty || isSaving) return;
+    if (!isAutoSaveEnabled || !isDirty || isSaving) return;
     if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current);
     autoSaveTimerRef.current = setTimeout(() => {
       handleSave();
@@ -222,7 +224,7 @@ export default function DraftEditorPage({ params: paramsPromise }: { params: Pro
     return () => {
       if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current);
     };
-  }, [editCache, isDirty]);
+  }, [editCache, isDirty, isAutoSaveEnabled]);
 
   // Switching node now PRESERVES the previous node's edits in the cache (no auto-save).
   // When you come back, your in-progress edits are restored.
@@ -233,13 +235,21 @@ export default function DraftEditorPage({ params: paramsPromise }: { params: Pro
   };
 
   // Single helper: update local view AND stash in cache so it survives node switches.
-  const commitEdit = (next: any) => {
-    setEditData(next);
-    if (!currentKey) return;
-    setEditCache((prev) => {
-      const m = new Map(prev);
-      m.set(currentKey, next);
-      return m;
+  const commitEdit = (values: any) => {
+    setEditData((prev: any) => {
+      if (!prev) return prev;
+      const next = { ...prev, data: values };
+      // Use the key derived from the entity we are actually editing
+      const key = nodeKey(
+        next.adSets ? "CAMPAIGN" : (next.ads ? "ADSET" : "AD"),
+        next.id
+      );
+      setEditCache((prevCache) => {
+        const m = new Map(prevCache);
+        m.set(key, next);
+        return m;
+      });
+      return next;
     });
   };
 
@@ -392,17 +402,30 @@ export default function DraftEditorPage({ params: paramsPromise }: { params: Pro
               </div>
             </div>
           </div>
-          <div className="flex items-center gap-2 shrink-0">
-            {(draft.status === "FAILED" || hasMetaId) && draft.status !== "PUBLISHED" && (
-              <>
-                <Button variant="outline" size="sm" className="gap-1.5 border-red-900/60 text-red-400 hover:bg-red-500/10 hover:border-red-700"
-                  onClick={handleCleanup} disabled={isCleaning}>
+          <div className="flex flex-wrap items-center gap-2 shrink-0">
+            {draft.status !== "PUBLISHING" && (
+              <div className="flex items-center gap-2">
+                <Button variant="outline" size="sm" className="gap-1.5 border-red-900/60 text-red-400 hover:bg-red-500/10 hover:border-red-700 bg-red-500/5 min-w-[120px]"
+                  onClick={handleCleanup} disabled={isCleaning} title="Delete objects on Meta and reset draft">
                   {isCleaning ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
                   Cleanup Meta
                 </Button>
-                <div className="w-px h-5 bg-gray-800" />
-              </>
+                <div className="w-px h-5 bg-gray-800 hidden sm:block" />
+              </div>
             )}
+            <Button
+              variant="outline"
+              size="sm"
+              className={cn(
+                "gap-1.5 border-gray-800",
+                isAutoSaveEnabled ? "text-blue-400 bg-blue-500/5" : "text-gray-500"
+              )}
+              onClick={() => setIsAutoSaveEnabled(!isAutoSaveEnabled)}
+              title={isAutoSaveEnabled ? "Auto-save is ON" : "Auto-save is OFF"}
+            >
+              {isAutoSaveEnabled ? <Zap className="w-3.5 h-3.5" /> : <ZapOff className="w-3.5 h-3.5" />}
+              Auto-save
+            </Button>
             <Button variant="outline" size="sm" className="gap-1.5 border-gray-800 text-gray-400"
               onClick={handleValidate} disabled={isValidating || isDirty}
               title={isDirty ? "Save your edits first" : "Re-run validation"}>
@@ -522,6 +545,7 @@ export default function DraftEditorPage({ params: paramsPromise }: { params: Pro
 
                   <TabsContent value="form" keepMounted className="mt-4">
                     <MetaForm
+                      key={selectedNode?.id}
                       entityType={
                         selectedNode?.type === "CAMPAIGN" ? "campaign" :
                         selectedNode?.type === "ADSET" ? "adSet" : "ad"
@@ -531,9 +555,10 @@ export default function DraftEditorPage({ params: paramsPromise }: { params: Pro
                         objective: campaignObjective,
                         buyingType: editData.data?.buying_type || "AUCTION",
                         isCBO,
+                        hasMetaId: !!editData.metaId,
                       }}
                       adAccountId={adAccountId}
-                      onChange={(values) => commitEdit({ ...editData, data: values })}
+                      onChange={(values) => commitEdit(values)}
                     />
                   </TabsContent>
 

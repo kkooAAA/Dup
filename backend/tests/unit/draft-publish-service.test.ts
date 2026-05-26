@@ -782,6 +782,7 @@ describe('DraftPublishService.publishCampaign', () => {
 
   it('includes platform_customizations as top-level creative field', async () => {
     const campaign = makeDraftCampaign();
+    campaign.adSets[0].data.promoted_object = { page_id: '123' };
     campaign.adSets[0].ads[0].data = {
       creative: {
         creative_id: '999',
@@ -800,13 +801,15 @@ describe('DraftPublishService.publishCampaign', () => {
     await DraftPublishService.publishCampaign('camp-1', 'token');
     const adCall = mockFbPost.mock.calls[2];
     expect(adCall[1].creative.platform_customizations).toEqual({ instagram: { title: 'IG Title' } });
+    expect(adCall[1].creative.page_id).toBe('123');
+    expect(adCall[1].creative.creative_id).toBeUndefined(); // Force inline due to customizations
   });
 
-  it('includes asset_feed_spec as top-level creative field', async () => {
+  it('pre-creates adcreative for asset_feed_spec and uses creative_id on ad', async () => {
     const campaign = makeDraftCampaign();
+    campaign.adSets[0].data.promoted_object = { page_id: '123' };
     campaign.adSets[0].ads[0].data = {
       creative: {
-        creative_id: '999',
         asset_feed_spec: { images: [{ hash: 'x' }], bodies: [{ text: 'y' }] },
       },
     };
@@ -817,11 +820,18 @@ describe('DraftPublishService.publishCampaign', () => {
     mockFbPost
       .mockResolvedValueOnce({ data: { id: 'meta_camp_1' } })
       .mockResolvedValueOnce({ data: { id: 'meta_adset_1' } })
+      .mockResolvedValueOnce({ data: { id: 'meta_creative_1' } }) // adcreative pre-create
       .mockResolvedValueOnce({ data: { id: 'meta_ad_1' } });
 
     await DraftPublishService.publishCampaign('camp-1', 'token');
-    const adCall = mockFbPost.mock.calls[2];
-    expect(adCall[1].creative.asset_feed_spec).toEqual({ images: [{ hash: 'x' }], bodies: [{ text: 'y' }] });
+    // 3rd call = adcreative POST
+    const creativeCall = mockFbPost.mock.calls[2];
+    expect(creativeCall[1].asset_feed_spec).toEqual({ images: [{ hash: 'x' }], bodies: [{ text: 'y' }] });
+    expect(creativeCall[1].page_id).toBe('123');
+    // 4th call = ad POST — must use creative_id, NOT inline asset_feed_spec
+    const adCall = mockFbPost.mock.calls[3];
+    expect(adCall[1].creative.creative_id).toBe('meta_creative_1');
+    expect(adCall[1].creative.asset_feed_spec).toBeUndefined();
   });
 
   it('strips creative_type from publish payload', async () => {
@@ -848,6 +858,7 @@ describe('DraftPublishService.publishCampaign', () => {
 
   it('accepts asset_feed_spec-only creative without object_story_spec', async () => {
     const campaign = makeDraftCampaign();
+    campaign.adSets[0].data.page_id = '12345';
     campaign.adSets[0].ads[0].data = {
       creative: { asset_feed_spec: { images: [{ hash: 'x' }], bodies: [{ text: 'y' }] } },
     };
@@ -858,12 +869,43 @@ describe('DraftPublishService.publishCampaign', () => {
     mockFbPost
       .mockResolvedValueOnce({ data: { id: 'meta_camp_1' } })
       .mockResolvedValueOnce({ data: { id: 'meta_adset_1' } })
+      .mockResolvedValueOnce({ data: { id: 'meta_creative_1' } })
       .mockResolvedValueOnce({ data: { id: 'meta_ad_1' } });
 
     await DraftPublishService.publishCampaign('camp-1', 'token');
-    const adCall = mockFbPost.mock.calls[2];
-    expect(adCall[1].creative.asset_feed_spec).toEqual({ images: [{ hash: 'x' }], bodies: [{ text: 'y' }] });
-    expect(adCall[1].creative.creative_id).toBeUndefined();
+    const creativeCall = mockFbPost.mock.calls[2];
+    expect(creativeCall[0]).toMatch(/\/adcreatives$/);
+    expect(creativeCall[1].asset_feed_spec).toEqual({ images: [{ hash: 'x' }], bodies: [{ text: 'y' }] });
+    expect(creativeCall[1].page_id).toBe('12345');
+    const adCall = mockFbPost.mock.calls[3];
+    expect(adCall[1].creative.creative_id).toBe('meta_creative_1');
+    expect(adCall[1].creative.asset_feed_spec).toBeUndefined();
+  });
+
+  it('resolves page_id from deep object_story_spec path', async () => {
+    const campaign = makeDraftCampaign();
+    campaign.adSets[0].ads[0].data = {
+      creative: {
+        asset_feed_spec: { images: [{ hash: 'x' }] },
+        object_story_spec: { page_id: '999' }
+      },
+    };
+    mockPrisma.draftCampaign.findUnique.mockResolvedValue(campaign);
+    mockPrisma.draftCampaign.update.mockResolvedValue({});
+    mockPrisma.draftAdSet.update.mockResolvedValue({});
+    mockPrisma.draftAd.update.mockResolvedValue({});
+    mockFbPost
+      .mockResolvedValueOnce({ data: { id: 'meta_camp_1' } })
+      .mockResolvedValueOnce({ data: { id: 'meta_adset_1' } })
+      .mockResolvedValueOnce({ data: { id: 'meta_creative_1' } })
+      .mockResolvedValueOnce({ data: { id: 'meta_ad_1' } });
+
+    await DraftPublishService.publishCampaign('camp-1', 'token');
+    const creativeCall = mockFbPost.mock.calls[2];
+    expect(creativeCall[0]).toMatch(/\/adcreatives$/);
+    expect(creativeCall[1].page_id).toBe('999');
+    const adCall = mockFbPost.mock.calls[3];
+    expect(adCall[1].creative.creative_id).toBe('meta_creative_1');
   });
 
   it('deletes and recreates campaign on objective mismatch, clears child metaIds', async () => {

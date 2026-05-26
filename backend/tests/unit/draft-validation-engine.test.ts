@@ -425,30 +425,50 @@ describe('DraftValidationEngine.validateAd', () => {
 
   it('accepts ad with asset_feed_spec', async () => {
     const errors = await DraftValidationEngine.validateAd(
-      makeAd({ data: { creative: { asset_feed_spec: { images: [{ hash: 'x' }], bodies: [{ text: 'y' }] } } } })
+      makeAd({ data: {
+        page_id: '123',
+        creative: { asset_feed_spec: {
+          images: [{ hash: 'x' }],
+          bodies: [{ text: 'y' }],
+          titles: [{ text: 'z' }],
+          link_urls: [{ website_url: 'http://example.com' }]
+        } }
+      } }),
+      true // isDynamicCreative
     );
     expect(errors.filter(e => e.severity === 'error')).toHaveLength(0);
   });
 
   it('rejects asset_feed_spec without images or videos', async () => {
     const errors = await DraftValidationEngine.validateAd(
-      makeAd({ data: { creative: { asset_feed_spec: { bodies: [{ text: 'y' }] } } } })
+      makeAd({ data: { creative: { asset_feed_spec: { bodies: [{ text: 'y' }] } } } }),
+      true // isDynamicCreative
     );
     expect(errors.some(e => e.field === 'creative.asset_feed_spec' && e.severity === 'error')).toBe(true);
   });
 
-  it('warns when asset_feed_spec has no bodies', async () => {
+  it('errors when asset_feed_spec has no bodies', async () => {
     const errors = await DraftValidationEngine.validateAd(
-      makeAd({ data: { creative: { asset_feed_spec: { images: [{ hash: 'x' }] } } } })
+      makeAd({ data: { creative: { asset_feed_spec: { images: [{ hash: 'x' }] } } } }),
+      true // isDynamicCreative
     );
-    expect(errors.some(e => e.field === 'creative.asset_feed_spec.bodies' && e.severity === 'warning')).toBe(true);
+    expect(errors.some(e => e.field === 'creative.asset_feed_spec.bodies' && e.severity === 'error')).toBe(true);
   });
 
-  it('warns when page_id is missing from object_story_spec', async () => {
+  it('errors when page_id is missing from object_story_spec', async () => {
     const errors = await DraftValidationEngine.validateAd(
       makeAd({ data: { creative: { object_story_spec: { link_data: { message: 'hi' } } } } })
     );
-    expect(errors.some(e => e.field === 'creative.page_id' && e.severity === 'warning')).toBe(true);
+    expect(errors.some(e => e.field === 'creative.page_id' && e.severity === 'error')).toBe(true);
+  });
+
+  it('resolves page_id from adSetContext promoted_object', async () => {
+    const errors = await DraftValidationEngine.validateAd(
+      makeAd({ data: { creative: { object_story_spec: { link_data: { message: 'hi' } } } } }),
+      false,
+      { promoted_object: { page_id: '123' } }
+    );
+    expect(errors.some(e => e.field === 'creative.page_id')).toBe(false);
   });
 });
 

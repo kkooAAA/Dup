@@ -560,9 +560,10 @@ export class DraftValidationEngine {
     return errors;
   }
 
-  static async validateAd(ad: DraftAd): Promise<ValidationError[]> {
+  static async validateAd(ad: DraftAd, isDynamicCreative?: boolean, adSetContext: any = {}): Promise<ValidationError[]> {
     const errors: ValidationError[] = [];
     const data = ad.data as any;
+    const targeting = adSetContext.targeting || {};
 
     if (!ad.name) {
       errors.push({ field: 'name', message: 'Ad name is required.', severity: 'error' });
@@ -576,10 +577,72 @@ export class DraftValidationEngine {
     const hasCreativeId = data.creative.id || data.creative.creative_id;
     const oss = data.creative.object_story_spec;
     const hasAssetFeed = data.creative.asset_feed_spec;
+    const hasPlatformCustomizations = data.creative.platform_customizations;
 
     if (!hasCreativeId && !oss && !hasAssetFeed) {
       errors.push({ field: 'creative', message: 'Ad creative is incomplete. Add an image/video, set up a creative, or provide a Creative ID.', severity: 'error' });
       return errors;
+    }
+
+    // Dynamic Creative mismatch check
+    if (hasAssetFeed && !isDynamicCreative) {
+      errors.push({
+        field: 'creative.asset_feed_spec',
+        message: 'Dynamic Creative assets (Asset Feed) require "Dynamic Creative" to be enabled on the Ad Set level.',
+        severity: 'error',
+      });
+    }
+
+    // Identity resolution check
+    const hasPageId = data.creative.page_id
+      || data.page_id
+      || adSetContext.page_id
+      || adSetContext.promoted_object?.page_id
+      || data.creative.object_story_spec?.page_id;
+
+    // asset_feed_spec ads are pre-created as /adcreatives before publish.
+    // That call requires object_story_spec.page_id — validate it's resolvable.
+    if (hasAssetFeed && !hasPageId) {
+      errors.push({
+        field: 'creative.asset_feed_spec',
+        message: 'Dynamic Creative requires a Page ID to publish. Set it on the Ad Set\'s Promoted Object or the Ad\'s Page ID field.',
+        severity: 'error',
+      });
+    }
+
+    // Placement-specific media requirements
+    const platforms: string[] = targeting.publisher_platforms || [];
+    const anPositions: string[] = targeting.audience_network_positions || [];
+    const isRewarded = anPositions.includes('rewarded_video');
+    const isThreads = platforms.includes('threads');
+
+    if (isRewarded) {
+      const hasVideo = oss?.video_data?.video_id || (hasAssetFeed && data.creative.asset_feed_spec.videos?.length > 0);
+      if (!hasVideo && !hasCreativeId) {
+        errors.push({
+          field: 'creative',
+          message: 'Audience Network Rewarded Video placement requires a video. Please add a video to your creative.',
+          severity: 'error',
+        });
+      }
+    }
+
+    if (isThreads && !hasCreativeId) {
+      // Threads often has specific media requirements or fails with generic specs
+      errors.push({
+        field: 'creative',
+        message: 'Threads placement is selected. Ensure your creative meets Threads media requirements (Threads Media ID may be required by Meta).',
+        severity: 'warning',
+      });
+    }
+
+    // Creative ID override warning
+    if (hasCreativeId && (hasAssetFeed || hasPlatformCustomizations)) {
+      errors.push({
+        field: 'creative.creative_id',
+        message: 'Platform customizations or dynamic assets will be ignored when using an existing Creative ID. Clear the Creative ID to use these advanced settings.',
+        severity: 'warning',
+      });
     }
 
     if (oss && !hasCreativeId) {
@@ -627,8 +690,12 @@ export class DraftValidationEngine {
         }
       }
 
-      if (!oss.page_id) {
-        errors.push({ field: 'creative.page_id', message: 'Facebook Page is recommended — it will be auto-resolved from the ad set if possible.', severity: 'warning' });
+      if (!oss.page_id && !hasPageId) {
+        errors.push({
+          field: 'creative.page_id',
+          message: 'Facebook Page is required for inline creatives. Please select a Page in the ad setup.',
+          severity: 'error',
+        });
       }
     }
 
@@ -638,7 +705,70 @@ export class DraftValidationEngine {
         errors.push({ field: 'creative.asset_feed_spec', message: 'Dynamic creative requires at least one image or video.', severity: 'error' });
       }
       if (!afs.bodies?.length) {
-        errors.push({ field: 'creative.asset_feed_spec.bodies', message: 'Dynamic creative should have at least one body text.', severity: 'warning' });
+        errors.push({ field: 'creative.asset_feed_spec.bodies', message: 'Advanced creative requires at least one body text.', severity: 'error' });
+      }
+      if (!afs.titles?.length) {
+        errors.push({ field: 'creative.asset_feed_spec.titles', message: 'Advanced creative requires at least one title.', severity: 'error' });
+      }
+      if (!afs.link_urls?.length) {
+        errors.push({ field: 'creative.asset_feed_spec.link_urls', message: 'Advanced creative requires at least one website URL.', severity: 'error' });
+      } else {
+        afs.link_urls.forEach((l: any, i: number) => {
+          if (!l.website_url) {
+            errors.push({ field: `creative.asset_feed_spec.link_urls[${i}]`, message: `Website URL ${i + 1} is missing a destination.`, severity: 'error' });
+          }
+        });
+      }
+      if (afs.call_to_action_types?.length > 5) {
+        errors.push({
+          field: 'creative.asset_feed_spec.call_to_action_types',
+          message: `${afs.call_to_action_types.length} call-to-action types detected — Meta allows 5 max. Only the first 5 will be used when publishing.`,
+          severity: 'warning',
+        });
+      }
+      if (afs.images?.length > 10) {
+        errors.push({
+          field: 'creative.asset_feed_spec.images',
+          message: `${afs.images.length} images detected — Meta allows 10 max. Only the first 10 will be used when publishing.`,
+          severity: 'warning',
+        });
+      }
+      if (afs.bodies?.length > 5) {
+        errors.push({
+          field: 'creative.asset_feed_spec.bodies',
+          message: `${afs.bodies.length} body texts detected — Meta allows 5 max. Only the first 5 will be used when publishing.`,
+          severity: 'warning',
+        });
+      }
+      if (afs.titles?.length > 5) {
+        errors.push({
+          field: 'creative.asset_feed_spec.titles',
+          message: `${afs.titles.length} titles detected — Meta allows 5 max. Only the first 5 will be used when publishing.`,
+          severity: 'warning',
+        });
+      }
+      if (afs.ad_formats?.length > 1) {
+        errors.push({
+          field: 'creative.asset_feed_spec.ad_formats',
+          message: `Multiple ad formats detected (${afs.ad_formats.join(', ')}) — Meta allows exactly one. Only "${afs.ad_formats[0]}" will be used when publishing.`,
+          severity: 'warning',
+        });
+      }
+      if (!afs.ad_formats && afs.images?.length && afs.videos?.length) {
+        const keepImages = afs.images.length >= afs.videos.length;
+        errors.push({
+          field: 'creative.asset_feed_spec',
+          message: `Both image and video assets found — Meta requires a single format. The ${keepImages ? 'image' : 'video'} assets will be used when publishing.`,
+          severity: 'warning',
+        });
+      }
+
+      if (!hasPageId) {
+        errors.push({
+          field: 'creative.page_id',
+          message: 'Facebook Page is required for dynamic creative. Please select a Page in the ad setup.',
+          severity: 'error',
+        });
       }
     }
 
@@ -769,8 +899,9 @@ export class DraftValidationEngine {
             ? adSetData._original_destination_type
             : adSetData?.destination_type;
           const messengerDest = ['MESSENGER', 'WHATSAPP', 'INSTAGRAM_DIRECT'].includes(adSetDestType);
+          const isDynamicAdSet = !!(adSet.data as any)?.is_dynamic_creative;
           for (const ad of adSet.ads) {
-            const adValidationErrors = await this.validateAd(ad);
+            const adValidationErrors = await this.validateAd(ad, isDynamicAdSet, adSetData);
             if (messengerDest) {
               const adData = ad.data as any;
               const creative = adData?.creative;

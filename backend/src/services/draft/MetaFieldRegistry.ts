@@ -593,3 +593,14 @@ export function migrateDestinationType(
     reason: `${currentType} not valid for ${targetObjective}, changed to ${fallback}`,
   };
 }
+
+export function sanitizeTrackingSpecs(specs: any[]): any[] {
+  if (!Array.isArray(specs)) return [];
+  return specs.map(spec => {
+    const cleaned = { ...spec };
+    // Remove specific post references as they are invalid for new inline creatives
+    delete cleaned.post;
+    delete cleaned['post.wall'];
+    return cleaned;
+  }).filter(spec => Object.keys(spec).length > 0);
+}

@@ -116,6 +116,7 @@ export interface SchemaField {
 
   // UX enhancements
   searchable?: boolean;
+  maxSelect?: number;
   rows?: number;
   tagSuggestions?: string[];
 
@@ -158,6 +159,7 @@ export interface FormContext {
   buyingType?: string;
   isCBO?: boolean;
   destinationType?: string;
+  hasMetaId?: boolean;
 }
 
 // ─── Schema Generators ───
@@ -166,6 +168,7 @@ export class MetaFormSchemaEngine {
 
   static getCampaignFormSchema(context?: Partial<FormContext>): FormSchema {
     const objective = context?.objective || 'OUTCOME_TRAFFIC';
+    const hasMetaId = !!context?.hasMetaId;
 
     return {
       entityType: 'campaign',
@@ -187,7 +190,7 @@ export class MetaFormSchemaEngine {
               label: 'Objective',
               type: 'enum',
               required: true,
-              editable: false,
+              editable: !hasMetaId,
               options: CAMPAIGN_FIELDS.objective.enumValues!.map(v => ({
                 value: v,
                 label: CAMPAIGN_FIELDS.objective.enumLabels![v] || v,
@@ -413,7 +416,7 @@ export class MetaFormSchemaEngine {
   }
 
   static getAdSetFormSchema(context: FormContext): FormSchema {
-    const { objective = 'OUTCOME_TRAFFIC', isCBO = false } = context;
+    const { objective = 'OUTCOME_TRAFFIC', isCBO = false, hasMetaId = false } = context;
 
     const validGoals = VALID_OPTIMIZATION_GOALS[objective] || [];
     const validDests = VALID_DESTINATION_TYPES[objective] || [];
@@ -506,7 +509,7 @@ export class MetaFormSchemaEngine {
               label: 'Dynamic Creative',
               type: 'boolean',
               required: false,
-              editable: false,
+              editable: !hasMetaId,
               helpText: 'Enable Dynamic Creative Optimization to auto-test creative combinations. Cannot be changed after creation.',
             },
           ],
@@ -834,6 +837,7 @@ export class MetaFormSchemaEngine {
   }
 
   static getAdFormSchema(context?: Partial<FormContext>): FormSchema {
+    const hasMetaId = !!context?.hasMetaId;
     return {
       entityType: 'ad',
       sections: [
@@ -1152,6 +1156,24 @@ export class MetaFormSchemaEngine {
           defaultCollapsed: true,
           fields: [
             {
+              key: 'creative.instagram_actor_id',
+              label: 'Instagram Actor ID (Business)',
+              type: 'string',
+              required: false,
+              editable: true,
+              placeholder: 'Instagram Business Account ID',
+              helpText: 'Found in Business Settings > Instagram Accounts. Required for Advanced Creative if using Instagram.',
+            },
+            {
+              key: 'creative.instagram_user_id',
+              label: 'Instagram User ID (Legacy)',
+              type: 'string',
+              required: false,
+              editable: true,
+              placeholder: 'Instagram User ID',
+              helpText: 'Linked Instagram ID from Page settings. Use for standard ads.',
+            },
+            {
               key: 'creative.platform_customizations',
               label: 'Platform Customizations',
               type: 'object',
@@ -1277,6 +1299,7 @@ export class MetaFormSchemaEngine {
                   type: 'multiEnum',
                   required: false,
                   editable: true,
+                  maxSelect: 5,
                   options: [
                     { value: 'BOOK_TRAVEL', label: 'Book Now' },
                     { value: 'CONTACT_US', label: 'Contact Us' },
@@ -1369,7 +1392,7 @@ export class MetaFormSchemaEngine {
           ],
         },
       ],
-      context: context ? { objective: context.objective } : {},
+      context: context ? { objective: context.objective, hasMetaId } : { hasMetaId },
     };
   }
 
@@ -1862,7 +1885,7 @@ export class MetaFormSchemaEngine {
       });
     }
 
-    if (required.includes('page_id') || objective === 'OUTCOME_LEADS' || objective === 'OUTCOME_ENGAGEMENT') {
+    if (required.includes('page_id') || objective === 'OUTCOME_LEADS' || objective === 'OUTCOME_ENGAGEMENT' || objective === 'OUTCOME_TRAFFIC') {
       fields.push({
         key: 'page_id',
         label: 'Page ID',

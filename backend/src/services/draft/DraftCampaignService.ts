@@ -63,7 +63,13 @@ export class DraftCampaignService {
   }
 
   static async update(id: string, updateData: any, userId?: string) {
-    const { id: _id, adSets, user, createdAt, updatedAt, userId: _userId, _count, ...cleanData } = updateData;
+    const cleanData: any = {};
+    const allowedFields = ['name', 'status', 'data', 'validationErrors', 'metaId', 'adAccountId', 'objective'];
+    for (const field of allowedFields) {
+      if (updateData[field] !== undefined) {
+        cleanData[field] = updateData[field];
+      }
+    }
 
     if (cleanData.data) {
       const existing = userId

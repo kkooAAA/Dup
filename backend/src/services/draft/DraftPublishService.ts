@@ -12,6 +12,7 @@ import {
   stripImmutableFields,
   sanitizeTargeting,
   sanitizePromotedObject,
+  sanitizeTrackingSpecs,
 } from './MetaFieldRegistry';
 import { DraftValidationEngine } from './DraftValidationEngine';
 import { extractMetaError, extractMetaErrorInfo } from '../../utils/metaErrorHelper';
@@ -643,6 +644,10 @@ export class DraftPublishService {
       targeting,
     };
 
+    if (adSetData.is_dynamic_creative !== undefined) {
+      adSetPayload.is_dynamic_creative = !!adSetData.is_dynamic_creative;
+    }
+
     if (adSetData.dsa_beneficiary) adSetPayload.dsa_beneficiary = adSetData.dsa_beneficiary;
     if (adSetData.dsa_payor) adSetPayload.dsa_payor = adSetData.dsa_payor;
 
@@ -852,9 +857,14 @@ export class DraftPublishService {
   ): Promise<string> {
     const adData = ad.data as any;
 
-    const creativeId = adData.creative?.creative_id || adData.creative?.id;
+    // creative_id: explicitly set by user to reference a specific Meta creative
+    // existingMetaCreativeId: comes from fetched live ad data (creative.id from Meta Graph API)
+    const explicitCreativeId = adData.creative?.creative_id;
+    const existingMetaCreativeId = adData.creative?.id;
+    const creativeId = explicitCreativeId || existingMetaCreativeId;
     const hasInlineCreative = adData.creative?.object_story_spec;
     const hasAssetFeed = adData.creative?.asset_feed_spec;
+    const hasPlatformCustomizations = adData.creative?.platform_customizations;
 
     if (!creativeId && !hasInlineCreative && !hasAssetFeed) {
       throw new Error(`Ad "${ad.name}" is missing creative_id or object_story_spec — cannot publish without a creative`);
@@ -867,29 +877,128 @@ export class DraftPublishService {
     const isMessengerDest = ['MESSENGER', 'WHATSAPP', 'INSTAGRAM_DIRECT'].includes(effectiveDestType);
     const forceInline = isMessengerDest && hasInlineCreative;
 
-    if (creativeId && !forceInline) {
+    // If the ad was duplicated from a live Meta campaign, it will have both creative.id (the
+    // existing Meta creative) and asset_feed_spec in its data. Re-creating the dynamic creative
+    // may fail if the app lacks the required capability. Prefer the existing creative ID.
+    if (existingMetaCreativeId && hasAssetFeed && !forceInline) {
+      console.log(`[DraftPublishService] Using existing creative_id ${existingMetaCreativeId} for ad ${ad.id} (skipping asset_feed_spec pre-creation)`);
+      creative = { creative_id: String(existingMetaCreativeId) };
+    } else if (hasAssetFeed) {
+      const pageId = adSet?.data?.promoted_object?.page_id
+        || adSet?.data?.page_id
+        || adData.page_id
+        || adData.creative?.page_id
+        || adData.creative?.object_story_spec?.page_id;
+
+      const afs = { ...adData.creative.asset_feed_spec };
+      if (afs.call_to_action_types?.length > 5) {
+        console.log(`[DraftPublishService] Trimming call_to_action_types from ${afs.call_to_action_types.length} to 5 (Meta limit)`);
+        afs.call_to_action_types = afs.call_to_action_types.slice(0, 5);
+      }
+      if (afs.images?.length > 10) afs.images = afs.images.slice(0, 10);
+      if (afs.bodies?.length > 5) afs.bodies = afs.bodies.slice(0, 5);
+      if (afs.titles?.length > 5) afs.titles = afs.titles.slice(0, 5);
+      // Meta requires exactly one ad format per asset feed.
+      // If ad_formats has multiple values, keep the first one.
+      // If ad_formats is absent but both images and videos exist, pick whichever
+      // has more assets and drop the other to avoid the 1885374 error.
+      if (afs.ad_formats?.length > 1) {
+        console.log(`[DraftPublishService] Trimming ad_formats from ${afs.ad_formats.length} to 1 (Meta allows exactly one)`);
+        afs.ad_formats = afs.ad_formats.slice(0, 1);
+      }
+      if (!afs.ad_formats && afs.images?.length && afs.videos?.length) {
+        const keepImages = afs.images.length >= afs.videos.length;
+        console.log(`[DraftPublishService] Mixed image+video assets — keeping ${keepImages ? 'images' : 'videos'} (${keepImages ? afs.images.length : afs.videos.length} assets)`);
+        if (keepImages) {
+          delete afs.videos;
+          afs.ad_formats = ['SINGLE_IMAGE'];
+        } else {
+          delete afs.images;
+          afs.ad_formats = ['SINGLE_VIDEO'];
+        }
+      }
+
+      // asset_feed_spec and object_story_spec are mutually exclusive formats.
+      // When using asset_feed_spec, page_id goes at the top level, not inside object_story_spec.
+      const adCreativePayload: any = {
+        name: `${ad.name} Creative`,
+        page_id: String(pageId),
+        asset_feed_spec: afs,
+      };
+      if (adData.creative.platform_customizations) {
+        adCreativePayload.platform_customizations = adData.creative.platform_customizations;
+      }
+
+      console.log(`[DraftPublishService] Pre-creating adcreative for ad ${ad.id} (asset_feed_spec)`);
+      try {
+        const fbCreative = await fbService.client.post(`/${accountId}/adcreatives`, adCreativePayload);
+        creative = { creative_id: String(fbCreative.data.id) };
+      } catch (error: any) {
+        throw this.toPublishError(error, 'Ad Creative');
+      }
+    } else if (hasPlatformCustomizations) {
+      // Platform customizations require either asset_feed_spec (handled above) or object_story_spec
+      if (hasInlineCreative) {
+        const storySpec = { ...adData.creative.object_story_spec };
+        creative = { object_story_spec: storySpec };
+      } else {
+        creative = {};
+      }
+    } else if (creativeId && !forceInline) {
       creative = { creative_id: String(creativeId) };
     } else if (hasInlineCreative) {
       const storySpec = { ...adData.creative.object_story_spec };
-      if (!storySpec.page_id) {
-        const pageId = adSet?.data?.promoted_object?.page_id
-          || adSet?.data?.page_id
-          || adData.page_id;
-        if (pageId) {
-          storySpec.page_id = String(pageId);
-        }
-      }
       creative = { object_story_spec: storySpec };
     } else {
       creative = {};
     }
 
-    if (adData.creative?.platform_customizations) {
+    // Ensure identity (page_id, instagram_actor_id) is set for inline creatives
+    if (!creative.creative_id) {
+      const pageId = adSet?.data?.promoted_object?.page_id
+        || adSet?.data?.page_id
+        || adData.page_id
+        || adData.creative?.page_id
+        || adData.creative?.object_story_spec?.page_id;
+
+      const instagramActorId = adData.creative?.instagram_actor_id
+        || adData.instagram_actor_id
+        || adSet?.data?.promoted_object?.instagram_actor_id
+        || adSet?.data?.instagram_actor_id
+        || (hasAssetFeed ? undefined : (adData.creative?.object_story_spec?.instagram_actor_id || adData.creative?.object_story_spec?.instagram_user_id));
+
+      if (pageId && !creative.page_id) {
+        creative.page_id = String(pageId);
+      }
+
+      // Legacy support: object_story_spec requires identity fields
+      if (creative.object_story_spec) {
+        if (pageId && !creative.object_story_spec.page_id) {
+          creative.object_story_spec.page_id = String(pageId);
+        }
+      }
+
+      // Only inject Instagram identity if explicitly provided in ad or ad set.
+      // If blank, Meta will auto-resolve from the Page, which avoids strict Actor ID validation.
+      if (instagramActorId) {
+        if (!creative.instagram_actor_id) {
+          creative.instagram_actor_id = String(instagramActorId);
+        }
+        if (!creative.instagram_user_id) {
+          creative.instagram_user_id = String(instagramActorId);
+        }
+
+        // Legacy support: object_story_spec
+        if (creative.object_story_spec && !creative.object_story_spec.instagram_user_id) {
+          creative.object_story_spec.instagram_user_id = String(instagramActorId);
+        }
+      }
+    }
+
+    if (hasPlatformCustomizations && !hasAssetFeed) {
       creative.platform_customizations = adData.creative.platform_customizations;
     }
-    if (adData.creative?.asset_feed_spec) {
-      creative.asset_feed_spec = adData.creative.asset_feed_spec;
-    }
+    
     delete creative.creative_type;
 
     const adPayload: any = {
@@ -900,7 +1009,7 @@ export class DraftPublishService {
     };
 
     if (adData.tracking_specs) {
-      adPayload.tracking_specs = adData.tracking_specs;
+      adPayload.tracking_specs = sanitizeTrackingSpecs(adData.tracking_specs);
     }
 
     if (adData.url_parameters) {

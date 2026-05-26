@@ -39,6 +39,7 @@ const ERROR_PATTERNS: [RegExp | number, string][] = [
   [1815985, 'Messenger or Audience Network placements require Facebook to also be selected. Add Facebook to your platforms or remove Messenger/Audience Network.'],
   [/promoted_object.*required/i, 'This objective requires a promoted object (e.g. Pixel, Page, or App). Please configure it in the ad set.'],
   [/bid_amount.*required/i, 'Your bid strategy requires a bid amount. Set a bid amount or switch to Lowest Cost.'],
+  [/instagram_actor_id.*valid Instagram account id/i, 'Invalid Instagram ID. Please provide the "Instagram Business Account ID" (found in Business Settings > Instagram Accounts) instead of the standard Instagram User ID.'],
 ];
 
 function humanizeMetaError(errData: any): string | undefined {

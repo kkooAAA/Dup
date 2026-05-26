@@ -35,11 +35,19 @@ export class DraftAdService {
   }
 
   static async update(id: string, updateData: any, userId?: string) {
-    const { id: _id, adSet, user, createdAt, updatedAt, userId: _userId, draftAdSetId, _count, ...cleanData } = updateData;
     if (userId) {
       const exists = await prisma.draftAd.findFirst({ where: { id, userId } });
       if (!exists) throwNotFound('Ad');
     }
+
+    const cleanData: any = {};
+    const allowedFields = ['name', 'status', 'data', 'validationErrors', 'metaId', 'adAccountId'];
+    for (const field of allowedFields) {
+      if (updateData[field] !== undefined) {
+        cleanData[field] = updateData[field];
+      }
+    }
+
     return prisma.draftAd.update({
       where: { id },
       data: cleanData,

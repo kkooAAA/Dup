@@ -35,11 +35,18 @@ export class DraftAdSetService {
   }
 
   static async update(id: string, updateData: any, userId?: string) {
-    const { id: _id, ads, campaign, user, createdAt, updatedAt, userId: _userId, draftCampaignId, _count, ...cleanData } = updateData;
-
     if (userId) {
       const existing = await prisma.draftAdSet.findFirst({ where: { id, userId } });
       if (!existing) throwNotFound('Ad set');
+      
+      const cleanData: any = {};
+      const allowedFields = ['name', 'status', 'data', 'validationErrors', 'metaId', 'adAccountId'];
+      for (const field of allowedFields) {
+        if (updateData[field] !== undefined) {
+          cleanData[field] = updateData[field];
+        }
+      }
+
       if (existing.metaId && cleanData.data && typeof cleanData.data === 'object') {
         const existingData = existing.data as any;
         const { IMMUTABLE_ADSET_FIELDS } = require('./MetaFieldRegistry');
@@ -57,31 +64,46 @@ export class DraftAdSetService {
           }
         }
       }
-    } else if (cleanData.data) {
-      const existing = await prisma.draftAdSet.findUnique({ where: { id } });
-      if (existing?.metaId && typeof cleanData.data === 'object') {
-        const existingData = existing.data as any;
-        const { IMMUTABLE_ADSET_FIELDS } = require('./MetaFieldRegistry');
-        for (const field of IMMUTABLE_ADSET_FIELDS) {
-          if (cleanData.data[field] !== undefined &&
-              existingData[field] !== undefined &&
-              JSON.stringify(cleanData.data[field]) !== JSON.stringify(existingData[field])) {
-            if (existingData[`_original_${field}`] === undefined) {
-              cleanData.data[`_original_${field}`] = existingData[field];
-            } else {
+
+      return prisma.draftAdSet.update({
+        where: { id },
+        data: cleanData,
+      });
+    } else {
+      const cleanData: any = {};
+      const allowedFields = ['name', 'status', 'data', 'validationErrors', 'metaId', 'adAccountId'];
+      for (const field of allowedFields) {
+        if (updateData[field] !== undefined) {
+          cleanData[field] = updateData[field];
+        }
+      }
+
+      if (cleanData.data) {
+        const existing = await prisma.draftAdSet.findUnique({ where: { id } });
+        if (existing?.metaId && typeof cleanData.data === 'object') {
+          const existingData = existing.data as any;
+          const { IMMUTABLE_ADSET_FIELDS } = require('./MetaFieldRegistry');
+          for (const field of IMMUTABLE_ADSET_FIELDS) {
+            if (cleanData.data[field] !== undefined &&
+                existingData[field] !== undefined &&
+                JSON.stringify(cleanData.data[field]) !== JSON.stringify(existingData[field])) {
+              if (existingData[`_original_${field}`] === undefined) {
+                cleanData.data[`_original_${field}`] = existingData[field];
+              } else {
+                cleanData.data[`_original_${field}`] = existingData[`_original_${field}`];
+              }
+            } else if (existingData[`_original_${field}`] !== undefined) {
               cleanData.data[`_original_${field}`] = existingData[`_original_${field}`];
             }
-          } else if (existingData[`_original_${field}`] !== undefined) {
-            cleanData.data[`_original_${field}`] = existingData[`_original_${field}`];
           }
         }
       }
-    }
 
-    return prisma.draftAdSet.update({
-      where: { id },
-      data: cleanData,
-    });
+      return prisma.draftAdSet.update({
+        where: { id },
+        data: cleanData,
+      });
+    }
   }
 
   static async delete(id: string, userId?: string) {

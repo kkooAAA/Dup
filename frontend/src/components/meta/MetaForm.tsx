@@ -24,6 +24,7 @@ interface MetaFormProps {
     buyingType?: string;
     isCBO?: boolean;
     destinationType?: string;
+    hasMetaId?: boolean;
   };
   onChange: (values: Record<string, any>) => void;
   onValidationChange?: (errors: string[]) => void;
@@ -96,6 +97,8 @@ export function MetaForm({
   useEffect(() => {
     if (isInternalChange.current) {
       isInternalChange.current = false;
+      const json = JSON.stringify(values);
+      prevInitialJson.current = json; // Keep sync ref updated to avoid redundant overwrites from parent
       onChangeRef.current(values);
     }
   }, [values]);
@@ -103,13 +106,17 @@ export function MetaForm({
   // Sync from parent only when initialValues meaningfully changes (e.g. switching nodes).
   // Fast path: reference equality. Slow path: structural compare via JSON, only when ref changes.
   const prevInitialRef = useRef(initialValues);
-  const prevInitialJson = useRef<string | null>(null);
+  const prevInitialJson = useRef<string>(JSON.stringify(initialValues));
   useEffect(() => {
     if (initialValues === prevInitialRef.current) return;
     prevInitialRef.current = initialValues;
     const json = JSON.stringify(initialValues);
+    
+    // CRITICAL: Only overwrite local state if the parent state is different from OUR current state.
+    // This prevents stale parent state (from slow re-renders) from deleting letters as you type.
     if (json !== prevInitialJson.current) {
       prevInitialJson.current = json;
+      isInternalChange.current = false;
       setValues(initialValues);
     }
   }, [initialValues]);

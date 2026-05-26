@@ -87,6 +87,7 @@ export interface FieldSchema {
   incompatibleWith?: string[];
   validation?: ValidationRule[];
   searchable?: boolean;
+  maxSelect?: number;
   rows?: number;
   tagSuggestions?: string[];
   visibleWhen?: { field: string; equals?: any; notEquals?: any };
@@ -142,6 +143,25 @@ function evaluateCondition(
 
 function getNestedValue(obj: any, path: string): any {
   return path.split(".").reduce((acc, part) => acc?.[part], obj);
+}
+
+function setNestedValue(obj: Record<string, any>, path: string, value: any): Record<string, any> {
+  const parts = path.split(".");
+  if (parts.length === 1) {
+    if (value === undefined) {
+      delete obj[parts[0]];
+    } else {
+      obj[parts[0]] = value;
+    }
+    return obj;
+  }
+
+  const [head, ...rest] = parts;
+  if (!obj[head] || typeof obj[head] !== "object") {
+    obj[head] = {};
+  }
+  obj[head] = setNestedValue({ ...obj[head] }, rest.join("."), value);
+  return obj;
 }
 
 function resolveFieldState(
@@ -230,7 +250,7 @@ export function FormSectionRenderer({
   if (!hasVisibleFields) return null;
 
   return (
-    <div className="border border-gray-800/50 rounded-lg overflow-hidden">
+    <div className="border border-gray-800/50 rounded-lg">
       {section.collapsible ? (
         <button
           onClick={() => setCollapsed(!collapsed)}
@@ -263,7 +283,7 @@ export function FormSectionRenderer({
             <SchemaFieldRenderer
               key={field.key}
               field={field}
-              value={values[field.key]}
+              value={getNestedValue(values, field.key)}
               context={{
                 allValues: values,
                 onFieldChange: onChange,
@@ -717,6 +737,8 @@ function MultiEnumField({
 }) {
   const selected: string[] = Array.isArray(value) ? value : value ? [value] : [];
   const isSearchable = field.searchable || options.length > 12;
+  const maxSelect = field.maxSelect;
+  const atLimit = maxSelect !== undefined && selected.filter((v) => v !== '__all__').length >= maxSelect;
 
   const toggle = (optVal: string) => {
     if (optVal === '__all__') {
@@ -724,7 +746,9 @@ function MultiEnumField({
       return;
     }
     const without = selected.filter((v) => v !== '__all__' && v !== optVal);
-    const next = selected.includes(optVal) ? without : [...without, optVal];
+    const isRemoving = selected.includes(optVal);
+    if (!isRemoving && atLimit) return;
+    const next = isRemoving ? without : [...without, optVal];
     onChange(next.length > 0 ? next : undefined);
   };
 
@@ -745,7 +769,14 @@ function MultiEnumField({
 
   return (
     <div className="space-y-1.5">
-      <FieldLabel field={field} compact={compact} />
+      <div className="flex items-center justify-between">
+        <FieldLabel field={field} compact={compact} />
+        {maxSelect !== undefined && (
+          <span className={cn("text-[10px]", atLimit ? "text-amber-400" : "text-gray-600")}>
+            {selected.filter((v) => v !== '__all__').length}/{maxSelect}
+          </span>
+        )}
+      </div>
       <div className="flex flex-wrap gap-1.5">
         {unknownSelected.map((v) => (
           <button
@@ -758,17 +789,18 @@ function MultiEnumField({
         ))}
         {options.map((o) => {
           const isActive = selected.includes(o.value);
+          const isDisabled = o.disabled || (!isActive && atLimit);
           return (
             <button
               key={o.value}
               onClick={() => toggle(o.value)}
-              disabled={o.disabled}
+              disabled={isDisabled}
               className={cn(
                 "px-2 py-1 rounded-md border text-[10px] font-medium transition-colors",
                 isActive
                   ? "bg-blue-500/15 border-blue-500/40 text-blue-300"
                   : "bg-gray-900/50 border-gray-800/60 text-gray-500 hover:text-gray-300 hover:border-gray-700",
-                o.disabled && "opacity-40 cursor-not-allowed",
+                isDisabled && "opacity-40 cursor-not-allowed",
               )}
             >
               {o.label}
@@ -855,7 +887,7 @@ function SearchableMultiEnum({
           className="w-full px-2.5 py-1.5 bg-gray-900/50 border border-gray-800/60 rounded-md text-xs text-gray-200 placeholder:text-gray-600 focus:outline-none focus:border-blue-500/50"
         />
         {open && filtered.length > 0 && (
-          <div className="absolute z-20 mt-1 w-full max-h-48 overflow-y-auto bg-gray-900 border border-gray-700 rounded-md shadow-xl">
+          <div className="absolute z-50 mt-1 w-full max-h-48 overflow-y-auto bg-gray-900 border border-gray-700 rounded-md shadow-xl">
             {filtered.slice(0, 50).map((o) => (
               <button
                 key={o.value}
@@ -1322,7 +1354,7 @@ function ObjectField({
             <SchemaFieldRenderer
               key={subField.key}
               field={subField}
-              value={objectValue[subField.key]}
+              value={getNestedValue(objectValue, subField.key)}
               context={{
                 ...context,
                 parentPath: path,
@@ -1428,14 +1460,13 @@ function ArrayField({
                         <SchemaFieldRenderer
                           key={subField.key}
                           field={subField}
-                          value={item?.[subField.key]}
+                          value={getNestedValue(item, subField.key)}
                           context={{
                             ...context,
                             parentPath: `${path}.${index}`,
                             allValues: item || {},
                             onFieldChange: (subPath, newVal) => {
-                              const key = subPath.split(".").pop()!;
-                              handleItemChange(index, { ...item, [key]: newVal });
+                              handleItemChange(index, setNestedValue({ ...item }, subField.key, newVal));
                             },
                           }}
                         />
