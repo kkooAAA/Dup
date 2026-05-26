@@ -79,7 +79,7 @@ function DateTimeInput({ label, value, onChange }: { label: string; value: strin
           type="date"
           value={parts.date}
           onChange={(e) => update(e.target.value, parts.hour, parts.minute)}
-          className="h-8 flex-1 rounded-lg border border-gray-800/40 bg-gray-950/50 px-2.5 py-1 text-sm text-gray-200 outline-none focus-visible:border-blue-500/50 focus-visible:ring-2 focus-visible:ring-blue-500/30 [color-scheme:dark]"
+          className="h-8 flex-1 rounded-lg border border-gray-800/40 bg-gray-950/50 px-2.5 py-1 text-sm text-gray-200 outline-none focus-visible:border-blue-500/50 focus-visible:ring-2 focus-visible:ring-blue-500/30"
         />
         <select
           value={parts.hour}
