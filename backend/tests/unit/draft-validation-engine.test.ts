@@ -318,6 +318,39 @@ describe('DraftValidationEngine.validateAdSet', () => {
     expect(errors.some(e => e.field === 'destination_type' && e.severity === 'warning')).toBe(true);
   });
 
+  it('flags a past start_time as info (not a warning) so duplicated campaigns are not alarming', async () => {
+    const errors = await DraftValidationEngine.validateAdSet(
+      makeAdSet({
+        data: {
+          billing_event: 'IMPRESSIONS',
+          optimization_goal: 'LINK_CLICKS',
+          targeting: { geo_locations: { countries: ['US'] } },
+          daily_budget: '5000',
+          start_time: '2020-01-01T00:00:00Z',
+        },
+      })
+    );
+    const startErr = errors.find(e => e.field === 'start_time');
+    expect(startErr?.severity).toBe('info');
+    expect(startErr?.message).toContain('as soon as it\'s published');
+  });
+
+  it('does not flag a near-now start_time within the 5-minute grace buffer', async () => {
+    const nearNow = new Date(Date.now() - 120_000).toISOString(); // 2 minutes ago
+    const errors = await DraftValidationEngine.validateAdSet(
+      makeAdSet({
+        data: {
+          billing_event: 'IMPRESSIONS',
+          optimization_goal: 'LINK_CLICKS',
+          targeting: { geo_locations: { countries: ['US'] } },
+          daily_budget: '5000',
+          start_time: nearNow,
+        },
+      })
+    );
+    expect(errors.some(e => e.field === 'start_time')).toBe(false);
+  });
+
   it('skips campaign_id in immutable check', async () => {
     const errors = await DraftValidationEngine.validateAdSet(
       makeAdSet({
@@ -490,6 +523,35 @@ describe('DraftValidationEngine.validateAd', () => {
       true // dynamic creative ad set
     );
     expect(errors.some(e => e.field === 'creative.creative_id')).toBe(false);
+  });
+
+  it('suppresses the asset_feed_spec DC-mismatch error when the ad also has a creative_id in a non-DC ad set', async () => {
+    // Ads duplicated from a DC campaign carry BOTH creative.id and asset_feed_spec. In a
+    // non-DC ad set the publish path uses the creative_id shortcut and ignores asset_feed_spec,
+    // so the DC-mismatch error is a false positive and must not fire.
+    const errors = await DraftValidationEngine.validateAd(
+      makeAd({ data: { creative: { id: '123', asset_feed_spec: { images: [{ hash: 'x' }], bodies: [{ text: 'y' }] } } } }),
+      false // not a dynamic creative ad set
+    );
+    expect(errors.some(e => e.field === 'creative.asset_feed_spec' && e.message.includes('Dynamic Creative assets'))).toBe(false);
+  });
+
+  it('still fires the asset_feed_spec DC-mismatch error when there is no creative_id in a non-DC ad set', async () => {
+    // No creative_id means publish would actually try to use asset_feed_spec on a non-DC ad
+    // set, which fails — so the error must fire.
+    const errors = await DraftValidationEngine.validateAd(
+      makeAd({ data: {
+        page_id: '999',
+        creative: { asset_feed_spec: {
+          images: [{ hash: 'x' }],
+          bodies: [{ text: 'y' }],
+          titles: [{ text: 'z' }],
+          link_urls: [{ website_url: 'https://example.com' }],
+        } },
+      } }),
+      false // not a dynamic creative ad set
+    );
+    expect(errors.some(e => e.field === 'creative.asset_feed_spec' && e.message.includes('Dynamic Creative assets'))).toBe(true);
   });
 });
 
@@ -763,6 +825,25 @@ describe('DraftValidationEngine — minimum budget warnings', () => {
       false
     );
     expect(errors.some(e => e.field === 'daily_budget' && e.severity === 'warning' && e.message.includes('minimum'))).toBe(true);
+  });
+
+  it('formats the daily_budget floor message as a currency decimal (divides by 100)', async () => {
+    const errors = await DraftValidationEngine.validateAdSet(
+      makeAdSet({
+        data: {
+          billing_event: 'IMPRESSIONS',
+          optimization_goal: 'LINK_CLICKS',
+          targeting: { geo_locations: { countries: ['TH'] } },
+          daily_budget: '500',
+        },
+      }),
+      'OUTCOME_TRAFFIC',
+      false
+    );
+    const msg = errors.find(e => e.field === 'daily_budget')?.message || '';
+    // 500 (smallest unit) -> 5.00
+    expect(msg).toContain('5.00');
+    expect(msg).not.toContain('of 500 ');
   });
 
   it('no warning when ad set daily_budget is above floor', async () => {

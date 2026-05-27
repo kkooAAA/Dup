@@ -16,7 +16,7 @@ import {
 export interface ValidationError {
   field: string;
   message: string;
-  severity: 'error' | 'warning';
+  severity: 'error' | 'warning' | 'info';
 }
 
 // ─── Friendly label helpers ───
@@ -119,7 +119,7 @@ export class DraftValidationEngine {
       if (hasDailyBudget && Number(data.daily_budget) < MIN_DAILY_BUDGET_FLOOR) {
         errors.push({
           field: 'daily_budget',
-          message: `Daily budget of ${Number(data.daily_budget)} may be below Meta's minimum for your currency. Increase the budget to avoid rejection.`,
+          message: `Daily budget of ${(Number(data.daily_budget) / 100).toFixed(2)} may be below Meta's minimum for your currency. Increase the budget to avoid rejection.`,
           severity: 'warning',
         });
       }
@@ -131,7 +131,7 @@ export class DraftValidationEngine {
         if (dailyEquiv < MIN_DAILY_BUDGET_FLOOR) {
           errors.push({
             field: 'lifetime_budget',
-            message: `Lifetime budget averages ~${dailyEquiv}/day over ${days} days, which may be below Meta's minimum for your currency. Increase the budget or shorten the schedule.`,
+            message: `Lifetime budget averages ~${(dailyEquiv / 100).toFixed(2)}/day over ${days} days, which may be below Meta's minimum for your currency. Increase the budget or shorten the schedule.`,
             severity: 'warning',
           });
         }
@@ -361,7 +361,7 @@ export class DraftValidationEngine {
       if (hasDailyBudget && Number(data.daily_budget) < MIN_DAILY_BUDGET_FLOOR) {
         errors.push({
           field: 'daily_budget',
-          message: `Daily budget of ${Number(data.daily_budget)} may be below Meta's minimum for your currency. Increase the budget to avoid rejection.`,
+          message: `Daily budget of ${(Number(data.daily_budget) / 100).toFixed(2)} may be below Meta's minimum for your currency. Increase the budget to avoid rejection.`,
           severity: 'warning',
         });
       }
@@ -373,7 +373,7 @@ export class DraftValidationEngine {
         if (dailyEquiv < MIN_DAILY_BUDGET_FLOOR) {
           errors.push({
             field: 'lifetime_budget',
-            message: `Lifetime budget averages ~${dailyEquiv}/day over ${days} days, which may be below Meta's minimum for your currency. Increase the budget or shorten the schedule.`,
+            message: `Lifetime budget averages ~${(dailyEquiv / 100).toFixed(2)}/day over ${days} days, which may be below Meta's minimum for your currency. Increase the budget or shorten the schedule.`,
             severity: 'warning',
           });
         }
@@ -531,14 +531,17 @@ export class DraftValidationEngine {
       }
     }
 
-    // start_time in the past — Meta will start the ad set immediately
+    // start_time in the past — Meta will start the ad set immediately. This is
+    // expected for duplicated campaigns (the original often ran months ago), so
+    // surface it as informational rather than a warning. A 5-minute grace buffer
+    // avoids false positives for start times that are effectively "now".
     if (data.start_time) {
       const start = new Date(data.start_time).getTime();
-      if (!isNaN(start) && start < Date.now() - 60_000) {
+      if (!isNaN(start) && start < Date.now() - 300_000) {
         errors.push({
           field: 'start_time',
-          message: 'Start time is in the past. Meta will start the ad set immediately on publish.',
-          severity: 'warning',
+          message: 'Start time is in the past — Meta will begin running this ad set as soon as it\'s published.',
+          severity: 'info',
         });
       }
     }
@@ -584,8 +587,17 @@ export class DraftValidationEngine {
       return errors;
     }
 
-    // Dynamic Creative mismatch check
-    if (hasAssetFeed && !isDynamicCreative) {
+    // Dynamic Creative mismatch check.
+    //
+    // When an ad was duplicated from a DC campaign, its stored creative carries BOTH a
+    // creative.id (existingMetaCreativeId) and an asset_feed_spec. In a non-DC ad set the
+    // publish path takes the creative_id shortcut and never sends asset_feed_spec, so the
+    // stored asset_feed_spec is effectively ignored and causes no publish error — flagging
+    // it as an error here would be a false positive.
+    //
+    // Only fire when there is an asset_feed_spec but NO creative.id/creative_id, because in
+    // that case publishing a non-DC ad set would actually try to use asset_feed_spec and fail.
+    if (hasAssetFeed && !isDynamicCreative && !hasCreativeId) {
       errors.push({
         field: 'creative.asset_feed_spec',
         message: 'Dynamic Creative assets (Asset Feed) require "Dynamic Creative" to be enabled on the Ad Set level.',
@@ -725,7 +737,7 @@ export class DraftValidationEngine {
       if (afs.call_to_action_types?.length > 5) {
         errors.push({
           field: 'creative.asset_feed_spec.call_to_action_types',
-          message: `${afs.call_to_action_types.length} call-to-action types detected — Meta allows 5 max. Only the first 5 will be used when publishing.`,
+          message: `${afs.call_to_action_types.length} call-to-action types detected — Meta allows 5 max. Only the first 5 will be used when publishing (no action needed — this is handled automatically).`,
           severity: 'warning',
         });
       }
@@ -761,7 +773,7 @@ export class DraftValidationEngine {
         const keepImages = afs.images.length >= afs.videos.length;
         errors.push({
           field: 'creative.asset_feed_spec',
-          message: `Both image and video assets found — Meta requires a single format. The ${keepImages ? 'image' : 'video'} assets will be used when publishing.`,
+          message: `Both image and video assets found — Meta requires a single format. The ${keepImages ? 'image' : 'video'} assets will be used when publishing. To control which format is used, set the Ad Format field in the creative to either Single Image or Single Video.`,
           severity: 'warning',
         });
       }

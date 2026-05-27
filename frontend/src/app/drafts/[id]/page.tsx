@@ -11,7 +11,7 @@ import { draftApi } from "@/services/api";
 import {
   Save, Send, ShieldCheck, AlertTriangle, FileText, Layers,
   Megaphone, Loader2, ArrowLeft, Trash2, CheckCircle2, CircleHelp,
-  Zap, ZapOff,
+  Zap, ZapOff, Info,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
@@ -43,10 +43,13 @@ function countIssues(v: any): { errors: number; warnings: number } {
 }
 
 // Reusable inline panel — splits issues by severity so the user can act on errors first.
+// Info-level notices (e.g. "start time is in the past") are surfaced calmly so they don't
+// read as problems the user must fix.
 function ValidationIssuesPanel({ issues }: { issues: { field: string; message: string; severity: string }[] }) {
   const errors = issues.filter(i => i.severity === "error");
   const warnings = issues.filter(i => i.severity === "warning");
-  if (errors.length === 0 && warnings.length === 0) return null;
+  const infos = issues.filter(i => i.severity === "info");
+  if (errors.length === 0 && warnings.length === 0 && infos.length === 0) return null;
   return (
     <div className="space-y-2" id="validation-issues">
       {errors.length > 0 && (
@@ -76,6 +79,22 @@ function ValidationIssuesPanel({ issues }: { issues: { field: string; message: s
               <li key={idx} className="flex gap-2">
                 <span className="text-amber-500/60 shrink-0">•</span>
                 <span><span className="font-mono text-amber-300/70">{err.field}</span> — {err.message}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+      {infos.length > 0 && (
+        <div className="bg-blue-500/5 border border-blue-500/20 p-3.5 rounded-lg space-y-2">
+          <div className="flex items-center gap-2 text-blue-400">
+            <Info className="w-3.5 h-3.5" />
+            <span className="text-xs font-semibold">{infos.length} note{infos.length === 1 ? "" : "s"}</span>
+          </div>
+          <ul className="text-[11px] text-blue-200/90 space-y-1.5">
+            {infos.map((err, idx) => (
+              <li key={idx} className="flex gap-2">
+                <span className="text-blue-500/60 shrink-0">•</span>
+                <span><span className="font-mono text-blue-300/70">{err.field}</span> — {err.message}</span>
               </li>
             ))}
           </ul>
@@ -146,7 +165,7 @@ export default function DraftEditorPage({ params: paramsPromise }: { params: Pro
   const [isValidating, setIsValidating] = useState(false);
   const [isPublishing, setIsPublishing] = useState(false);
   const [isCleaning, setIsCleaning] = useState(false);
-  const [isAutoSaveEnabled, setIsAutoSaveEnabled] = useState(true);
+  const [isAutoSaveEnabled, setIsAutoSaveEnabled] = useState(false);
   const [validationResults, setValidationResults] = useState<any>(null);
   // In-memory edits keyed by `${type}:${id}`. Switching nodes preserves edits;
   // they are only persisted when the user clicks Save.

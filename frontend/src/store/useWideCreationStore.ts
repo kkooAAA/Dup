@@ -37,6 +37,10 @@ export interface WideCreationState {
   // Generated structure
   campaigns: WideCampaignNode[];
 
+  // Optional per-item field overrides keyed by stable nodeId (see nodeIdFor).
+  // These layer on top of bulk (Step 3) config — item-level beats objective-level.
+  nodeOverrides: Record<string, Record<string, any>>;
+
   // Default creative (applies to all ads without explicit creative)
   defaultCreative: Record<string, any> | null;
 
@@ -96,6 +100,11 @@ export interface WideCreationState {
   // Bulk
   bulkUpdateSelectedField: (field: string, value: any) => void;
 
+  // Per-item overrides
+  setNodeOverride: (nodeId: string, fields: Record<string, any>) => void;
+  clearNodeOverride: (nodeId: string) => void;
+  getNodeOverride: (nodeId: string) => Record<string, any> | undefined;
+
   // Default creative
   setDefaultCreative: (creative: Record<string, any> | null) => void;
 
@@ -118,6 +127,21 @@ function genId(prefix: string) {
   return `${prefix}_${++idCounter}_${Date.now().toString(36)}`;
 }
 
+/**
+ * Stable, position-based identifier for a node in the generated tree.
+ * Indexes are global within the campaigns array (campaign), within a campaign
+ * (adset), and within an adset (ad). This keeps overrides addressable without
+ * coupling to the volatile `genId` values that change every regenerate.
+ *
+ * Forms: "c{ci}" | "c{ci}:a{ai}" | "c{ci}:a{ai}:d{di}"
+ */
+export function nodeIdFor(ci: number, ai?: number, di?: number): string {
+  let id = `c${ci}`;
+  if (ai !== undefined) id += `:a${ai}`;
+  if (di !== undefined) id += `:d${di}`;
+  return id;
+}
+
 const initialState = {
   step: 1 as const,
   templateName: '',
@@ -125,6 +149,7 @@ const initialState = {
   adSetsPerCampaign: 1,
   adsPerAdSet: 1,
   campaigns: [] as WideCampaignNode[],
+  nodeOverrides: {} as Record<string, Record<string, any>>,
   defaultCreative: null as Record<string, any> | null,
   namingPattern: {
     campaign: '{objective} Campaign {index:02d}',
@@ -184,7 +209,9 @@ export const useWideCreationStore = create<WideCreationState>((set, get) => ({
         });
       }
     }
-    return { campaigns, step: 2 as const };
+    // Regenerating rebuilds the tree from scratch; position-based overrides from
+    // a prior structure no longer map cleanly, so drop them.
+    return { campaigns, nodeOverrides: {}, step: 2 as const };
   }),
 
   // ── Navigation ──
@@ -373,6 +400,34 @@ export const useWideCreationStore = create<WideCreationState>((set, get) => ({
     };
   }),
 
+  // ── Per-Item Overrides ──
+
+  setNodeOverride: (nodeId, fields) => set((state) => {
+    // Drop keys explicitly set to undefined/'' so a cleared field reverts to
+    // the bulk default rather than overriding it with an empty value.
+    const cleaned: Record<string, any> = {};
+    for (const [k, v] of Object.entries(fields)) {
+      if (v === undefined || v === null || v === '') continue;
+      cleaned[k] = v;
+    }
+    const next = { ...state.nodeOverrides };
+    if (Object.keys(cleaned).length === 0) {
+      delete next[nodeId];
+    } else {
+      next[nodeId] = cleaned;
+    }
+    return { nodeOverrides: next };
+  }),
+
+  clearNodeOverride: (nodeId) => set((state) => {
+    if (!(nodeId in state.nodeOverrides)) return {} as any;
+    const next = { ...state.nodeOverrides };
+    delete next[nodeId];
+    return { nodeOverrides: next };
+  }),
+
+  getNodeOverride: (nodeId) => get().nodeOverrides[nodeId],
+
   // ── Default Creative ──
 
   setDefaultCreative: (creative) => set({ defaultCreative: creative }),
@@ -385,24 +440,26 @@ export const useWideCreationStore = create<WideCreationState>((set, get) => ({
 
   // ── Reset ──
 
-  reset: () => set({ ...initialState, selectedIds: new Set(), expandedIds: new Set() }),
+  reset: () => set({ ...initialState, nodeOverrides: {}, selectedIds: new Set(), expandedIds: new Set() }),
 
   // ── Export ──
 
   toTemplate: (adAccountId: string) => {
     const state = get();
+    const ov = state.nodeOverrides;
+    // Per-item overrides win over bulk (Step 3) config, so they are merged last.
     return {
       name: state.templateName || 'Wide Creation',
       adAccountId,
       namingPattern: state.namingPattern,
       ...(state.defaultCreative ? { defaults: { ad: { creative: state.defaultCreative } } } : {}),
-      campaigns: state.campaigns.map(c => ({
-        fields: c.fields,
+      campaigns: state.campaigns.map((c, ci) => ({
+        fields: { ...c.fields, ...(ov[nodeIdFor(ci)] || {}) },
         adSetCount: c.adSets.length,
-        adSets: c.adSets.map(as => ({
-          fields: as.fields,
+        adSets: c.adSets.map((as, ai) => ({
+          fields: { ...as.fields, ...(ov[nodeIdFor(ci, ai)] || {}) },
           adCount: as.ads.length,
-          ads: as.ads.map(a => ({ fields: a.fields })),
+          ads: as.ads.map((a, di) => ({ fields: { ...a.fields, ...(ov[nodeIdFor(ci, ai, di)] || {}) } })),
         })),
       })),
     };
