@@ -182,7 +182,7 @@ export function StepStructure() {
             you configure in the next step.
           </p>
 
-          <div className="space-y-3 max-h-[500px] overflow-y-auto pr-2">
+          <div className="space-y-4 max-h-[600px] overflow-y-auto pr-2">
             {objectives.map((objective) => {
               const campaigns = store.getCampaignsByObjective(objective);
               return (
@@ -229,22 +229,22 @@ function CampaignNode({
   const hasOverride = !!store.nodeOverrides[nodeId];
 
   return (
-    <div className="ml-2">
-      <div className="flex items-center gap-2 py-1.5 px-2 rounded hover:bg-gray-800/50">
+    <div className="ml-1">
+      <div className="flex items-center gap-2 py-2.5 px-3 rounded-md bg-gray-800/60 hover:bg-gray-800 border border-gray-700/50">
         <button
           onClick={() => store.toggleExpand(campaign.id)}
-          className="text-gray-500"
+          className="text-gray-400"
           aria-label={expanded ? "Collapse campaign" : "Expand campaign"}
         >
-          {expanded ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />}
+          {expanded ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
         </button>
-        <FolderTree className={`w-3.5 h-3.5 ${color}`} />
-        <span className="text-xs text-gray-300">
+        <FolderTree className={`w-4 h-4 ${color}`} />
+        <span className="text-sm font-medium text-gray-200">
           {OBJECTIVE_LABELS[objective]} Campaign {index + 1}
         </span>
         <OverrideIndicator active={hasOverride} />
-        <span className="text-[10px] text-gray-600">
-          ({campaign.adSets.length} ad sets, {campaign.adSets.reduce((s: number, as) => s + as.ads.length, 0)} ads)
+        <span className="text-xs text-gray-500">
+          {campaign.adSets.length} ad sets · {campaign.adSets.reduce((s: number, as) => s + as.ads.length, 0)} ads
         </span>
         <div className="flex-1" />
         <EditButton active={editing || hasOverride} onClick={() => setEditing((v) => !v)} />
@@ -268,7 +268,7 @@ function CampaignNode({
       )}
 
       {expanded && (
-        <div className="ml-6 border-l border-gray-800 pl-2 space-y-0.5">
+        <div className="ml-4 mt-1 border-l-2 border-gray-700 pl-3 space-y-1.5">
           {campaign.adSets.map((adSet, ai) => (
             <AdSetNode
               key={adSet.id}
@@ -296,11 +296,11 @@ function AdSetNode({
 
   return (
     <div>
-      <div className="flex items-center gap-2 py-1 px-2 rounded hover:bg-gray-800/30">
-        <Layers className="w-3 h-3 text-green-400/70" />
-        <span className="text-[11px] text-gray-400">Ad Set {ai + 1}</span>
+      <div className="flex items-center gap-2 py-2 px-3 rounded-md bg-gray-800/30 hover:bg-gray-800/60 border border-gray-700/30">
+        <Layers className="w-3.5 h-3.5 text-green-400/80" />
+        <span className="text-xs font-medium text-gray-300">Ad Set {ai + 1}</span>
         <OverrideIndicator active={hasOverride} />
-        <span className="text-[10px] text-gray-600">({adSet.ads.length} ads)</span>
+        <span className="text-[11px] text-gray-500">{adSet.ads.length} ads</span>
         <div className="flex-1" />
         <EditButton active={editing || hasOverride} onClick={() => setEditing((v) => !v)} size="sm" />
         <button
@@ -309,7 +309,7 @@ function AdSetNode({
           title="Add Ad"
           aria-label="Add ad"
         >
-          <Plus className="w-2.5 h-2.5" />
+          <Plus className="w-3 h-3" />
         </button>
         <button
           onClick={() => store.removeAdSet(campaignId, adSet.id)}
@@ -317,7 +317,7 @@ function AdSetNode({
           title="Remove"
           aria-label="Remove ad set"
         >
-          <Trash2 className="w-2.5 h-2.5" />
+          <Trash2 className="w-3 h-3" />
         </button>
       </div>
 
@@ -330,7 +330,7 @@ function AdSetNode({
         />
       )}
 
-      <div className="ml-5 space-y-0.5">
+      <div className="ml-4 mt-1 border-l-2 border-gray-700/50 pl-3 space-y-1">
         {adSet.ads.map((ad, adi) => (
           <AdNode
             key={ad.id}
@@ -359,18 +359,18 @@ function AdNode({
 
   return (
     <div>
-      <div className="flex items-center gap-2 py-0.5 px-2 text-[10px] text-gray-500">
-        <FileText className="w-2.5 h-2.5 text-purple-400/50" />
-        <span>Ad {adi + 1}</span>
+      <div className="flex items-center gap-2 py-1.5 px-3 rounded-md hover:bg-gray-800/40 border border-gray-700/20">
+        <FileText className="w-3 h-3 text-purple-400/70" />
+        <span className="text-[11px] text-gray-400">Ad {adi + 1}</span>
         <OverrideIndicator active={hasOverride} />
         <div className="flex-1" />
         <EditButton active={editing || hasOverride} onClick={() => setEditing((v) => !v)} size="sm" />
         <button
           onClick={() => store.removeAd(campaignId, adSetId, ad.id)}
-          className="text-red-500/20 hover:text-red-400 p-0.5"
+          className="text-red-500/30 hover:text-red-400 p-0.5"
           aria-label="Remove ad"
         >
-          <Trash2 className="w-2.5 h-2.5" />
+          <Trash2 className="w-3 h-3" />
         </button>
       </div>
 
