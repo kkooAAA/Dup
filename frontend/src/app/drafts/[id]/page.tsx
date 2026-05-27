@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { draftApi } from "@/services/api";
+import { useAppStore } from "@/store/useAppStore";
 import {
   Save, Send, ShieldCheck, AlertTriangle, FileText, Layers,
   Megaphone, Loader2, ArrowLeft, Trash2, CheckCircle2, CircleHelp,
@@ -154,9 +155,33 @@ function ValidationBadge({
   );
 }
 
+// Shows a compact red/amber count bubble on a sidebar tree item when that entity
+// has validation errors. Only renders when errors exist (null-safe).
+function EntityErrorDot({ errors }: { errors?: { severity: string }[] }) {
+  if (!errors?.length) return null;
+  const errCount = errors.filter(e => e.severity === "error").length;
+  const warnCount = errors.filter(e => e.severity === "warning").length;
+  if (errCount > 0) {
+    return (
+      <span className="ml-auto shrink-0 min-w-[16px] h-4 rounded-full bg-red-500/80 text-white text-[9px] font-bold flex items-center justify-center px-1">
+        {errCount}
+      </span>
+    );
+  }
+  if (warnCount > 0) {
+    return (
+      <span className="ml-auto shrink-0 min-w-[16px] h-4 rounded-full bg-amber-500/70 text-white text-[9px] font-bold flex items-center justify-center px-1">
+        {warnCount}
+      </span>
+    );
+  }
+  return null;
+}
+
 export default function DraftEditorPage({ params: paramsPromise }: { params: Promise<{ id: string }> }) {
   const params = use(paramsPromise);
   const router = useRouter();
+  const setDraftName = useAppStore((s) => s.setDraftName);
   const [draft, setDraft] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedNode, setSelectedNode] = useState<{ type: "CAMPAIGN" | "ADSET" | "AD"; id: string } | null>(null);
@@ -184,6 +209,7 @@ export default function DraftEditorPage({ params: paramsPromise }: { params: Pro
       if (!silent) setIsLoading(true);
       const response = await draftApi.getCampaign(params.id);
       setDraft(response.data);
+      if (!silent) setDraftName(response.data.name);
       // Helper: prefer the cached (unsaved) version of a node over the server's value.
       const restore = (key: string, serverItem: any) => {
         const cached = editCacheRef.current.get(key);
@@ -210,6 +236,7 @@ export default function DraftEditorPage({ params: paramsPromise }: { params: Pro
   };
 
   useEffect(() => { fetchDraft(); }, [params.id]);
+  useEffect(() => () => { setDraftName(null); }, []);
 
   // Auto-validate when the draft first opens so the user immediately sees
   // any issues without having to click "Validate". Skipped while loading and
@@ -496,7 +523,8 @@ export default function DraftEditorPage({ params: paramsPromise }: { params: Pro
                 <div className="w-7 h-7 rounded-md bg-blue-500/10 flex items-center justify-center shrink-0">
                   <Megaphone className="w-3.5 h-3.5 text-blue-400" />
                 </div>
-                <span className="text-sm font-medium truncate text-gray-200">{draft.name}</span>
+                <span className="text-sm font-medium truncate text-gray-200 flex-1">{draft.name}</span>
+                <EntityErrorDot errors={validationResults?.campaignErrors} />
               </button>
 
               <div className="pl-5 space-y-2 border-l border-gray-800/40 ml-3.5">
@@ -511,7 +539,8 @@ export default function DraftEditorPage({ params: paramsPromise }: { params: Pro
                       <div className="w-6 h-6 rounded-md bg-purple-500/10 flex items-center justify-center shrink-0">
                         <Layers className="w-3 h-3 text-purple-400" />
                       </div>
-                      <span className="text-xs font-medium truncate text-gray-300">{adSet.name}</span>
+                      <span className="text-xs font-medium truncate text-gray-300 flex-1">{adSet.name}</span>
+                      <EntityErrorDot errors={validationResults?.adSetErrors?.[adSet.id]} />
                     </button>
 
                     <div className="pl-5 space-y-1 border-l border-gray-800/30 ml-3">
@@ -525,7 +554,8 @@ export default function DraftEditorPage({ params: paramsPromise }: { params: Pro
                           <div className="w-5 h-5 rounded bg-green-500/10 flex items-center justify-center shrink-0">
                             <FileText className="w-2.5 h-2.5 text-green-400" />
                           </div>
-                          <span className="text-[11px] truncate text-gray-400">{ad.name}</span>
+                          <span className="text-[11px] truncate text-gray-400 flex-1">{ad.name}</span>
+                          <EntityErrorDot errors={validationResults?.adErrors?.[ad.id]} />
                         </button>
                       ))}
                     </div>

@@ -17,14 +17,25 @@ import {
   ChevronRight,
   FolderTree,
   Layers,
-  FileText,
+  Image as ImageIcon,
   Plus,
   Trash2,
   Pencil,
   X,
+  Settings2,
+  RotateCcw,
+  ChevronsDownUp,
+  ChevronsUpDown,
 } from "lucide-react";
 import { TrackingSpecsEditor, type TrackingSpec } from "@/components/meta/TrackingSpecsEditor";
 import { CreativeOverrideEditor } from "@/components/wide-create/CreativeOverrideEditor";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 const OBJECTIVE_LABELS: Record<string, string> = {
   OUTCOME_TRAFFIC: "Traffic",
@@ -210,25 +221,41 @@ export function StepStructure() {
     <div className="space-y-4">
       <Card className="bg-gray-900 border-gray-800">
         <CardHeader className="pb-3">
-          <CardTitle className="text-sm font-medium text-gray-300">
-            Generated Structure Preview
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <p className="text-xs text-gray-500 mb-4">
-            Review the generated tree. Add/remove ad sets and ads, or click the{" "}
-            <Pencil className="w-3 h-3 inline -mt-0.5 text-gray-400" /> icon on any node to set
-            optional per-item field overrides. Overrides take precedence over the bulk settings
-            you configure in the next step.
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-sm font-semibold text-gray-200">
+              Structure Tree
+            </CardTitle>
+            <div className="flex items-center gap-1">
+              <button
+                onClick={store.expandAll}
+                className="flex items-center gap-1 text-[11px] text-blue-400/70 hover:text-blue-400 px-2 py-1 rounded-md hover:bg-blue-500/10 transition-colors"
+                title="Expand all campaigns"
+              >
+                <ChevronsUpDown className="w-3 h-3" />
+                Expand all
+              </button>
+              <button
+                onClick={store.collapseAll}
+                className="flex items-center gap-1 text-[11px] text-gray-600 hover:text-gray-400 px-2 py-1 rounded-md hover:bg-gray-800 transition-colors"
+                title="Collapse all"
+              >
+                <ChevronsDownUp className="w-3 h-3" />
+                Collapse
+              </button>
+            </div>
+          </div>
+          <p className="text-xs text-gray-500 mt-1.5">
+            Add / remove nodes, or click <span className="text-gray-400 font-medium">Override</span> on any row to set per-item field overrides — they take precedence over the bulk Configure step.
           </p>
-
-          <div className="space-y-4 max-h-[600px] overflow-y-auto pr-2">
+        </CardHeader>
+        <CardContent className="pt-0">
+          <div className="space-y-5 max-h-[640px] overflow-y-auto pr-1">
             {objectives.map((objective) => {
               const campaigns = store.getCampaignsByObjective(objective);
               return (
-                <div key={objective} className="space-y-1">
-                  <div className="flex items-center gap-2 mb-2">
-                    <Badge className={`${OBJECTIVE_COLORS[objective]} bg-transparent border border-current/30 text-xs`}>
+                <div key={objective} className="space-y-2">
+                  <div className="flex items-center gap-2 pt-1">
+                    <Badge className={`${OBJECTIVE_COLORS[objective]} bg-transparent border border-current/30 text-xs font-medium`}>
                       {OBJECTIVE_LABELS[objective] || objective}
                     </Badge>
                     <span className="text-xs text-gray-600">
@@ -269,33 +296,48 @@ function CampaignNode({
   const hasOverride = !!store.nodeOverrides[nodeId];
 
   return (
-    <div className="ml-1">
-      <div className="flex items-center gap-2 py-2.5 px-3 rounded-md bg-gray-800/60 hover:bg-gray-800 border border-gray-700/50">
-        <button
-          onClick={() => store.toggleExpand(campaign.id)}
-          className="text-gray-400"
-          aria-label={expanded ? "Collapse campaign" : "Expand campaign"}
-        >
-          {expanded ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
-        </button>
-        <FolderTree className={`w-4 h-4 ${color}`} />
-        <span className="text-sm font-medium text-gray-200">
-          {OBJECTIVE_LABELS[objective]} Campaign {index + 1}
-        </span>
-        <OverrideIndicator active={hasOverride} />
-        <span className="text-xs text-gray-500">
-          {campaign.adSets.length} ad sets · {campaign.adSets.reduce((s: number, as) => s + as.ads.length, 0)} ads
-        </span>
-        <div className="flex-1" />
-        <EditButton active={editing || hasOverride} onClick={() => setEditing((v) => !v)} />
-        <button
-          onClick={() => store.addAdSet(campaign.id)}
-          className="text-gray-600 hover:text-gray-400 p-0.5"
-          title="Add Ad Set"
-          aria-label="Add ad set"
-        >
-          <Plus className="w-3 h-3" />
-        </button>
+    <div>
+      <div className={`rounded-xl border transition-colors shadow-sm ${
+        editing
+          ? "border-blue-500/40 bg-blue-950/20"
+          : "border-blue-500/20 bg-gray-800/60 hover:bg-gray-800/80"
+      }`}>
+        <div className="flex items-center gap-3 py-3 px-4">
+          <button
+            onClick={() => store.toggleExpand(campaign.id)}
+            className="text-gray-500 hover:text-gray-300 transition-colors shrink-0"
+            aria-label={expanded ? "Collapse" : "Expand"}
+          >
+            {expanded ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+          </button>
+          <div className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ${
+            color.replace("text-", "bg-").replace("400", "500/15")
+          } border border-current/10`}>
+            <FolderTree className={`w-3.5 h-3.5 ${color}`} />
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="text-sm font-semibold text-gray-100">
+                {OBJECTIVE_LABELS[objective]} Campaign {index + 1}
+              </span>
+              <OverrideIndicator active={hasOverride} />
+            </div>
+            <p className="text-[11px] text-gray-500 mt-0.5">
+              {campaign.adSets.length} ad set{campaign.adSets.length !== 1 ? "s" : ""} &middot;{" "}
+              {campaign.adSets.reduce((s: number, as) => s + as.ads.length, 0)} ad{campaign.adSets.reduce((s: number, as) => s + as.ads.length, 0) !== 1 ? "s" : ""}
+            </p>
+          </div>
+          <div className="flex items-center gap-1.5 shrink-0">
+            <EditButton active={editing || hasOverride} onClick={() => setEditing((v) => !v)} />
+            <button
+              onClick={() => store.addAdSet(campaign.id)}
+              className="p-1 rounded-md text-gray-600 hover:text-gray-300 hover:bg-gray-700/50 transition-colors"
+              title="Add Ad Set"
+            >
+              <Plus className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        </div>
       </div>
 
       {editing && (
@@ -308,7 +350,7 @@ function CampaignNode({
       )}
 
       {expanded && (
-        <div className="ml-4 mt-1 border-l-2 border-gray-700 pl-3 space-y-1.5">
+        <div className="ml-5 mt-2 border-l-2 border-gray-700/60 pl-4 space-y-2">
           {campaign.adSets.map((adSet, ai) => (
             <AdSetNode
               key={adSet.id}
@@ -336,29 +378,42 @@ function AdSetNode({
 
   return (
     <div>
-      <div className="flex items-center gap-2 py-2 px-3 rounded-md bg-gray-800/30 hover:bg-gray-800/60 border border-gray-700/30">
-        <Layers className="w-3.5 h-3.5 text-green-400/80" />
-        <span className="text-xs font-medium text-gray-300">Ad Set {ai + 1}</span>
-        <OverrideIndicator active={hasOverride} />
-        <span className="text-[11px] text-gray-500">{adSet.ads.length} ads</span>
-        <div className="flex-1" />
-        <EditButton active={editing || hasOverride} onClick={() => setEditing((v) => !v)} size="sm" />
-        <button
-          onClick={() => store.addAd(campaignId, adSet.id)}
-          className="text-gray-600 hover:text-gray-400 p-0.5"
-          title="Add Ad"
-          aria-label="Add ad"
-        >
-          <Plus className="w-3 h-3" />
-        </button>
-        <button
-          onClick={() => store.removeAdSet(campaignId, adSet.id)}
-          className="text-red-500/30 hover:text-red-400 p-0.5"
-          title="Remove"
-          aria-label="Remove ad set"
-        >
-          <Trash2 className="w-3 h-3" />
-        </button>
+      <div className={`rounded-lg border transition-colors ${
+        editing
+          ? "border-green-500/35 bg-green-950/15"
+          : "border-green-500/15 bg-gray-800/35 hover:bg-gray-800/55"
+      }`}>
+        <div className="flex items-center gap-2.5 py-2.5 px-3">
+          <div className="w-6 h-6 rounded-md bg-green-500/10 border border-green-500/20 flex items-center justify-center shrink-0">
+            <Layers className="w-3 h-3 text-green-400/80" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-1.5 flex-wrap">
+              <span className="text-xs font-semibold text-gray-200">Ad Set {ai + 1}</span>
+              <OverrideIndicator active={hasOverride} />
+            </div>
+            <p className="text-[10px] text-gray-600 mt-0.5">
+              {adSet.ads.length} ad{adSet.ads.length !== 1 ? "s" : ""}
+            </p>
+          </div>
+          <div className="flex items-center gap-1 shrink-0">
+            <EditButton active={editing || hasOverride} onClick={() => setEditing((v) => !v)} size="sm" />
+            <button
+              onClick={() => store.addAd(campaignId, adSet.id)}
+              className="p-1 rounded text-gray-600 hover:text-green-400 hover:bg-green-500/10 transition-colors"
+              title="Add Ad"
+            >
+              <Plus className="w-3 h-3" />
+            </button>
+            <button
+              onClick={() => store.removeAdSet(campaignId, adSet.id)}
+              className="p-1 rounded text-gray-700 hover:text-red-400 hover:bg-red-500/10 transition-colors"
+              title="Remove ad set"
+            >
+              <Trash2 className="w-3 h-3" />
+            </button>
+          </div>
+        </div>
       </div>
 
       {editing && (
@@ -370,7 +425,7 @@ function AdSetNode({
         />
       )}
 
-      <div className="ml-4 mt-1 border-l-2 border-gray-700/50 pl-3 space-y-1">
+      <div className="ml-4 mt-1.5 border-l-2 border-gray-700/40 pl-3 space-y-1">
         {adSet.ads.map((ad, adi) => (
           <AdNode
             key={ad.id}
@@ -399,19 +454,32 @@ function AdNode({
 
   return (
     <div>
-      <div className="flex items-center gap-2 py-1.5 px-3 rounded-md hover:bg-gray-800/40 border border-gray-700/20">
-        <FileText className="w-3 h-3 text-purple-400/70" />
-        <span className="text-[11px] text-gray-400">Ad {adi + 1}</span>
-        <OverrideIndicator active={hasOverride} />
-        <div className="flex-1" />
-        <EditButton active={editing || hasOverride} onClick={() => setEditing((v) => !v)} size="sm" />
-        <button
-          onClick={() => store.removeAd(campaignId, adSetId, ad.id)}
-          className="text-red-500/30 hover:text-red-400 p-0.5"
-          aria-label="Remove ad"
-        >
-          <Trash2 className="w-3 h-3" />
-        </button>
+      <div className={`rounded-md border transition-colors ${
+        editing
+          ? "border-purple-500/30 bg-purple-950/10"
+          : "border-purple-500/10 bg-gray-800/20 hover:bg-gray-800/40"
+      }`}>
+        <div className="flex items-center gap-2 py-2 px-3">
+          <div className="w-5 h-5 rounded bg-purple-500/10 border border-purple-500/15 flex items-center justify-center shrink-0">
+            <ImageIcon className="w-2.5 h-2.5 text-purple-400" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-1.5">
+              <span className="text-[11px] font-medium text-gray-400">Ad {adi + 1}</span>
+              <OverrideIndicator active={hasOverride} />
+            </div>
+          </div>
+          <div className="flex items-center gap-1 shrink-0">
+            <EditButton active={editing || hasOverride} onClick={() => setEditing((v) => !v)} size="sm" />
+            <button
+              onClick={() => store.removeAd(campaignId, adSetId, ad.id)}
+              className="p-1 rounded text-gray-700 hover:text-red-400 hover:bg-red-500/10 transition-colors"
+              aria-label="Remove ad"
+            >
+              <Trash2 className="w-2.5 h-2.5" />
+            </button>
+          </div>
+        </div>
       </div>
 
       {editing && (
@@ -433,15 +501,20 @@ function EditButton({
 }: {
   active: boolean; onClick: () => void; size?: "sm" | "md";
 }) {
-  const dim = size === "sm" ? "w-2.5 h-2.5" : "w-3 h-3";
   return (
     <button
       onClick={onClick}
-      className={`p-0.5 ${active ? "text-blue-400" : "text-gray-600 hover:text-gray-400"}`}
-      title="Edit field overrides"
-      aria-label="Edit field overrides"
+      className={`flex items-center gap-1 rounded-md font-medium transition-all border ${
+        active
+          ? "bg-blue-500/15 text-blue-300 border-blue-500/30 px-2 py-1 text-[10px]"
+          : size === "md"
+          ? "text-gray-600 hover:text-gray-300 hover:bg-gray-700/50 border-transparent px-2 py-1 text-[10px]"
+          : "text-gray-700 hover:text-gray-400 hover:bg-gray-700/40 border-transparent px-1.5 py-0.5 text-[10px]"
+      }`}
+      title="Per-item field overrides"
     >
-      <Pencil className={dim} />
+      <Pencil className={size === "md" ? "w-2.5 h-2.5" : "w-2 h-2"} />
+      {size === "md" && !active && "Override"}
     </button>
   );
 }
@@ -449,11 +522,8 @@ function EditButton({
 function OverrideIndicator({ active }: { active: boolean }) {
   if (!active) return null;
   return (
-    <span
-      className="inline-flex items-center gap-1 text-[9px] text-amber-400"
-      title="Has per-item overrides"
-    >
-      <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />
+    <span className="inline-flex items-center gap-1 text-[9px] font-semibold bg-amber-500/15 text-amber-300 border border-amber-500/25 px-1.5 py-0.5 rounded-full">
+      <span className="w-1 h-1 rounded-full bg-amber-400 shrink-0" />
       edited
     </span>
   );
@@ -466,52 +536,64 @@ function OverridePanel({
 }) {
   const store = useWideCreationStore();
   const current = store.nodeOverrides[nodeId] || {};
-  const hasAny = Object.keys(current).length > 0;
+  const activeCount = Object.keys(current).length;
 
   const update = (key: string, value: any) => {
     store.setNodeOverride(nodeId, { ...current, [key]: value });
   };
 
   return (
-    <div className={`ml-6 mt-1 mb-2 rounded-lg bg-gray-800/40 border ${accent} p-3`}>
-      <div className="flex items-center justify-between mb-2">
-        <span className="text-[10px] font-medium uppercase tracking-wider text-gray-400">
-          Per-item overrides
-        </span>
+    <div className={`mt-2 mb-2 ml-2 rounded-xl border ${accent} bg-gray-950/80 shadow-xl shadow-black/30`}>
+      {/* Header */}
+      <div className="flex items-center justify-between px-4 py-3 border-b border-gray-800/60">
         <div className="flex items-center gap-2">
-          {hasAny && (
+          <Settings2 className="w-3.5 h-3.5 text-gray-400" />
+          <span className="text-xs font-semibold text-gray-200">Per-item Overrides</span>
+          {activeCount > 0 && (
+            <span className="text-[10px] font-semibold bg-amber-500/15 text-amber-300 border border-amber-500/25 px-1.5 py-0.5 rounded-full">
+              {activeCount} active
+            </span>
+          )}
+        </div>
+        <div className="flex items-center gap-1">
+          {activeCount > 0 && (
             <button
               onClick={() => store.clearNodeOverride(nodeId)}
-              className="text-[10px] text-red-400/70 hover:text-red-400"
+              className="flex items-center gap-1 text-[11px] text-gray-500 hover:text-red-400 px-2 py-1 rounded-md hover:bg-red-500/10 transition-colors"
             >
-              Clear overrides
+              <RotateCcw className="w-3 h-3" />
+              Reset
             </button>
           )}
           <button
             onClick={onClose}
-            className="text-gray-500 hover:text-gray-300"
-            aria-label="Close override editor"
+            className="p-1.5 rounded-md text-gray-500 hover:text-gray-200 hover:bg-gray-800 transition-colors"
+            aria-label="Close"
           >
-            <X className="w-3 h-3" />
+            <X className="w-3.5 h-3.5" />
           </button>
         </div>
       </div>
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-        {fields
-          .filter((field) => !field.showWhen || field.showWhen(current))
-          .map((field) => (
-            <div key={field.key} className={field.fullWidth ? "sm:col-span-2" : undefined}>
-              <OverrideField
-                def={field}
-                value={current[field.key]}
-                onChange={(v) => update(field.key, v)}
-              />
-            </div>
-          ))}
+
+      {/* Fields */}
+      <div className="p-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          {fields
+            .filter((field) => !field.showWhen || field.showWhen(current))
+            .map((field) => (
+              <div key={field.key} className={field.fullWidth ? "sm:col-span-2" : undefined}>
+                <OverrideField
+                  def={field}
+                  value={current[field.key]}
+                  onChange={(v) => update(field.key, v)}
+                />
+              </div>
+            ))}
+        </div>
+        <p className="text-[10px] text-gray-600 mt-4 pt-3 border-t border-gray-800/40">
+          Leave any field blank to inherit the bulk setting from the Configure step.
+        </p>
       </div>
-      <p className="text-[10px] text-gray-600 mt-2">
-        Leave a field blank to use the bulk setting from the Configure step.
-      </p>
     </div>
   );
 }
@@ -528,14 +610,14 @@ function OverrideField({
   if (def.type === "trackingSpecs") {
     return (
       <div>
-        <Label className="text-[10px] text-gray-500">{def.label}</Label>
+        <Label className="text-xs font-medium text-gray-400">{def.label}</Label>
         <div className="mt-1">
           <TrackingSpecsEditor
             value={value as TrackingSpec[] | undefined}
             onChange={onChange}
           />
         </div>
-        {def.help && <p className="text-[9px] text-gray-600 mt-1">{def.help}</p>}
+        {def.help && <p className="text-[10px] text-gray-500 mt-1">{def.help}</p>}
       </div>
     );
   }
@@ -545,19 +627,21 @@ function OverrideField({
     // (A plain checkbox can't express "no override", and `false` is meaningful.)
     return (
       <div>
-        <Label className="text-[10px] text-gray-500">{def.label}</Label>
-        <select
-          value={value === true ? "true" : value === false ? "false" : ""}
-          onChange={(e) =>
-            onChange(e.target.value === "" ? undefined : e.target.value === "true")
-          }
-          className="w-full mt-1 rounded-md bg-gray-800 border border-gray-700 text-xs text-gray-200 px-2 py-1.5"
+        <Label className="text-xs font-medium text-gray-400">{def.label}</Label>
+        <Select
+          value={value === true ? "true" : value === false ? "false" : "__default__"}
+          onValueChange={(v) => onChange(v === "__default__" ? undefined : v === "true")}
         >
-          <option value="">Use bulk default</option>
-          <option value="true">Yes</option>
-          <option value="false">No</option>
-        </select>
-        {def.help && <p className="text-[9px] text-gray-600 mt-0.5">{def.help}</p>}
+          <SelectTrigger className="bg-gray-800 border-gray-700 mt-1 h-9 text-xs">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent className="bg-gray-900 border-gray-800">
+            <SelectItem value="__default__" className="text-xs text-gray-500">Use bulk default</SelectItem>
+            <SelectItem value="true" className="text-xs text-gray-200">Yes</SelectItem>
+            <SelectItem value="false" className="text-xs text-gray-200">No</SelectItem>
+          </SelectContent>
+        </Select>
+        {def.help && <p className="text-[10px] text-gray-500 mt-1">{def.help}</p>}
       </div>
     );
   }
@@ -574,7 +658,7 @@ function OverrideField({
     };
     return (
       <div>
-        <Label className="text-[10px] text-gray-500">{def.label}</Label>
+        <Label className="text-xs font-medium text-gray-400">{def.label}</Label>
         <div className="mt-1 flex flex-wrap gap-1">
           {def.options?.map((opt) => {
             const active = selected.includes(opt.value);
@@ -594,7 +678,7 @@ function OverrideField({
             );
           })}
         </div>
-        {def.help && <p className="text-[9px] text-gray-600 mt-0.5">{def.help}</p>}
+        {def.help && <p className="text-[10px] text-gray-500 mt-1">{def.help}</p>}
       </div>
     );
   }
@@ -602,18 +686,22 @@ function OverrideField({
   if (def.type === "select") {
     return (
       <div>
-        <Label className="text-[10px] text-gray-500">{def.label}</Label>
-        <select
-          value={value ?? ""}
-          onChange={(e) => onChange(e.target.value || undefined)}
-          className="w-full mt-1 rounded-md bg-gray-800 border border-gray-700 text-xs text-gray-200 px-2 py-1.5"
+        <Label className="text-xs font-medium text-gray-400">{def.label}</Label>
+        <Select
+          value={value ?? "__default__"}
+          onValueChange={(v) => onChange(v === "__default__" ? undefined : v)}
         >
-          <option value="">Use bulk default</option>
-          {def.options?.map((opt) => (
-            <option key={opt.value} value={opt.value}>{opt.label}</option>
-          ))}
-        </select>
-        {def.help && <p className="text-[9px] text-gray-600 mt-0.5">{def.help}</p>}
+          <SelectTrigger className="bg-gray-800 border-gray-700 mt-1 h-9 text-xs">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent className="bg-gray-900 border-gray-800">
+            <SelectItem value="__default__" className="text-xs text-gray-500">Use bulk default</SelectItem>
+            {def.options?.map((opt) => (
+              <SelectItem key={opt.value} value={opt.value} className="text-xs text-gray-200">{opt.label}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        {def.help && <p className="text-[10px] text-gray-500 mt-1">{def.help}</p>}
       </div>
     );
   }
@@ -621,11 +709,11 @@ function OverrideField({
   if (def.type === "creativeOverride") {
     return (
       <div>
-        <Label className="text-[10px] text-gray-500">{def.label}</Label>
+        <Label className="text-xs font-medium text-gray-400">{def.label}</Label>
         <div className="mt-1">
           <CreativeOverrideEditor value={value} onChange={onChange} />
         </div>
-        {def.help && <p className="text-[9px] text-gray-600 mt-1">{def.help}</p>}
+        {def.help && <p className="text-[10px] text-gray-500 mt-1">{def.help}</p>}
       </div>
     );
   }
@@ -633,7 +721,7 @@ function OverrideField({
   if (def.type === "targeting") {
     return (
       <div>
-        <Label className="text-[10px] text-gray-500">{def.label}</Label>
+        <Label className="text-xs font-medium text-gray-400">{def.label}</Label>
         <div className="mt-1">
           <TargetingEditor value={value} onChange={onChange} />
         </div>
@@ -644,7 +732,7 @@ function OverrideField({
   if (def.type === "promotedObject") {
     return (
       <div>
-        <Label className="text-[10px] text-gray-500">{def.label}</Label>
+        <Label className="text-xs font-medium text-gray-400">{def.label}</Label>
         <div className="mt-1">
           <PromotedObjectEditor value={value} onChange={onChange} />
         </div>
@@ -655,18 +743,20 @@ function OverrideField({
   if (def.type === "datetime") {
     return (
       <div>
-        <Label className="text-[10px] text-gray-500">{def.label}</Label>
+        <Label className="text-xs font-medium text-gray-400">{def.label}</Label>
         <Input
           type="datetime-local"
           value={value ? String(value).slice(0, 16) : ""}
           onChange={(e) => onChange(e.target.value ? `${e.target.value}:00` : undefined)}
-          className="bg-gray-800 border-gray-700 mt-1 h-8 text-xs"
+          className="bg-gray-800 border-gray-700 mt-1 h-9 text-sm"
         />
-        {def.help && <p className="text-[9px] text-gray-600 mt-0.5">{def.help}</p>}
+        {def.help && <p className="text-[10px] text-gray-500 mt-1">{def.help}</p>}
       </div>
     );
   }
 
+  const isBudgetField = def.type === "number" && def.key.includes("budget");
+  const budgetDollars = isBudgetField && value ? (Number(value) / 100).toFixed(2) : null;
   return (
     <div>
       <Label className="text-[10px] text-gray-500">{def.label}</Label>
@@ -677,6 +767,9 @@ function OverrideField({
         placeholder={def.placeholder}
         className="bg-gray-800 border-gray-700 mt-1 h-8 text-xs"
       />
+      {budgetDollars && (
+        <p className="text-[10px] text-blue-400/80 mt-0.5">= ${budgetDollars}</p>
+      )}
       {def.help && <p className="text-[9px] text-gray-600 mt-0.5">{def.help}</p>}
     </div>
   );
@@ -737,20 +830,22 @@ function CountryPicker({ selected, onChange }: { selected: string[]; onChange: (
 
   return (
     <div>
-      <div className="flex flex-wrap gap-1 mb-1">
-        {selected.map((code) => {
-          const country = COUNTRIES.find((c) => c.code === code);
-          return (
-            <span key={code} className="inline-flex items-center gap-0.5 rounded bg-blue-500/20 border border-blue-500/30 px-1.5 py-0.5 text-[10px] text-blue-300">
-              <span className="font-mono opacity-70">{code}</span>
-              {country && <span className="opacity-80"> {country.name}</span>}
-              <button type="button" onMouseDown={() => remove(code)} className="ml-0.5 text-blue-400/60 hover:text-blue-300">
-                <X className="w-2.5 h-2.5" />
-              </button>
-            </span>
-          );
-        })}
-      </div>
+      {selected.length > 0 && (
+        <div className="flex flex-wrap gap-1 mb-2">
+          {selected.map((code) => {
+            const country = COUNTRIES.find((c) => c.code === code);
+            return (
+              <span key={code} className="inline-flex items-center gap-1 rounded-lg bg-blue-500/15 border border-blue-500/25 px-2 py-1 text-[11px] text-blue-300 font-medium">
+                <span className="font-mono opacity-70">{code}</span>
+                {country && <span className="opacity-70 hidden sm:inline"> {country.name}</span>}
+                <button type="button" onMouseDown={() => remove(code)} className="ml-0.5 text-blue-400/50 hover:text-blue-200 transition-colors">
+                  <X className="w-2.5 h-2.5" />
+                </button>
+              </span>
+            );
+          })}
+        </div>
+      )}
       <div className="relative">
         <Input
           type="text"
@@ -758,19 +853,19 @@ function CountryPicker({ selected, onChange }: { selected: string[]; onChange: (
           placeholder="Search country…"
           onChange={(e) => { setSearch(e.target.value); setOpen(true); }}
           onFocus={() => setOpen(true)}
-          onBlur={() => setTimeout(() => setOpen(false), 150)}
-          className="bg-gray-800 border-gray-700 h-6 text-[11px]"
+          onBlur={() => setTimeout(() => setOpen(false), 250)}
+          className="bg-gray-800 border-gray-700 h-8 text-xs"
         />
         {open && filtered.length > 0 && (
-          <div className="absolute z-50 w-full mt-0.5 rounded-md border border-gray-700 bg-gray-900 shadow-lg max-h-44 overflow-y-auto">
+          <div className="absolute z-50 w-full mt-1 rounded-lg border border-gray-700 bg-gray-900 shadow-xl max-h-48 overflow-y-auto">
             {filtered.map((c) => (
               <button
                 key={c.code}
                 type="button"
                 onMouseDown={() => { add(c.code); setOpen(false); }}
-                className="w-full flex items-center gap-2 px-2 py-1.5 text-[11px] text-gray-300 hover:bg-gray-800 text-left"
+                className="w-full flex items-center gap-2.5 px-3 py-2 text-xs text-gray-300 hover:bg-gray-800 text-left transition-colors"
               >
-                <span className="font-mono text-[10px] text-gray-500 w-6 shrink-0">{c.code}</span>
+                <span className="font-mono text-[10px] text-gray-500 w-7 shrink-0">{c.code}</span>
                 {c.name}
               </button>
             ))}
@@ -812,11 +907,11 @@ function TargetingEditor({ value, onChange }: { value: any; onChange: (v: any) =
   };
 
   return (
-    <div className="rounded-md border border-gray-700/60 bg-gray-800/40 p-2 space-y-2">
+    <div className="rounded-lg border border-gray-700/60 bg-gray-800/30 p-3 space-y-3">
       {/* Countries */}
       <div>
-        <Label className="text-[9px] text-gray-500">Countries</Label>
-        <div className="mt-0.5">
+        <Label className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide">Countries</Label>
+        <div className="mt-1.5">
           <CountryPicker
             selected={countries}
             onChange={(newCountries) =>
@@ -827,9 +922,9 @@ function TargetingEditor({ value, onChange }: { value: any; onChange: (v: any) =
       </div>
 
       {/* Age */}
-      <div className="flex gap-2">
+      <div className="flex gap-3">
         <div className="flex-1">
-          <Label className="text-[9px] text-gray-500">Age Min</Label>
+          <Label className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide">Age Min</Label>
           <Input
             type="number"
             min={13}
@@ -837,11 +932,11 @@ function TargetingEditor({ value, onChange }: { value: any; onChange: (v: any) =
             value={ageMin}
             placeholder="18"
             onChange={(e) => setAge("age_min", e.target.value)}
-            className="bg-gray-800 border-gray-700 h-6 text-[11px] mt-0.5"
+            className="bg-gray-800 border-gray-700 h-8 text-xs mt-1"
           />
         </div>
         <div className="flex-1">
-          <Label className="text-[9px] text-gray-500">Age Max</Label>
+          <Label className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide">Age Max</Label>
           <Input
             type="number"
             min={13}
@@ -849,15 +944,15 @@ function TargetingEditor({ value, onChange }: { value: any; onChange: (v: any) =
             value={ageMax}
             placeholder="65"
             onChange={(e) => setAge("age_max", e.target.value)}
-            className="bg-gray-800 border-gray-700 h-6 text-[11px] mt-0.5"
+            className="bg-gray-800 border-gray-700 h-8 text-xs mt-1"
           />
         </div>
       </div>
 
       {/* Gender */}
       <div>
-        <Label className="text-[9px] text-gray-500">Gender</Label>
-        <div className="flex gap-1 mt-0.5">
+        <Label className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide">Gender</Label>
+        <div className="flex gap-1.5 mt-1.5">
           {GENDER_OPTIONS.map((opt) => {
             const isActive = opt.value === 0 ? genders.length === 0 : genders.includes(opt.value);
             return (
@@ -865,10 +960,10 @@ function TargetingEditor({ value, onChange }: { value: any; onChange: (v: any) =
                 key={opt.value}
                 type="button"
                 onClick={() => setGender(opt.value)}
-                className={`flex-1 rounded-md border px-2 py-1 text-[10px] transition-colors ${
+                className={`flex-1 rounded-lg border py-1.5 text-xs font-medium transition-colors ${
                   isActive
-                    ? "border-blue-500 bg-blue-500/20 text-blue-300"
-                    : "border-gray-700 bg-gray-800 text-gray-400 hover:border-gray-600"
+                    ? "border-blue-500/60 bg-blue-500/20 text-blue-300"
+                    : "border-gray-700 bg-gray-800 text-gray-500 hover:border-gray-600 hover:text-gray-300"
                 }`}
               >
                 {opt.label}
@@ -882,7 +977,7 @@ function TargetingEditor({ value, onChange }: { value: any; onChange: (v: any) =
         <button
           type="button"
           onClick={() => onChange(undefined)}
-          className="text-[9px] text-red-400/60 hover:text-red-400"
+          className="text-[10px] text-red-400/60 hover:text-red-400 transition-colors"
         >
           Clear targeting
         </button>
@@ -933,29 +1028,30 @@ function PromotedObjectEditor({ value, onChange }: { value: any; onChange: (v: a
   };
 
   return (
-    <div className="rounded-md border border-gray-700/60 bg-gray-800/40 p-2 space-y-2">
+    <div className="rounded-lg border border-gray-700/60 bg-gray-800/30 p-3 space-y-3">
       <div>
-        <Label className="text-[9px] text-gray-500">Type</Label>
-        <select
-          value={poType}
-          onChange={(e) => changeType(e.target.value)}
-          className="w-full mt-0.5 rounded-md bg-gray-800 border border-gray-700 text-xs text-gray-200 px-2 py-1.5"
-        >
-          {PROMOTED_OBJECT_TYPES.map((t) => (
-            <option key={t.value} value={t.value}>{t.label}</option>
-          ))}
-        </select>
+        <Label className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide">Type</Label>
+        <Select value={poType} onValueChange={(v) => v && changeType(v)}>
+          <SelectTrigger className="bg-gray-800 border-gray-700 mt-1.5 h-8 text-xs">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent className="bg-gray-900 border-gray-800">
+            {PROMOTED_OBJECT_TYPES.map((t) => (
+              <SelectItem key={t.value} value={t.value} className="text-xs text-gray-200">{t.label}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
 
       {poType === "page" && (
         <div>
-          <Label className="text-[9px] text-gray-500">Page ID</Label>
+          <Label className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide">Page ID</Label>
           <Input
             type="text"
             value={po.page_id ?? ""}
             placeholder="e.g. 1064753226727354"
             onChange={(e) => setField("page_id", e.target.value)}
-            className="bg-gray-800 border-gray-700 h-7 text-[11px] mt-0.5"
+            className="bg-gray-800 border-gray-700 h-8 text-xs mt-1.5"
           />
         </div>
       )}
@@ -963,39 +1059,40 @@ function PromotedObjectEditor({ value, onChange }: { value: any; onChange: (v: a
       {poType === "pixel" && (
         <>
           <div>
-            <Label className="text-[9px] text-gray-500">Pixel ID</Label>
+            <Label className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide">Pixel ID</Label>
             <Input
               type="text"
               value={po.pixel_id ?? ""}
               placeholder="e.g. 123456789"
               onChange={(e) => setField("pixel_id", e.target.value)}
-              className="bg-gray-800 border-gray-700 h-7 text-[11px] mt-0.5"
+              className="bg-gray-800 border-gray-700 h-8 text-xs mt-1.5"
             />
           </div>
           <div>
-            <Label className="text-[9px] text-gray-500">Custom Event Type</Label>
-            <select
-              value={po.custom_event_type ?? "PURCHASE"}
-              onChange={(e) => setField("custom_event_type", e.target.value)}
-              className="w-full mt-0.5 rounded-md bg-gray-800 border border-gray-700 text-xs text-gray-200 px-2 py-1.5"
-            >
-              {CUSTOM_EVENT_TYPES.map((t) => (
-                <option key={t} value={t}>{t}</option>
-              ))}
-            </select>
+            <Label className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide">Custom Event Type</Label>
+            <Select value={po.custom_event_type ?? "PURCHASE"} onValueChange={(v) => setField("custom_event_type", v)}>
+              <SelectTrigger className="bg-gray-800 border-gray-700 mt-1.5 h-8 text-xs">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent className="bg-gray-900 border-gray-800">
+                {CUSTOM_EVENT_TYPES.map((t) => (
+                  <SelectItem key={t} value={t} className="text-xs text-gray-200">{t}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
         </>
       )}
 
       {poType === "app" && (
         <div>
-          <Label className="text-[9px] text-gray-500">Application ID</Label>
+          <Label className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide">Application ID</Label>
           <Input
             type="text"
             value={po.application_id ?? ""}
             placeholder="e.g. 987654321"
             onChange={(e) => setField("application_id", e.target.value)}
-            className="bg-gray-800 border-gray-700 h-7 text-[11px] mt-0.5"
+            className="bg-gray-800 border-gray-700 h-8 text-xs mt-1.5"
           />
         </div>
       )}

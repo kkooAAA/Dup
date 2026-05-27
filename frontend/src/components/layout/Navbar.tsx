@@ -17,14 +17,15 @@ const pageTitles: Record<string, string> = {
   "/dashboard": "Dashboard",
   "/explorer": "Explorer",
   "/drafts": "Drafts",
+  "/wide-create": "Wide Create",
   "/history": "History",
   "/settings": "Settings",
 };
 
 export const Navbar = () => {
-  const { user, selectedAccount, toggleMobileSidebar } = useAppStore();
+  const { user, selectedAccount, draftName, toggleMobileSidebar } = useAppStore();
   const pathname = usePathname();
-  const currentPage = pageTitles[pathname] || (pathname.startsWith("/drafts/") ? "Draft Editor" : "");
+  const currentPage = pageTitles[pathname] || (pathname.startsWith("/drafts/") ? (draftName ?? "Draft Editor") : "");
 
   return (
     <nav className="h-14 border-b border-gray-800/60 bg-gray-950/80 backdrop-blur-md flex items-center justify-between px-4 sm:px-5 sticky top-0 z-50">
@@ -32,7 +33,7 @@ export const Navbar = () => {
         {/* Hamburger — mobile only */}
         <button
           onClick={toggleMobileSidebar}
-          className="md:hidden p-1.5 rounded-lg text-gray-500 hover:text-gray-300 hover:bg-gray-800/50 transition-colors -ml-1 shrink-0"
+          className="md:hidden p-2.5 rounded-lg text-gray-500 hover:text-gray-300 hover:bg-gray-800/50 transition-colors -ml-1.5 shrink-0"
           aria-label="Open menu"
         >
           <Menu className="w-5 h-5" />

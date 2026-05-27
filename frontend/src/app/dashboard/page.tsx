@@ -98,6 +98,11 @@ export default function DashboardPage() {
                       <Globe className="w-3 h-3" />
                       <span>{account.timezone_name}</span>
                     </div>
+                    {account.currency && (
+                      <span className="text-[11px] text-gray-600 font-mono bg-gray-800/60 px-1.5 py-0.5 rounded">
+                        {account.currency}
+                      </span>
+                    )}
                   </div>
                   <div className="mt-3 pt-3 border-t border-gray-800/60">
                     <span className="text-[11px] text-gray-600 font-mono">

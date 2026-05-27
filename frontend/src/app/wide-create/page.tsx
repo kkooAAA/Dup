@@ -28,6 +28,7 @@ const STEP_LABELS = [
   { n: 1, label: "Objectives" },
   { n: 2, label: "Structure" },
   { n: 3, label: "Configure" },
+  { n: 4, label: "Generate" },
 ];
 
 export default function WideCreatePage() {
@@ -159,36 +160,38 @@ export default function WideCreatePage() {
         {/* Step indicators — horizontally scrollable on mobile */}
         <div className="overflow-x-auto pb-1 -mx-1 px-1">
         <div className="flex items-center gap-1 min-w-max">
-          {STEP_LABELS.map(({ n, label }, i) => (
-            <div key={n} className="flex items-center">
-              <button
-                onClick={() => {
-                  if (n <= store.step || (n === 2 && totalCampaigns > 0)) {
-                    store.setStep(n as any);
-                  }
-                }}
-                disabled={n > store.step && !(n === 2 && totalCampaigns > 0)}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs transition-all ${
-                  n === store.step
-                    ? "bg-blue-600/20 text-blue-400 border border-blue-500/30"
-                    : n < store.step
-                    ? "text-gray-400 hover:text-gray-200 border border-gray-700 hover:border-gray-600"
-                    : "text-gray-600 border border-gray-800 cursor-not-allowed"
-                }`}
-              >
-                <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold ${
-                  n === store.step ? "bg-blue-600 text-white" :
-                  n < store.step ? "bg-gray-700 text-gray-300" : "bg-gray-800 text-gray-600"
-                }`}>
-                  {n < store.step ? "✓" : n}
-                </span>
-                {label}
-              </button>
-              {i < STEP_LABELS.length - 1 && (
-                <div className={`w-4 h-px mx-1 ${n < store.step ? "bg-blue-500/50" : "bg-gray-800"}`} />
-              )}
-            </div>
-          ))}
+          {STEP_LABELS.map(({ n, label }, i) => {
+            const isGenStep = n === 4;
+            const isDone = isGenStep ? !!generationResult : n < store.step;
+            const isActive = isGenStep ? false : n === store.step;
+            const isClickable = !isGenStep && (n <= store.step || (n === 2 && totalCampaigns > 0));
+            return (
+              <div key={n} className="flex items-center">
+                <button
+                  onClick={() => { if (isClickable) store.setStep(n as any); }}
+                  disabled={!isClickable}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs transition-all ${
+                    isActive
+                      ? "bg-blue-600/20 text-blue-400 border border-blue-500/30"
+                      : isDone
+                      ? "text-green-400 border border-green-700/50 bg-green-500/5"
+                      : "text-gray-600 border border-gray-800 cursor-default"
+                  }`}
+                >
+                  <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold ${
+                    isActive ? "bg-blue-600 text-white" :
+                    isDone ? "bg-green-600/80 text-white" : "bg-gray-800 text-gray-600"
+                  }`}>
+                    {isDone ? "✓" : n}
+                  </span>
+                  {label}
+                </button>
+                {i < STEP_LABELS.length - 1 && (
+                  <div className={`w-4 h-px mx-1 ${isDone ? "bg-green-600/40" : n < store.step ? "bg-blue-500/50" : "bg-gray-800"}`} />
+                )}
+              </div>
+            );
+          })}
         </div>
         </div>
 

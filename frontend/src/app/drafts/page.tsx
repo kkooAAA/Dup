@@ -7,8 +7,10 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { draftApi, adAccountApi } from "@/services/api";
-import { Edit2, Trash2, Send, Layers, Loader2, X, Pencil, Play, Pause, Search, Download, Upload } from "lucide-react";
+import { Edit2, Trash2, Send, Layers, Loader2, X, Pencil, Play, Pause, Search, Download, Upload, CheckCircle2, AlertTriangle, FileText, FolderOpen, FolderTree, Grid3X3, MoreHorizontal } from "lucide-react";
+import { OBJECTIVE_LABELS } from "@/lib/meta-schema";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import Link from "next/link";
 import { toast } from "sonner";
 import { cn, extractApiError } from "@/lib/utils";
@@ -138,21 +140,24 @@ export default function DraftsPage() {
     const ids = Array.from(selectedIds);
     if (ids.length === 0) return;
     setIsBulkPublishing(true);
-    setPublishProgress({ current: 0, total: ids.length });
+    const results: { id: string; success: boolean; error?: string }[] = [];
     try {
-      const response = await draftApi.bulkPublishDrafts(ids);
-      const results: { id: string; success: boolean; error?: string }[] = response.data.results;
-
+      for (let i = 0; i < ids.length; i++) {
+        setPublishProgress({ current: i, total: ids.length });
+        try {
+          await draftApi.publishDraft(ids[i]);
+          results.push({ id: ids[i], success: true });
+        } catch (err: any) {
+          results.push({ id: ids[i], success: false, error: extractApiError(err, "Publish failed") });
+        }
+        setPublishProgress({ current: i + 1, total: ids.length });
+      }
       const succeeded = results.filter((r) => r.success).length;
       const failed = results.filter((r) => !r.success);
-
       if (succeeded > 0) toast.success(`${succeeded} campaign${succeeded > 1 ? "s" : ""} published`);
-      failed.forEach((r: any) => toast.error(r.userMessage || r.error || "Unknown error"));
-
+      failed.forEach((r) => toast.error(r.error || "Unknown error"));
       setSelectedIds(new Set());
       fetchDrafts();
-    } catch (error: any) {
-      toast.error(extractApiError(error, "Bulk publish failed"));
     } finally {
       setIsBulkPublishing(false);
       setPublishProgress(null);
@@ -223,8 +228,18 @@ export default function DraftsPage() {
       DRAFT: "Draft", READY: "Ready", VALIDATION_FAILED: "Invalid",
       PUBLISHING: "Publishing...", PUBLISHED: "Published", FAILED: "Failed",
     };
+    const Icon: Record<string, React.ElementType> = {
+      DRAFT: FileText,
+      READY: CheckCircle2,
+      VALIDATION_FAILED: AlertTriangle,
+      PUBLISHING: Loader2,
+      PUBLISHED: CheckCircle2,
+      FAILED: AlertTriangle,
+    };
+    const StatusIcon = Icon[status] ?? FileText;
     return (
-      <span className={cn("text-[10px] font-semibold px-2 py-0.5 rounded-full border", styles[status] || "bg-gray-800 text-gray-400")}>
+      <span className={cn("inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full border", styles[status] || "bg-gray-800 text-gray-400")}>
+        <StatusIcon className={cn("w-2.5 h-2.5", status === "PUBLISHING" && "animate-spin")} />
         {labels[status] || status}
       </span>
     );
@@ -267,19 +282,23 @@ export default function DraftsPage() {
         <div className="flex flex-wrap items-start gap-3">
           <div className="flex-1 min-w-0">
             <h1 className="text-2xl font-bold text-gray-100">Internal Drafts</h1>
-            <p className="text-gray-500 mt-1 text-sm">
-              Manage and publish drafts to Meta.
-              {publishedDrafts.length > 0 && (
-                <button
-                  onClick={() => setShowPublished((v) => !v)}
-                  className="ml-2 text-xs text-blue-400 hover:text-blue-300 underline underline-offset-2"
-                >
-                  {showPublished ? "Hide published" : `Show ${publishedDrafts.length} published`}
-                </button>
-              )}
-            </p>
+            <p className="text-gray-500 mt-1 text-sm">Manage and publish drafts to Meta.</p>
           </div>
           <div className="flex flex-wrap items-center gap-2 shrink-0">
+            {publishedDrafts.length > 0 && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowPublished((v) => !v)}
+                className={cn(
+                  "gap-1.5 border-gray-800 text-xs",
+                  showPublished ? "text-emerald-400 border-emerald-500/30 bg-emerald-500/5" : "text-gray-400"
+                )}
+              >
+                <CheckCircle2 className="w-3.5 h-3.5" />
+                {showPublished ? "Hide published" : `Published (${publishedDrafts.length})`}
+              </Button>
+            )}
             <Button
               variant="outline"
               size="sm"
@@ -291,49 +310,58 @@ export default function DraftsPage() {
               Import
             </Button>
             {publishableDrafts.length > 0 && (
-              <Button variant="outline" size="sm" onClick={toggleSelectAll} disabled={isBusy} className="border-gray-800 text-xs">
-                {allSelected ? "Deselect All" : "Select All"}
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={toggleSelectAll}
+                disabled={isBusy}
+                className="border-gray-800 text-xs"
+                title={`Select all publishable drafts (excludes Publishing and Published)`}
+              >
+                {allSelected ? "Deselect All" : `Select All (${publishableDrafts.length})`}
               </Button>
-            )}
-            {selectedIds.size > 0 && (
-              <>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="gap-1.5 border-blue-500/30 text-blue-400 hover:bg-blue-500/10"
-                  onClick={() => setShowBulkEdit(true)}
-                  disabled={isBusy}
-                >
-                  <Pencil className="w-3.5 h-3.5" />
-                  Edit ({selectedIds.size})
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="gap-1.5 border-red-500/30 text-red-400 hover:bg-red-500/10"
-                  onClick={() => setConfirmAction('bulkDelete')}
-                  disabled={isBusy}
-                >
-                  {isBulkDeleting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <X className="w-3.5 h-3.5" />}
-                  {isBulkDeleting ? "Deleting..." : `Delete (${selectedIds.size})`}
-                </Button>
-                <Button
-                  size="sm"
-                  className="gap-1.5 bg-blue-600 hover:bg-blue-700 shadow-lg shadow-blue-600/20"
-                  onClick={() => setConfirmAction('publish')}
-                  disabled={isBusy}
-                >
-                  {isBulkPublishing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
-                  {isBulkPublishing
-                    ? publishProgress
-                      ? `${publishProgress.current}/${publishProgress.total}...`
-                      : "Publishing..."
-                    : `Publish (${selectedIds.size})`}
-                </Button>
-              </>
             )}
           </div>
         </div>
+
+        {/* Bulk action toolbar — appears when items are selected */}
+        {selectedIds.size > 0 && (
+          <div className="flex flex-wrap items-center gap-2 px-3 py-2 rounded-lg bg-blue-500/5 border border-blue-500/20">
+            <span className="text-xs text-blue-400/70 shrink-0">{selectedIds.size} selected</span>
+            <div className="flex-1 min-w-[8px]" />
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-1.5 border-blue-500/30 text-blue-400 hover:bg-blue-500/10"
+              onClick={() => setShowBulkEdit(true)}
+              disabled={isBusy}
+            >
+              <Pencil className="w-3.5 h-3.5" />
+              Edit ({selectedIds.size})
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-1.5 border-red-500/30 text-red-400 hover:bg-red-500/10"
+              onClick={() => setConfirmAction('bulkDelete')}
+              disabled={isBusy}
+            >
+              {isBulkDeleting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <X className="w-3.5 h-3.5" />}
+              {isBulkDeleting ? "Deleting..." : `Delete (${selectedIds.size})`}
+            </Button>
+            <Button
+              size="sm"
+              className="gap-1.5 bg-blue-600 hover:bg-blue-700 shadow-lg shadow-blue-600/20"
+              onClick={() => setConfirmAction('publish')}
+              disabled={isBusy}
+            >
+              {isBulkPublishing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
+              {isBulkPublishing && publishProgress
+                ? `Publishing ${publishProgress.current}/${publishProgress.total}…`
+                : `Publish (${selectedIds.size})`}
+            </Button>
+          </div>
+        )}
 
         {/* Search & Sort */}
         {!isLoading && drafts.length > 0 && (
@@ -394,17 +422,31 @@ export default function DraftsPage() {
           </div>
         ) : filteredDrafts.length === 0 ? (
           <div className="bg-gray-900/30 border border-gray-800/60 rounded-xl p-16 text-center">
-            <Layers className="w-10 h-10 text-gray-700 mx-auto mb-3" />
-            <p className="text-gray-400 font-medium">
-              {debouncedSearch ? "No matching drafts" : publishedDrafts.length > 0 ? "All drafts published" : "No drafts yet"}
-            </p>
-            <p className="text-gray-600 text-sm mt-1">
-              {debouncedSearch
-                ? `No drafts match "${debouncedSearch}".`
-                : publishedDrafts.length > 0
-                ? `${publishedDrafts.length} campaign${publishedDrafts.length > 1 ? "s" : ""} published to Meta.`
-                : 'Duplicated campaigns will appear here when you choose "Save as Draft".'}
-            </p>
+            {debouncedSearch ? (
+              <>
+                <Search className="w-10 h-10 text-gray-700 mx-auto mb-3" />
+                <p className="text-gray-400 font-medium">No matching drafts</p>
+                <p className="text-gray-600 text-sm mt-1">No drafts match &ldquo;{debouncedSearch}&rdquo;.</p>
+                <Button variant="ghost" size="sm" className="mt-4 text-gray-500" onClick={() => setSearchQuery("")}>Clear search</Button>
+              </>
+            ) : publishedDrafts.length > 0 ? (
+              <>
+                <CheckCircle2 className="w-10 h-10 text-emerald-700 mx-auto mb-3" />
+                <p className="text-gray-400 font-medium">All drafts published</p>
+                <p className="text-gray-600 text-sm mt-1">{publishedDrafts.length} campaign{publishedDrafts.length > 1 ? "s" : ""} live on Meta.</p>
+                <Button variant="outline" size="sm" className="mt-4 text-emerald-400 border-emerald-500/30" onClick={() => setShowPublished(true)}>View published</Button>
+              </>
+            ) : (
+              <>
+                <FolderOpen className="w-10 h-10 text-gray-700 mx-auto mb-3" />
+                <p className="text-gray-400 font-medium">No drafts yet</p>
+                <p className="text-gray-600 text-sm mt-1">Duplicate campaigns from Explorer or use Wide Create to generate a structure.</p>
+                <div className="flex items-center justify-center gap-3 mt-4">
+                  <a href="/explorer"><Button variant="outline" size="sm" className="text-gray-300 border-gray-700"><FolderTree className="w-3.5 h-3.5 mr-1.5" />Explorer</Button></a>
+                  <a href="/wide-create"><Button variant="outline" size="sm" className="text-gray-300 border-gray-700"><Grid3X3 className="w-3.5 h-3.5 mr-1.5" />Wide Create</Button></a>
+                </div>
+              </>
+            )}
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -436,7 +478,7 @@ export default function DraftsPage() {
                             {draft.name}
                           </CardTitle>
                           <div className="flex gap-2 items-center text-[11px] text-gray-500">
-                            <span className="truncate">{draft.objective}</span>
+                            <span className="truncate">{OBJECTIVE_LABELS[draft.objective] || draft.objective}</span>
                             <span className="text-gray-700">|</span>
                             <span>{draft._count?.adSets} Ad Sets</span>
                           </div>
@@ -451,39 +493,54 @@ export default function DraftsPage() {
                         {new Date(draft.updatedAt).toLocaleDateString()}
                       </div>
                       <div className="flex gap-1 items-center">
-                        {draft.status === 'PUBLISHED' && draft.metaId && (
-                          <>
-                            <Button variant="ghost" size="icon" className="h-7 w-7"
-                              onClick={() => handleActivateDraft(draft)}
-                              disabled={togglingId === draft.id}
-                              title="Activate on Meta">
-                              {togglingId === draft.id
-                                ? <Loader2 className="w-3.5 h-3.5 animate-spin text-gray-500" />
-                                : <Play className="w-3.5 h-3.5 text-emerald-600 hover:text-emerald-400" />}
-                            </Button>
-                            <Button variant="ghost" size="icon" className="h-7 w-7"
-                              onClick={() => handlePauseDraft(draft)}
-                              disabled={togglingId === draft.id}
-                              title="Pause on Meta">
-                              <Pause className="w-3.5 h-3.5 text-amber-600 hover:text-amber-400" />
-                            </Button>
-                          </>
-                        )}
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-7 w-7"
-                          onClick={() => handleExport(draft.id, draft.name)}
-                          disabled={exportingId === draft.id}
-                          title="Export draft"
-                        >
-                          {exportingId === draft.id
-                            ? <Loader2 className="w-3.5 h-3.5 animate-spin text-gray-500" />
-                            : <Download className="w-3.5 h-3.5 text-gray-600 hover:text-blue-400" />}
-                        </Button>
-                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => { setDeleteTargetId(draft.id); setConfirmAction('delete'); }} disabled={isBusy}>
-                          <Trash2 className="w-3.5 h-3.5 text-gray-600 hover:text-red-400" />
-                        </Button>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger
+                            render={
+                              <Button variant="ghost" size="icon" className="h-7 w-7" title="More actions">
+                                <MoreHorizontal className="w-3.5 h-3.5 text-gray-500" />
+                              </Button>
+                            }
+                          />
+                          <DropdownMenuContent align="end" className="bg-gray-900 border-gray-800 w-36">
+                            {draft.status === 'PUBLISHED' && draft.metaId && (
+                              <>
+                                <DropdownMenuItem
+                                  onClick={() => handleActivateDraft(draft)}
+                                  disabled={togglingId === draft.id}
+                                  className="text-xs text-emerald-400 focus:text-emerald-300 focus:bg-emerald-500/10 cursor-pointer"
+                                >
+                                  <Play className="w-3 h-3 mr-2" /> Activate
+                                </DropdownMenuItem>
+                                <DropdownMenuItem
+                                  onClick={() => handlePauseDraft(draft)}
+                                  disabled={togglingId === draft.id}
+                                  className="text-xs text-amber-400 focus:text-amber-300 focus:bg-amber-500/10 cursor-pointer"
+                                >
+                                  <Pause className="w-3 h-3 mr-2" /> Pause
+                                </DropdownMenuItem>
+                                <DropdownMenuSeparator className="bg-gray-800" />
+                              </>
+                            )}
+                            <DropdownMenuItem
+                              onClick={() => handleExport(draft.id, draft.name)}
+                              disabled={exportingId === draft.id}
+                              className="text-xs text-gray-300 focus:text-gray-100 focus:bg-gray-800 cursor-pointer"
+                            >
+                              {exportingId === draft.id
+                                ? <Loader2 className="w-3 h-3 mr-2 animate-spin" />
+                                : <Download className="w-3 h-3 mr-2" />}
+                              Export
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator className="bg-gray-800" />
+                            <DropdownMenuItem
+                              onClick={() => { setDeleteTargetId(draft.id); setConfirmAction('delete'); }}
+                              disabled={isBusy}
+                              className="text-xs text-red-400 focus:text-red-300 focus:bg-red-500/10 cursor-pointer"
+                            >
+                              <Trash2 className="w-3 h-3 mr-2" /> Delete
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
                         <Link href={`/drafts/${draft.id}`}>
                           <Button size="sm" variant="ghost" className="h-7 gap-1.5 text-xs text-gray-400 hover:text-white">
                             <Edit2 className="w-3 h-3" />
@@ -533,7 +590,23 @@ export default function DraftsPage() {
         open={confirmAction === 'publish'}
         onOpenChange={() => setConfirmAction(null)}
         title="Publish to Meta"
-        description={`Publish ${selectedIds.size} draft${selectedIds.size !== 1 ? "s" : ""} to Meta? All will be created in PAUSED status.`}
+        description={
+          <div className="space-y-2">
+            <p>Publish {selectedIds.size} draft{selectedIds.size !== 1 ? "s" : ""} to Meta? All will be created in PAUSED status.</p>
+            <ul className="text-xs text-gray-400 space-y-1 max-h-36 overflow-y-auto border border-gray-800 rounded-md p-2 bg-gray-950/40">
+              {Array.from(selectedIds).map(id => {
+                const d = drafts.find(x => x.id === id);
+                return d ? (
+                  <li key={id} className="flex items-center gap-2 truncate">
+                    <span className="w-1 h-1 rounded-full bg-gray-600 shrink-0" />
+                    <span className="truncate text-gray-300">{d.name}</span>
+                    <span className="text-gray-600 shrink-0">{OBJECTIVE_LABELS[d.objective] || d.objective}</span>
+                  </li>
+                ) : null;
+              })}
+            </ul>
+          </div>
+        }
         confirmLabel="Publish"
         variant="warning"
         onConfirm={handleBulkPublish}

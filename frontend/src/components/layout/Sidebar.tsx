@@ -19,15 +19,15 @@ import { useAppStore } from "@/store/useAppStore";
 const menuItems = [
   { icon: LayoutDashboard, label: "Dashboard", href: "/dashboard" },
   { icon: FolderTree, label: "Explorer", href: "/explorer" },
-  { icon: Grid3X3, label: "Wide Create", href: "/wide-create" },
   { icon: Layers, label: "Drafts", href: "/drafts" },
+  { icon: Grid3X3, label: "Wide Create", href: "/wide-create" },
   { icon: History, label: "History", href: "/history" },
   { icon: Settings, label: "Settings", href: "/settings" },
 ];
 
 export const Sidebar = () => {
   const pathname = usePathname();
-  const { sidebarCollapsed, toggleSidebar, mobileSidebarOpen, setMobileSidebarOpen } = useAppStore();
+  const { sidebarCollapsed, toggleSidebar, mobileSidebarOpen, setMobileSidebarOpen, selectedAccount } = useAppStore();
 
   return (
     <aside className={cn(
@@ -68,6 +68,23 @@ export const Sidebar = () => {
         })}
       </div>
 
+      {selectedAccount && (
+        <div className={cn("px-3 pb-2", sidebarCollapsed && "px-2")}>
+          {sidebarCollapsed ? (
+            <div
+              title={selectedAccount.name}
+              className="flex items-center justify-center w-full py-1.5"
+            >
+              <span className="w-2 h-2 rounded-full bg-blue-400 ring-2 ring-blue-400/20" />
+            </div>
+          ) : (
+            <div className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-blue-500/5 border border-blue-500/15">
+              <span className="w-1.5 h-1.5 rounded-full bg-blue-400 shrink-0" />
+              <span className="text-xs text-blue-300 truncate">{selectedAccount.name}</span>
+            </div>
+          )}
+        </div>
+      )}
       <div className="p-3 border-t border-gray-800/60">
         <button
           onClick={toggleSidebar}

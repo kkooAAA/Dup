@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/select";
 import { useWideCreationStore } from "@/store/useWideCreationStore";
 import { draftApi } from "@/services/api";
+import { CreativeOverrideEditor } from "./CreativeOverrideEditor";
 import {
   Loader2,
   Copy,
@@ -28,6 +29,8 @@ import {
   Image as ImageIcon,
   Calendar,
   Clock,
+  Pencil,
+  Info,
 } from "lucide-react";
 
 const OBJECTIVE_LABELS: Record<string, string> = {
@@ -37,6 +40,24 @@ const OBJECTIVE_LABELS: Record<string, string> = {
   OUTCOME_AWARENESS: "Awareness",
   OUTCOME_ENGAGEMENT: "Engagement",
   OUTCOME_APP_PROMOTION: "App Promotion",
+};
+
+const OBJECTIVE_COLORS: Record<string, string> = {
+  OUTCOME_TRAFFIC: "text-blue-400",
+  OUTCOME_LEADS: "text-green-400",
+  OUTCOME_SALES: "text-orange-400",
+  OUTCOME_AWARENESS: "text-purple-400",
+  OUTCOME_ENGAGEMENT: "text-pink-400",
+  OUTCOME_APP_PROMOTION: "text-cyan-400",
+};
+
+const OBJECTIVE_BG_COLORS: Record<string, string> = {
+  OUTCOME_TRAFFIC: "bg-blue-600/20 border-blue-500/30",
+  OUTCOME_LEADS: "bg-green-600/20 border-green-500/30",
+  OUTCOME_SALES: "bg-orange-600/20 border-orange-500/30",
+  OUTCOME_AWARENESS: "bg-purple-600/20 border-purple-500/30",
+  OUTCOME_ENGAGEMENT: "bg-pink-600/20 border-pink-500/30",
+  OUTCOME_APP_PROMOTION: "bg-cyan-600/20 border-cyan-500/30",
 };
 
 const PROMOTED_OBJECT_HINTS: Record<string, { fields: string[]; labels: Record<string, string> }> = {
@@ -156,13 +177,14 @@ export function StepConfigure() {
         {objectives.map((obj) => {
           const cCount = store.getCampaignsByObjective(obj).length;
           const asCount = store.getCampaignsByObjective(obj).reduce((s, c) => s + c.adSets.length, 0);
+          const isActive = obj === activeObjective;
           return (
             <button
               key={obj}
               onClick={() => setActiveObjective(obj)}
               className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all border ${
-                obj === activeObjective
-                  ? "bg-blue-600/20 text-blue-400 border-blue-500/30"
+                isActive
+                  ? `${OBJECTIVE_BG_COLORS[obj]} ${OBJECTIVE_COLORS[obj]}`
                   : "text-gray-500 hover:text-gray-300 border-gray-700"
               }`}
             >
@@ -183,7 +205,7 @@ export function StepConfigure() {
       <SectionAccordion
         id="campaign"
         title="Campaign Settings"
-        icon={<FolderTree className="w-4 h-4 text-blue-400" />}
+        icon={<FolderTree className={`w-4 h-4 ${OBJECTIVE_COLORS[activeObjective]}`} />}
         open={openSections.has("campaign")}
         onToggle={() => toggleSection("campaign")}
       >
@@ -280,6 +302,71 @@ export function StepConfigure() {
           applyToAll={applyToAll}
         />
       </SectionAccordion>
+
+      {/* ── Naming Patterns ── */}
+      <SectionAccordion
+        id="naming"
+        title="Naming Patterns"
+        icon={<Pencil className="w-4 h-4 text-gray-400" />}
+        open={openSections.has("naming")}
+        onToggle={() => toggleSection("naming")}
+      >
+        <NamingPatternSection />
+      </SectionAccordion>
+    </div>
+  );
+}
+
+// ─── Naming Pattern Section ───
+
+function NamingPatternSection() {
+  const store = useWideCreationStore();
+  const { namingPattern } = store;
+  const [showVars, setShowVars] = useState(false);
+
+  const LEVELS: { key: 'campaign' | 'adSet' | 'ad'; label: string; placeholder: string }[] = [
+    { key: 'campaign', label: 'Campaign', placeholder: '{objective} Campaign {index:02d}' },
+    { key: 'adSet', label: 'Ad Set', placeholder: '{parent} - AdSet {index:02d}' },
+    { key: 'ad', label: 'Ad', placeholder: '{parent} - Ad {index:02d}' },
+  ];
+
+  return (
+    <div className="space-y-3">
+      <button
+        type="button"
+        onClick={() => setShowVars((v) => !v)}
+        className="flex items-center gap-1.5 text-[11px] text-blue-400/70 hover:text-blue-400 transition-colors"
+      >
+        <Info className="w-3 h-3" />
+        {showVars ? "Hide" : "Show"} available variables
+      </button>
+      {showVars && (
+        <div className="p-2.5 rounded-lg bg-gray-800/60 border border-gray-700/50 text-[11px] text-gray-400 space-y-1">
+          <p className="font-medium text-gray-300 mb-1.5">Template variables</p>
+          {[
+            ["{objective}", "Objective label — e.g. Traffic, Leads"],
+            ["{index}", "1-based position number"],
+            ["{index:02d}", "Zero-padded — e.g. 01, 02"],
+            ["{parent}", "Inherits parent entity name"],
+          ].map(([v, desc]) => (
+            <div key={v} className="flex gap-2">
+              <span className="font-mono text-blue-400/80 w-28 shrink-0">{v}</span>
+              <span className="text-gray-500">{desc}</span>
+            </div>
+          ))}
+        </div>
+      )}
+      {LEVELS.map(({ key, label, placeholder }) => (
+        <div key={key}>
+          <Label className="text-xs text-gray-500">{label} Name</Label>
+          <Input
+            value={namingPattern[key]}
+            onChange={(e) => store.setNamingPattern(key, e.target.value)}
+            placeholder={placeholder}
+            className="bg-gray-800 border-gray-700 mt-1 font-mono text-sm"
+          />
+        </div>
+      ))}
     </div>
   );
 }
@@ -487,9 +574,8 @@ function AdCreativeSection({ objective, applyToAll }: { objective: string; apply
   const store = useWideCreationStore();
   const campaigns = store.getCampaignsByObjective(objective);
   const firstAd = campaigns[0]?.adSets[0]?.ads[0];
-  const [creativeMode, setCreativeMode] = useState<"id" | "inline">("id");
 
-  const handleAdChange = (field: string, value: any) => {
+  const handleBulkAdChange = (field: string, value: any) => {
     if (applyToAll) {
       store.bulkUpdateAdField(objective, field, value);
     } else if (firstAd && campaigns[0]?.adSets[0]) {
@@ -498,92 +584,49 @@ function AdCreativeSection({ objective, applyToAll }: { objective: string; apply
   };
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       {/* Default Creative */}
-      <div>
-        <div className="flex items-center gap-2 mb-3">
+      <div className="space-y-3">
+        <div className="flex items-center gap-2">
           <p className="text-xs font-medium text-gray-500 uppercase tracking-wider">Default Creative</p>
-          <Badge variant="outline" className="text-[10px] text-blue-400 border-blue-400/30">All ads</Badge>
+          <Badge variant="outline" className="text-[10px] text-blue-400 border-blue-400/30">Global</Badge>
         </div>
-
-        <div className="flex items-center gap-1 mb-3">
-          <button
-            onClick={() => setCreativeMode("id")}
-            className={`px-2.5 py-1 rounded text-xs ${
-              creativeMode === "id" ? "bg-blue-600/20 text-blue-400" : "text-gray-500 hover:text-gray-300"
-            }`}
-          >
-            Existing Creative ID
-          </button>
-          <button
-            onClick={() => setCreativeMode("inline")}
-            className={`px-2.5 py-1 rounded text-xs ${
-              creativeMode === "inline" ? "bg-blue-600/20 text-blue-400" : "text-gray-500 hover:text-gray-300"
-            }`}
-          >
-            Inline Creative
-          </button>
-        </div>
-
-        {creativeMode === "id" ? (
-          <div>
-            <Label className="text-xs text-gray-500">Creative ID</Label>
-            <Input
-              value={store.defaultCreative?.creative_id || ""}
-              onChange={(e) => store.setDefaultCreative(e.target.value ? { creative_id: e.target.value } : null)}
-              placeholder="Reuse an existing creative_id"
-              className="bg-gray-800 border-gray-700 mt-1"
-            />
-            <p className="text-[10px] text-gray-600 mt-1">Preserves social proof (likes, comments, shares)</p>
-          </div>
-        ) : (
-          <div className="space-y-2">
-            {[
-              { key: "page_id", label: "Page ID", placeholder: "Facebook Page ID", path: ["object_story_spec", "page_id"] },
-              { key: "message", label: "Primary Text", placeholder: "Ad copy", path: ["object_story_spec", "link_data", "message"] },
-              { key: "link", label: "Link URL", placeholder: "https://example.com", path: ["object_story_spec", "link_data", "link"] },
-              { key: "picture", label: "Image URL", placeholder: "https://example.com/image.jpg", path: ["object_story_spec", "link_data", "picture"] },
-              { key: "name", label: "Headline", placeholder: "Headline text", path: ["object_story_spec", "link_data", "name"] },
-            ].map(({ key, label, placeholder, path }) => (
-              <div key={key}>
-                <Label className="text-xs text-gray-500">{label}</Label>
-                <Input
-                  value={getNestedValue(store.defaultCreative, path) || ""}
-                  onChange={(e) => store.setDefaultCreative(setNestedValue(store.defaultCreative || {}, path, e.target.value))}
-                  placeholder={placeholder}
-                  className="bg-gray-800 border-gray-700 mt-1"
-                />
-              </div>
-            ))}
-          </div>
-        )}
+        <CreativeOverrideEditor
+          value={store.defaultCreative}
+          onChange={store.setDefaultCreative}
+        />
+        <p className="text-[10px] text-gray-600">
+          Applied to every ad that doesn't have an objective-level or item-level override.
+        </p>
       </div>
 
       {/* Per-objective creative override */}
-      <div>
-        <p className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-2">
-          {OBJECTIVE_LABELS[objective]} Creative Override
-        </p>
-        <p className="text-[10px] text-gray-600 mb-2">Overrides the default creative for this objective only</p>
-        <div>
-          <Label className="text-xs text-gray-500">Creative ID</Label>
-          <Input
-            value={firstAd?.fields.creative?.creative_id || ""}
-            onChange={(e) => handleAdChange("creative", e.target.value ? { creative_id: e.target.value } : undefined)}
-            placeholder="Leave empty to use default"
-            className="bg-gray-800 border-gray-700 mt-1"
-          />
+      <div className="space-y-3 pt-4 border-t border-gray-800/40">
+        <div className="flex items-center gap-2">
+          <p className="text-xs font-medium text-gray-500 uppercase tracking-wider">
+            {OBJECTIVE_LABELS[objective]} Override
+          </p>
+          <Badge variant="outline" className={`text-[10px] ${OBJECTIVE_COLORS[objective]} border-current/30`}>
+            Objective
+          </Badge>
         </div>
+        <CreativeOverrideEditor
+          value={firstAd?.fields.creative}
+          onChange={(v) => handleBulkAdChange("creative", v)}
+        />
+        <p className="text-[10px] text-gray-600">
+          Overrides the global default for all {OBJECTIVE_LABELS[objective]} ads.
+        </p>
       </div>
 
       {/* URL Parameters */}
-      <div>
-        <p className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-2">URL Parameters</p>
+      <div className="pt-4 border-t border-gray-800/40">
+        <Label className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-2 block">URL Parameters</Label>
         <Input
           value={firstAd?.fields.url_parameters || ""}
-          onChange={(e) => handleAdChange("url_parameters", e.target.value || undefined)}
+          onChange={(e) => handleBulkAdChange("url_parameters", e.target.value || undefined)}
           placeholder="utm_source=facebook&utm_medium=paid"
-          className="bg-gray-800 border-gray-700"
+          className="bg-gray-800 border-gray-700 h-9 text-sm"
         />
       </div>
     </div>
