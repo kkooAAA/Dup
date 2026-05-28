@@ -24,7 +24,6 @@ export default function DraftsPage() {
   const [isBulkPublishing, setIsBulkPublishing] = useState(false);
   const [isBulkDeleting, setIsBulkDeleting] = useState(false);
   const [publishProgress, setPublishProgress] = useState<{ current: number; total: number } | null>(null);
-  const [showPublished, setShowPublished] = useState(false);
   const [showBulkEdit, setShowBulkEdit] = useState(false);
   const [togglingId, setTogglingId] = useState<string | null>(null);
   const [confirmAction, setConfirmAction] = useState<'delete' | 'bulkDelete' | 'publish' | null>(null);
@@ -36,6 +35,7 @@ export default function DraftsPage() {
   const [exportingId, setExportingId] = useState<string | null>(null);
   const [isImporting, setIsImporting] = useState(false);
   const [viewMode, setViewMode] = useState<'card' | 'table'>('table');
+  const [statusFilter, setStatusFilter] = useState<string>("ALL");
   const fetchDrafts = async () => {
     try {
       setIsLoading(true);
@@ -249,7 +249,11 @@ export default function DraftsPage() {
   const publishedDrafts = drafts.filter((d) => d.status === "PUBLISHED");
 
   const filteredDrafts = useMemo(() => {
-    let result = showPublished ? drafts : drafts.filter((d) => d.status !== "PUBLISHED");
+    let result = statusFilter === "ALL"
+      ? drafts.filter((d) => d.status !== "PUBLISHED")
+      : statusFilter === "ALL_INCL_PUBLISHED"
+        ? drafts
+        : drafts.filter((d) => d.status === statusFilter);
 
     if (debouncedSearch) {
       const q = debouncedSearch.toLowerCase();
@@ -271,7 +275,7 @@ export default function DraftsPage() {
       if (va > vb) return sortDir === 'asc' ? 1 : -1;
       return 0;
     });
-  }, [drafts, showPublished, debouncedSearch, sortKey, sortDir]);
+  }, [drafts, statusFilter, debouncedSearch, sortKey, sortDir]);
 
   const publishableDrafts = filteredDrafts.filter((d) => d.status !== "PUBLISHING" && d.status !== "PUBLISHED");
   const allSelected = publishableDrafts.length > 0 && selectedIds.size === publishableDrafts.length;
@@ -286,20 +290,6 @@ export default function DraftsPage() {
             <p className="text-gray-500 mt-1 text-sm">Manage and publish drafts to Meta.</p>
           </div>
           <div className="flex flex-wrap items-center gap-2 shrink-0">
-            {publishedDrafts.length > 0 && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setShowPublished((v) => !v)}
-                className={cn(
-                  "gap-1.5 border-gray-800 text-xs",
-                  showPublished ? "text-emerald-400 border-emerald-500/30 bg-emerald-500/5" : "text-gray-400"
-                )}
-              >
-                <CheckCircle2 className="w-3.5 h-3.5" />
-                {showPublished ? "Hide published" : `Published (${publishedDrafts.length})`}
-              </Button>
-            )}
             <Button
               variant="outline"
               size="sm"
@@ -380,6 +370,21 @@ export default function DraftsPage() {
             {searchQuery && (
               <Button variant="ghost" size="sm" className="text-gray-500 text-xs h-8" onClick={() => setSearchQuery("")}>Clear</Button>
             )}
+            <Select value={statusFilter} onValueChange={(v) => { if (v) setStatusFilter(v); }}>
+              <SelectTrigger className="h-9 w-44 shrink-0 bg-gray-950/50 border-gray-800/60 text-xs focus:ring-0">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent className="bg-gray-900 border-gray-800">
+                <SelectItem value="ALL" className="text-xs text-gray-300">All excl. published</SelectItem>
+                <SelectItem value="ALL_INCL_PUBLISHED" className="text-xs text-gray-300">All statuses</SelectItem>
+                <SelectItem value="DRAFT" className="text-xs text-gray-300">Draft</SelectItem>
+                <SelectItem value="VALIDATED" className="text-xs text-emerald-400">Validated</SelectItem>
+                <SelectItem value="VALIDATION_FAILED" className="text-xs text-red-400">Invalid</SelectItem>
+                <SelectItem value="PUBLISHING" className="text-xs text-blue-400">Publishing</SelectItem>
+                <SelectItem value="PUBLISHED" className="text-xs text-emerald-500">Published</SelectItem>
+                <SelectItem value="FAILED" className="text-xs text-red-400">Failed</SelectItem>
+              </SelectContent>
+            </Select>
             <Select
               value={`${sortKey}:${sortDir}`}
               onValueChange={(v) => {
@@ -452,12 +457,18 @@ export default function DraftsPage() {
                 <p className="text-gray-600 text-sm mt-1">No drafts match &ldquo;{debouncedSearch}&rdquo;.</p>
                 <Button variant="ghost" size="sm" className="mt-4 text-gray-500" onClick={() => setSearchQuery("")}>Clear search</Button>
               </>
+            ) : statusFilter !== "ALL" && statusFilter !== "ALL_INCL_PUBLISHED" ? (
+              <>
+                <Search className="w-10 h-10 text-gray-700 mx-auto mb-3" />
+                <p className="text-gray-400 font-medium">No drafts with this status</p>
+                <Button variant="ghost" size="sm" className="mt-4 text-gray-500" onClick={() => setStatusFilter("ALL")}>Clear filter</Button>
+              </>
             ) : publishedDrafts.length > 0 ? (
               <>
                 <CheckCircle2 className="w-10 h-10 text-emerald-700 mx-auto mb-3" />
                 <p className="text-gray-400 font-medium">All drafts published</p>
                 <p className="text-gray-600 text-sm mt-1">{publishedDrafts.length} campaign{publishedDrafts.length > 1 ? "s" : ""} live on Meta.</p>
-                <Button variant="outline" size="sm" className="mt-4 text-emerald-400 border-emerald-500/30" onClick={() => setShowPublished(true)}>View published</Button>
+                <Button variant="outline" size="sm" className="mt-4 text-emerald-400 border-emerald-500/30" onClick={() => setStatusFilter("PUBLISHED")}>View published</Button>
               </>
             ) : (
               <>
