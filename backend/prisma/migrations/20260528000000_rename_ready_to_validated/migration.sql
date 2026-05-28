@@ -1,0 +1,2 @@
+-- AlterEnum
+ALTER TYPE "DraftStatus" RENAME VALUE 'READY' TO 'VALIDATED';

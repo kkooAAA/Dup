@@ -64,7 +64,7 @@ model NamingTemplate {
 
 enum DraftStatus {
   DRAFT
-  READY
+  VALIDATED
   VALIDATION_FAILED
   PUBLISHING
   PUBLISHED

@@ -218,19 +218,19 @@ export default function DraftsPage() {
   const getStatusBadge = (status: string) => {
     const styles: Record<string, string> = {
       DRAFT: "bg-gray-800/50 text-gray-400 border-gray-700",
-      READY: "bg-emerald-500/15 text-emerald-400 border-emerald-500/30",
+      VALIDATED: "bg-emerald-500/15 text-emerald-400 border-emerald-500/30",
       VALIDATION_FAILED: "bg-red-500/15 text-red-400 border-red-500/30",
       PUBLISHING: "bg-blue-500/15 text-blue-400 border-blue-500/30 animate-pulse",
       PUBLISHED: "bg-emerald-500/10 text-emerald-500 border-emerald-500/20",
       FAILED: "bg-red-500/15 text-red-400 border-red-500/30",
     };
     const labels: Record<string, string> = {
-      DRAFT: "Draft", READY: "Ready", VALIDATION_FAILED: "Invalid",
+      DRAFT: "Draft", VALIDATED: "Validated", VALIDATION_FAILED: "Invalid",
       PUBLISHING: "Publishing...", PUBLISHED: "Published", FAILED: "Failed",
     };
     const Icon: Record<string, React.ElementType> = {
       DRAFT: FileText,
-      READY: CheckCircle2,
+      VALIDATED: CheckCircle2,
       VALIDATION_FAILED: AlertTriangle,
       PUBLISHING: Loader2,
       PUBLISHED: CheckCircle2,

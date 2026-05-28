@@ -158,7 +158,7 @@ export class DraftController {
       // Save validation results back to DB (internal updates — userId passed for safety)
       await DraftCampaignService.update(id, {
         validationErrors: validation.campaignErrors,
-        status: validation.isValid ? 'READY' : 'VALIDATION_FAILED'
+        status: validation.isValid ? 'VALIDATED' : 'VALIDATION_FAILED'
       }, userId!);
 
       for (const adSetId in validation.adSetErrors) {

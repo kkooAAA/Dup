@@ -141,7 +141,7 @@ function ValidationBadge({
   if (results.isValid) {
     return (
       <span className="inline-flex items-center gap-1.5 text-[11px] px-2.5 py-1 rounded-md bg-emerald-500/10 text-emerald-300 border border-emerald-500/30">
-        <CheckCircle2 className="w-3 h-3" /> Ready to publish
+        <CheckCircle2 className="w-3 h-3" /> Validated
         {totals.warnings > 0 && <span className="text-amber-300/80">· {totals.warnings} warning{totals.warnings === 1 ? "" : "s"}</span>}
       </span>
     );
@@ -417,7 +417,7 @@ export default function DraftEditorPage({ params: paramsPromise }: { params: Pro
   }
 
   const statusColor =
-    draft.status === "READY" ? "text-emerald-400 bg-emerald-500/15" :
+    draft.status === "VALIDATED" ? "text-emerald-400 bg-emerald-500/15" :
     draft.status === "PUBLISHED" ? "text-emerald-500 bg-emerald-500/10" :
     draft.status === "FAILED" ? "text-red-400 bg-red-500/15" :
     "text-gray-400 bg-gray-800/50";
