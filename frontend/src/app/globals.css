@@ -127,6 +127,21 @@
   html {
     @apply font-sans scroll-smooth;
   }
+
+  /* Keyboard focus rings — visible only on keyboard nav, not clicks */
+  :focus-visible {
+    @apply outline-2 outline-offset-2 outline-blue-500/60;
+  }
+
+  /* Remove default focus outline for mouse users */
+  :focus:not(:focus-visible) {
+    outline: none;
+  }
+
+  /* Smooth transitions for all interactive elements */
+  button, a, input, select, textarea, [role="button"], [tabindex] {
+    @apply transition-colors duration-150;
+  }
 }
 
 /* Date/time input picker icon — force white on dark backgrounds */
@@ -143,10 +158,15 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator:hover {
   opacity: 1;
 }
 
-/* Custom scrollbar */
+/* Custom scrollbar — thin, subtle, auto-hiding */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgb(55, 65, 81) transparent;
+}
+
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 5px;
+  height: 5px;
 }
 
 ::-webkit-scrollbar-track {
@@ -155,11 +175,17 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator:hover {
 
 ::-webkit-scrollbar-thumb {
   background: rgb(55, 65, 81);
-  border-radius: 3px;
+  border-radius: 9999px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
   background: rgb(75, 85, 99);
+}
+
+/* Text selection */
+::selection {
+  background: rgba(59, 130, 246, 0.3);
+  color: inherit;
 }
 
 /* Login animated background */
@@ -191,7 +217,14 @@ input[type="datetime-local"]::-webkit-calendar-picker-indicator:hover {
 
 /* Sidebar transition */
 .sidebar-transition {
-  transition: width 200ms cubic-bezier(0.4, 0, 0.2, 1);
+  transition: width 200ms cubic-bezier(0.25, 0.1, 0.25, 1);
+}
+
+/* Active press state for buttons */
+button:active:not(:disabled),
+[role="button"]:active:not(:disabled) {
+  transform: scale(0.98);
+  transition: transform 50ms ease;
 }
 
 /* Card hover glow */

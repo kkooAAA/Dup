@@ -354,79 +354,96 @@ export default function DraftsPage() {
           </div>
         )}
 
-        {/* Search & Sort */}
+        {/* Search & Filters */}
         {!isLoading && drafts.length > 0 && (
-          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
-            <div className="relative flex-1 min-w-0">
-              <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-gray-600" />
-              <input
-                type="text"
-                placeholder="Search by name or objective..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full bg-gray-950/50 border border-gray-800/60 rounded-lg py-2 pl-9 pr-4 text-sm focus:outline-none focus:border-blue-500/50 transition-colors placeholder:text-gray-700"
-              />
+          <div className="space-y-3">
+            <div className="flex items-center gap-3">
+              <div className="relative flex-1 min-w-0">
+                <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-gray-600" />
+                <input
+                  type="text"
+                  placeholder="Search drafts..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full bg-gray-950/50 border border-gray-800/60 rounded-lg py-2 pl-9 pr-4 text-sm focus:outline-none focus:border-blue-500/50 placeholder:text-gray-700"
+                />
+                {searchQuery && (
+                  <button onClick={() => setSearchQuery("")} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-600 hover:text-gray-400 p-0.5">
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                )}
+              </div>
+              <div className="flex items-center rounded-lg border border-gray-800 overflow-hidden shrink-0">
+                <button
+                  onClick={() => setViewMode('card')}
+                  className={cn(
+                    "h-9 w-9 flex items-center justify-center",
+                    viewMode === 'card' ? "bg-blue-500/15 text-blue-400" : "text-gray-600 hover:text-gray-300 hover:bg-gray-800/50"
+                  )}
+                  title="Card view"
+                  aria-label="Card view"
+                >
+                  <LayoutGrid className="w-3.5 h-3.5" />
+                </button>
+                <button
+                  onClick={() => setViewMode('table')}
+                  className={cn(
+                    "h-9 w-9 flex items-center justify-center border-l border-gray-800",
+                    viewMode === 'table' ? "bg-blue-500/15 text-blue-400" : "text-gray-600 hover:text-gray-300 hover:bg-gray-800/50"
+                  )}
+                  title="Table view"
+                  aria-label="Table view"
+                >
+                  <List className="w-3.5 h-3.5" />
+                </button>
+              </div>
             </div>
-            {searchQuery && (
-              <Button variant="ghost" size="sm" className="text-gray-500 text-xs h-8" onClick={() => setSearchQuery("")}>Clear</Button>
-            )}
-            <Select value={statusFilter} onValueChange={(v) => { if (v) setStatusFilter(v); }}>
-              <SelectTrigger className="h-9 w-44 shrink-0 bg-gray-950/50 border-gray-800/60 text-xs focus:ring-0">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent className="bg-gray-900 border-gray-800">
-                <SelectItem value="ALL" className="text-xs text-gray-300">All excl. published</SelectItem>
-                <SelectItem value="ALL_INCL_PUBLISHED" className="text-xs text-gray-300">All statuses</SelectItem>
-                <SelectItem value="DRAFT" className="text-xs text-gray-300">Draft</SelectItem>
-                <SelectItem value="VALIDATED" className="text-xs text-emerald-400">Validated</SelectItem>
-                <SelectItem value="VALIDATION_FAILED" className="text-xs text-red-400">Invalid</SelectItem>
-                <SelectItem value="PUBLISHING" className="text-xs text-blue-400">Publishing</SelectItem>
-                <SelectItem value="PUBLISHED" className="text-xs text-emerald-500">Published</SelectItem>
-                <SelectItem value="FAILED" className="text-xs text-red-400">Failed</SelectItem>
-              </SelectContent>
-            </Select>
-            <Select
-              value={`${sortKey}:${sortDir}`}
-              onValueChange={(v) => {
-                if (!v) return;
-                const [k, d] = v.split(':');
-                setSortKey(k as any);
-                setSortDir(d as any);
-              }}
-            >
-              <SelectTrigger className="h-9 w-40 shrink-0 bg-blue-500/10 border-blue-500/20 text-blue-400 text-xs focus:ring-0">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent className="bg-gray-900 border-gray-800">
-                <SelectItem value="date:desc" className="text-xs text-gray-300">Newest first</SelectItem>
-                <SelectItem value="date:asc" className="text-xs text-gray-300">Oldest first</SelectItem>
-                <SelectItem value="name:asc" className="text-xs text-gray-300">Name A→Z</SelectItem>
-                <SelectItem value="name:desc" className="text-xs text-gray-300">Name Z→A</SelectItem>
-                <SelectItem value="status:asc" className="text-xs text-gray-300">Status</SelectItem>
-                <SelectItem value="objective:asc" className="text-xs text-gray-300">Objective</SelectItem>
-              </SelectContent>
-            </Select>
-            <div className="flex items-center rounded-lg border border-gray-800 overflow-hidden shrink-0">
-              <button
-                onClick={() => setViewMode('card')}
-                className={cn(
-                  "h-9 w-9 flex items-center justify-center transition-colors",
-                  viewMode === 'card' ? "bg-blue-500/15 text-blue-400" : "text-gray-500 hover:text-gray-300 hover:bg-gray-800/50"
-                )}
-                title="Card view"
+            <div className="flex flex-wrap items-center gap-2">
+              <Select value={statusFilter} onValueChange={(v) => { if (v) setStatusFilter(v); }}>
+                <SelectTrigger className="h-8 w-40 bg-gray-950/50 border-gray-800/60 text-xs focus:ring-0">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className="bg-gray-900 border-gray-800">
+                  <SelectItem value="ALL" className="text-xs text-gray-300">All excl. published</SelectItem>
+                  <SelectItem value="ALL_INCL_PUBLISHED" className="text-xs text-gray-300">All statuses</SelectItem>
+                  <SelectItem value="DRAFT" className="text-xs text-gray-300">Draft</SelectItem>
+                  <SelectItem value="VALIDATED" className="text-xs text-emerald-400">Validated</SelectItem>
+                  <SelectItem value="VALIDATION_FAILED" className="text-xs text-red-400">Invalid</SelectItem>
+                  <SelectItem value="PUBLISHING" className="text-xs text-blue-400">Publishing</SelectItem>
+                  <SelectItem value="PUBLISHED" className="text-xs text-emerald-500">Published</SelectItem>
+                  <SelectItem value="FAILED" className="text-xs text-red-400">Failed</SelectItem>
+                </SelectContent>
+              </Select>
+              <Select
+                value={`${sortKey}:${sortDir}`}
+                onValueChange={(v) => {
+                  if (!v) return;
+                  const [k, d] = v.split(':');
+                  setSortKey(k as any);
+                  setSortDir(d as any);
+                }}
               >
-                <LayoutGrid className="w-3.5 h-3.5" />
-              </button>
-              <button
-                onClick={() => setViewMode('table')}
-                className={cn(
-                  "h-9 w-9 flex items-center justify-center transition-colors border-l border-gray-800",
-                  viewMode === 'table' ? "bg-blue-500/15 text-blue-400" : "text-gray-500 hover:text-gray-300 hover:bg-gray-800/50"
-                )}
-                title="Table view"
-              >
-                <List className="w-3.5 h-3.5" />
-              </button>
+                <SelectTrigger className="h-8 w-36 bg-gray-950/50 border-gray-800/60 text-xs focus:ring-0">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className="bg-gray-900 border-gray-800">
+                  <SelectItem value="date:desc" className="text-xs text-gray-300">Newest first</SelectItem>
+                  <SelectItem value="date:asc" className="text-xs text-gray-300">Oldest first</SelectItem>
+                  <SelectItem value="name:asc" className="text-xs text-gray-300">Name A-Z</SelectItem>
+                  <SelectItem value="name:desc" className="text-xs text-gray-300">Name Z-A</SelectItem>
+                  <SelectItem value="status:asc" className="text-xs text-gray-300">Status</SelectItem>
+                  <SelectItem value="objective:asc" className="text-xs text-gray-300">Objective</SelectItem>
+                </SelectContent>
+              </Select>
+              {(statusFilter !== "ALL" || debouncedSearch) && (
+                <button
+                  onClick={() => { setStatusFilter("ALL"); setSearchQuery(""); }}
+                  className="text-[11px] text-gray-600 hover:text-gray-400 flex items-center gap-1"
+                >
+                  <X className="w-3 h-3" /> Clear filters
+                </button>
+              )}
+              <span className="text-[11px] text-gray-600 ml-auto">{filteredDrafts.length} draft{filteredDrafts.length !== 1 ? "s" : ""}</span>
             </div>
           </div>
         )}
@@ -591,7 +608,7 @@ export default function DraftsPage() {
         ) : (
           <div className="bg-gray-900/30 border border-gray-800/60 rounded-xl overflow-hidden">
             <table className="w-full">
-              <thead>
+              <thead className="sticky top-0 z-10 bg-gray-900/95 backdrop-blur-sm">
                 <tr className="border-b border-gray-800/60">
                   <th className="w-10 px-3 py-3">
                     <Checkbox
@@ -617,8 +634,8 @@ export default function DraftsPage() {
                     <tr
                       key={draft.id}
                       className={cn(
-                        "border-b border-gray-800/30 hover:bg-gray-800/20 transition-colors",
-                        isSelected && "bg-blue-500/5"
+                        "border-b border-gray-800/30 transition-colors group/row",
+                        isSelected ? "bg-blue-500/5 hover:bg-blue-500/8" : "hover:bg-gray-800/20"
                       )}
                     >
                       <td className="px-3 py-2.5">

@@ -145,7 +145,7 @@ export default function HistoryPage() {
           ) : (
             <div className="overflow-x-auto">
             <Table>
-              <TableHeader>
+              <TableHeader className="sticky top-0 z-10 bg-gray-900/95 backdrop-blur-sm">
                 <TableRow className="border-gray-800/40 hover:bg-transparent">
                   <TableHead className="text-gray-500 text-xs font-medium">Type</TableHead>
                   <TableHead className="text-gray-500 text-xs font-medium">Source</TableHead>

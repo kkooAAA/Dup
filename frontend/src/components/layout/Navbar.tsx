@@ -14,7 +14,7 @@ import {
 import React from "react";
 
 const pageTitles: Record<string, string> = {
-  "/dashboard": "Dashboard",
+  "/dashboard": "Account",
   "/explorer": "Explorer",
   "/drafts": "Drafts",
   "/wide-create": "Wide Create",
@@ -28,7 +28,7 @@ export const Navbar = () => {
   const currentPage = pageTitles[pathname] || (pathname.startsWith("/drafts/") ? (draftName ?? "Draft Editor") : "");
 
   return (
-    <nav className="h-14 border-b border-gray-800/60 bg-gray-950/80 backdrop-blur-md flex items-center justify-between px-4 sm:px-5 sticky top-0 z-50">
+    <nav className="h-14 border-b border-gray-800/50 bg-gray-950/90 backdrop-blur-xl flex items-center justify-between px-4 sm:px-5 sticky top-0 z-50 shadow-[0_1px_3px_rgba(0,0,0,0.3)]">
       <div className="flex items-center gap-2 sm:gap-3 min-w-0">
         {/* Hamburger — mobile only */}
         <button

@@ -4,7 +4,6 @@ import { useEffect, useState } from "react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { userApi } from "@/services/api";
 import { useAppStore } from "@/store/useAppStore";
 import { toast } from "sonner";
@@ -16,7 +15,6 @@ import {
   Clock,
   CheckCircle2,
   XCircle,
-  Loader2,
   LogOut,
   Trash2,
   RefreshCw,
@@ -143,9 +141,13 @@ export default function SettingsPage() {
           </CardHeader>
           <CardContent className="space-y-4">
             {loadingProfile && !user ? (
-              <div className="flex items-center gap-3 text-gray-500 py-2">
-                <Loader2 className="w-4 h-4 animate-spin" />
-                <span className="text-sm">Loading profile...</span>
+              <div className="flex items-center gap-4">
+                <div className="w-14 h-14 rounded-full bg-gray-800/60 animate-pulse shrink-0" />
+                <div className="space-y-2 min-w-0">
+                  <div className="h-5 w-32 bg-gray-800/60 rounded animate-pulse" />
+                  <div className="h-4 w-44 bg-gray-800/40 rounded animate-pulse" />
+                  <div className="h-3 w-24 bg-gray-800/30 rounded animate-pulse" />
+                </div>
               </div>
             ) : (
               <div className="flex items-center gap-4">
@@ -184,9 +186,17 @@ export default function SettingsPage() {
           </CardHeader>
           <CardContent className="space-y-4">
             {loadingToken ? (
-              <div className="flex items-center gap-3 text-gray-500 py-2">
-                <Loader2 className="w-4 h-4 animate-spin" />
-                <span className="text-sm">Checking token status...</span>
+              <div className="space-y-3">
+                <div className="flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-lg bg-gray-800/60 animate-pulse shrink-0" />
+                  <div className="space-y-1.5">
+                    <div className="h-4 w-24 bg-gray-800/60 rounded animate-pulse" />
+                    <div className="h-3 w-48 bg-gray-800/40 rounded animate-pulse" />
+                  </div>
+                </div>
+                <div className="flex flex-wrap gap-1.5">
+                  {[1, 2, 3, 4].map(i => <div key={i} className="h-5 w-20 bg-gray-800/40 rounded-full animate-pulse" />)}
+                </div>
               </div>
             ) : (
               <>
@@ -255,9 +265,14 @@ export default function SettingsPage() {
           </CardHeader>
           <CardContent>
             {loadingStats ? (
-              <div className="flex items-center gap-3 text-gray-500 py-2">
-                <Loader2 className="w-4 h-4 animate-spin" />
-                <span className="text-sm">Loading stats...</span>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                {[1, 2, 3, 4].map(i => (
+                  <div key={i} className="bg-gray-950/50 border border-gray-800/40 rounded-lg px-3 py-3 flex flex-col items-center gap-1.5">
+                    <div className="w-4 h-4 bg-gray-800/60 rounded animate-pulse" />
+                    <div className="h-6 w-10 bg-gray-800/60 rounded animate-pulse" />
+                    <div className="h-3 w-16 bg-gray-800/40 rounded animate-pulse" />
+                  </div>
+                ))}
               </div>
             ) : stats ? (
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">

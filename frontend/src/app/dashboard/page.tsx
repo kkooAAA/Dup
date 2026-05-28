@@ -60,9 +60,27 @@ export default function DashboardPage() {
         </div>
 
         {loading ? (
-          <div className="flex flex-col items-center justify-center p-20 text-gray-500 gap-4">
-            <Loader2 className="w-8 h-8 animate-spin text-blue-500" />
-            <p className="text-sm">Fetching your ad accounts...</p>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {[1, 2, 3].map((i) => (
+              <Card key={i} className="border-gray-800/40 bg-gray-900/30">
+                <CardHeader className="pb-3">
+                  <div className="flex items-center justify-between">
+                    <div className="w-9 h-9 rounded-lg bg-gray-800/60 animate-pulse" />
+                    <div className="w-4 h-4 rounded bg-gray-800/40 animate-pulse" />
+                  </div>
+                  <div className="h-5 w-3/4 bg-gray-800/50 rounded mt-3 animate-pulse" />
+                </CardHeader>
+                <CardContent className="pt-0">
+                  <div className="flex items-center justify-between">
+                    <div className="h-3 w-24 bg-gray-800/40 rounded animate-pulse" />
+                    <div className="h-4 w-10 bg-gray-800/40 rounded animate-pulse" />
+                  </div>
+                  <div className="mt-3 pt-3 border-t border-gray-800/40">
+                    <div className="h-3 w-32 bg-gray-800/30 rounded animate-pulse" />
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
           </div>
         ) : adAccounts.length === 0 ? (
           <div className="bg-gray-900/50 border border-gray-800/60 rounded-xl p-16 text-center">
@@ -75,11 +93,16 @@ export default function DashboardPage() {
             {adAccounts.map((account, index) => (
               <Card
                 key={account.id}
+                tabIndex={0}
+                role="button"
+                aria-label={`Select ${account.name}`}
                 className={cn(
-                  "border-gray-800/60 bg-gray-900/50 hover:bg-gray-900 hover:border-blue-500/30 transition-all duration-200 cursor-pointer group card-glow opacity-0 animate-fade-in-up",
+                  "border-gray-800/60 bg-gray-900/50 hover:bg-gray-900/80 hover:border-blue-500/30 transition-all duration-200 cursor-pointer group card-glow opacity-0 animate-fade-in-up",
+                  "focus-visible:ring-2 focus-visible:ring-blue-500/50 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-950",
                   `stagger-${Math.min(index + 1, 6)}`
                 )}
                 onClick={() => handleSelectAccount(account)}
+                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleSelectAccount(account); } }}
               >
                 <CardHeader className="pb-3">
                   <div className="flex items-center justify-between">

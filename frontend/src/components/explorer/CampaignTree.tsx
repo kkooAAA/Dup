@@ -80,12 +80,15 @@ export function CampaignTree({
             <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-gray-600" />
             <input type="text" placeholder="Search campaigns, ad sets, ads..."
               value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full bg-gray-950/50 border border-gray-800/60 rounded-lg py-2 pl-9 pr-4 text-sm focus:outline-none focus:border-blue-500/50 transition-colors placeholder:text-gray-700"
+              className="w-full bg-gray-950/50 border border-gray-800/60 rounded-lg py-2 pl-9 pr-8 text-sm focus:outline-none focus:border-blue-500/50 transition-colors placeholder:text-gray-700"
             />
+            {searchQuery && (
+              <button onClick={() => setSearchQuery("")} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-600 hover:text-gray-400 p-0.5">
+                <span className="sr-only">Clear search</span>
+                <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 6 6 18M6 6l12 12" /></svg>
+              </button>
+            )}
           </div>
-          {searchQuery && (
-            <Button variant="ghost" size="sm" className="text-gray-500 text-xs h-8" onClick={() => setSearchQuery("")}>Clear</Button>
-          )}
           <Select
             value={`${sortKey}:${sortDir}`}
             onValueChange={(v) => { if (!v) return; const parts = v.split(':'); setSortKey(parts[0] as SortKey); setSortDir((parts[1] || 'asc') as SortDir); }}
