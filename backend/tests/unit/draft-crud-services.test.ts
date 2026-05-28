@@ -48,7 +48,7 @@ describe('DraftAdService', () => {
     const result = await DraftAdService.create('user-1', 'act_123', 'adset-1', 'Test Ad', { creative: {} });
     expect(mockPrisma.draftAd.create).toHaveBeenCalledWith({
       data: {
-        userId: 'user-1',
+        profileId: 'user-1',
         adAccountId: 'act_123',
         draftAdSetId: 'adset-1',
         name: 'Test Ad',
@@ -81,7 +81,7 @@ describe('DraftAdService', () => {
       user: {},
       createdAt: new Date(),
       updatedAt: new Date(),
-      userId: 'user-1',
+      profileId: 'user-1',
       draftAdSetId: 'adset-1',
       _count: {},
       name: 'Updated',
@@ -108,7 +108,7 @@ describe('DraftAdSetService', () => {
     const result = await DraftAdSetService.create('user-1', 'act_123', 'camp-1', 'Test AdSet', { billing_event: 'IMPRESSIONS' });
     expect(mockPrisma.draftAdSet.create).toHaveBeenCalledWith({
       data: {
-        userId: 'user-1',
+        profileId: 'user-1',
         adAccountId: 'act_123',
         draftCampaignId: 'camp-1',
         name: 'Test AdSet',
@@ -138,7 +138,7 @@ describe('DraftAdSetService', () => {
       user: {},
       createdAt: new Date(),
       updatedAt: new Date(),
-      userId: 'user-1',
+      profileId: 'user-1',
       draftCampaignId: 'camp-1',
       _count: {},
       name: 'Updated AdSet',
@@ -164,7 +164,7 @@ describe('DraftCampaignService', () => {
     const result = await DraftCampaignService.create('user-1', 'act_123', 'Test', 'OUTCOME_TRAFFIC', {});
     expect(mockPrisma.draftCampaign.create).toHaveBeenCalledWith({
       data: {
-        userId: 'user-1',
+        profileId: 'user-1',
         adAccountId: 'act_123',
         name: 'Test',
         objective: 'OUTCOME_TRAFFIC',
@@ -184,12 +184,12 @@ describe('DraftCampaignService', () => {
     });
   });
 
-  it('listByUser returns campaigns ordered by createdAt desc with pagination', async () => {
+  it('listByProfile returns campaigns ordered by createdAt desc with pagination', async () => {
     mockPrisma.draftCampaign.findMany.mockResolvedValue([]);
     mockPrisma.draftCampaign.count.mockResolvedValue(0);
-    const result = await DraftCampaignService.listByUser('user-1');
+    const result = await DraftCampaignService.listByProfile('user-1');
     expect(mockPrisma.draftCampaign.findMany).toHaveBeenCalledWith({
-      where: { userId: 'user-1' },
+      where: { profileId: 'user-1' },
       orderBy: { createdAt: 'desc' },
       skip: 0,
       take: 50,
@@ -212,7 +212,7 @@ describe('DraftCampaignService', () => {
       user: {},
       createdAt: new Date(),
       updatedAt: new Date(),
-      userId: 'user-1',
+      profileId: 'user-1',
       _count: {},
       name: 'Updated',
       data: { objective: 'OUTCOME_TRAFFIC', bid_strategy: 'COST_CAP' },

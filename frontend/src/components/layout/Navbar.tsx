@@ -1,9 +1,8 @@
 "use client";
 
-import { useAppStore } from "@/store/useAppStore";
-import { usePathname } from "next/navigation";
-import { User, LogOut, ChevronRight, Menu } from "lucide-react";
-import { Button } from "../ui/button";
+import { useAppStore, Profile } from "@/store/useAppStore";
+import { usePathname, useRouter } from "next/navigation";
+import { User, LogOut, ChevronRight, Menu, Users, ChevronDown } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -23,14 +22,19 @@ const pageTitles: Record<string, string> = {
 };
 
 export const Navbar = () => {
-  const { user, selectedAccount, draftName, toggleMobileSidebar } = useAppStore();
+  const { user, team, profile, profiles, setProfile, selectedAccount, draftName, toggleMobileSidebar } = useAppStore();
   const pathname = usePathname();
+  const router = useRouter();
   const currentPage = pageTitles[pathname] || (pathname.startsWith("/drafts/") ? (draftName ?? "Draft Editor") : "");
+
+  const handleSwitchProfile = (p: Profile) => {
+    setProfile(p);
+    router.refresh();
+  };
 
   return (
     <nav className="h-14 border-b border-gray-800/50 bg-gray-950/90 backdrop-blur-xl flex items-center justify-between px-4 sm:px-5 sticky top-0 z-50 shadow-[0_1px_3px_rgba(0,0,0,0.3)]">
       <div className="flex items-center gap-2 sm:gap-3 min-w-0">
-        {/* Hamburger — mobile only */}
         <button
           onClick={toggleMobileSidebar}
           className="md:hidden p-2.5 rounded-lg text-gray-500 hover:text-gray-300 hover:bg-gray-800/50 transition-colors -ml-1.5 shrink-0"
@@ -58,40 +62,83 @@ export const Navbar = () => {
         )}
       </div>
 
-      <DropdownMenu>
-        <DropdownMenuTrigger
-          render={<button className="flex items-center gap-2 sm:gap-3 px-2 py-1.5 rounded-lg hover:bg-gray-800/50 transition-colors outline-none shrink-0" />}
-        >
-          <div className="text-right hidden sm:block">
-            <p className="text-sm font-medium text-gray-300 leading-none">{user?.name || "Member"}</p>
-            {user?.email && <p className="text-[11px] text-gray-600 mt-0.5">{user.email}</p>}
-          </div>
-          <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center ring-2 ring-gray-800 shrink-0">
-            <User className="w-4 h-4 text-white" />
-          </div>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="w-56 bg-gray-900 border-gray-800">
-          <div className="px-3 py-2">
-            <p className="text-sm font-medium text-gray-200">{user?.name || "Member"}</p>
-            {user?.email && <p className="text-xs text-gray-500">{user.email}</p>}
-          </div>
-          <DropdownMenuSeparator className="bg-gray-800" />
-          <DropdownMenuItem
-            onClick={() => {
-              const store = useAppStore.getState();
-              store.setUser(null);
-              store.setSelectedAccount(null);
-              store.setAdAccounts([]);
-              localStorage.removeItem("token");
-              window.location.href = "/login";
-            }}
-            className="text-red-400 focus:text-red-400 focus:bg-red-500/10 cursor-pointer"
+      <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+        {profile && profiles.length > 0 && (
+          <DropdownMenu>
+            <DropdownMenuTrigger
+              render={
+                <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-gray-800/40 border border-gray-700/40 hover:bg-gray-800/60 transition-colors outline-none">
+                  <User className="w-3 h-3 text-blue-400 shrink-0" />
+                  <span className="text-xs font-medium text-gray-300 max-w-[100px] truncate">{profile.name}</span>
+                  <ChevronDown className="w-3 h-3 text-gray-600" />
+                </button>
+              }
+            />
+            <DropdownMenuContent align="end" className="w-48 bg-gray-900 border-gray-800">
+              <div className="px-3 py-1.5">
+                <p className="text-[10px] text-gray-600 uppercase tracking-wider font-medium">Profile</p>
+              </div>
+              {profiles.map((p) => (
+                <DropdownMenuItem
+                  key={p.id}
+                  onClick={() => handleSwitchProfile(p)}
+                  className={`text-xs cursor-pointer ${p.id === profile.id ? "text-blue-400 bg-blue-500/5" : "text-gray-300"}`}
+                >
+                  <User className="w-3 h-3 mr-2" />
+                  {p.name}
+                </DropdownMenuItem>
+              ))}
+              <DropdownMenuSeparator className="bg-gray-800" />
+              <DropdownMenuItem
+                onClick={() => router.push("/profiles")}
+                className="text-xs text-gray-500 cursor-pointer"
+              >
+                <Users className="w-3 h-3 mr-2" />
+                Manage profiles
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        )}
+
+        <DropdownMenu>
+          <DropdownMenuTrigger
+            render={<button className="flex items-center gap-2 sm:gap-3 px-2 py-1.5 rounded-lg hover:bg-gray-800/50 transition-colors outline-none shrink-0" />}
           >
-            <LogOut className="w-4 h-4 mr-2" />
-            Sign out
-          </DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
+            <div className="text-right hidden sm:block">
+              <p className="text-sm font-medium text-gray-300 leading-none">{user?.name || "Member"}</p>
+              {user?.email && <p className="text-[11px] text-gray-600 mt-0.5">{user.email}</p>}
+            </div>
+            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center ring-2 ring-gray-800 shrink-0">
+              <User className="w-4 h-4 text-white" />
+            </div>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-56 bg-gray-900 border-gray-800">
+            <div className="px-3 py-2">
+              <p className="text-sm font-medium text-gray-200">{user?.name || "Member"}</p>
+              {user?.email && <p className="text-xs text-gray-500">{user.email}</p>}
+              {team && <p className="text-[11px] text-gray-600 mt-1 flex items-center gap-1"><Users className="w-3 h-3" /> {team.name}</p>}
+            </div>
+            <DropdownMenuSeparator className="bg-gray-800" />
+            <DropdownMenuItem
+              onClick={() => {
+                const store = useAppStore.getState();
+                store.setUser(null);
+                store.setProfile(null);
+                store.setProfiles([]);
+                store.setSelectedAccount(null);
+                store.setAdAccounts([]);
+                localStorage.removeItem("token");
+                localStorage.removeItem("profileId");
+                window.location.href = "/login";
+              }}
+              className="text-red-400 focus:text-red-400 focus:bg-red-500/10 cursor-pointer"
+            >
+              <LogOut className="w-4 h-4 mr-2" />
+              Sign out
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
     </nav>
   );
 };

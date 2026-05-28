@@ -12,6 +12,10 @@ api.interceptors.request.use((config) => {
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
+  const profileId = localStorage.getItem('profileId');
+  if (profileId) {
+    config.headers['X-Profile-Id'] = profileId;
+  }
   return config;
 });
 
@@ -128,6 +132,19 @@ export const userApi = {
   getTokenStatus: () => api.get('/user/token-status'),
   getStats: () => api.get('/user/stats'),
   deleteAccount: () => api.delete('/user/account'),
+};
+
+export const profileApi = {
+  list: () => api.get('/profiles'),
+  create: (name: string) => api.post('/profiles', { name }),
+  delete: (id: string) => api.delete(`/profiles/${id}`),
+};
+
+export const teamApi = {
+  getTeam: () => api.get('/team'),
+  updateTeam: (data: { name: string }) => api.patch('/team', data),
+  regenerateInvite: () => api.post('/team/regenerate-invite'),
+  removeMember: (memberId: string) => api.delete(`/team/members/${memberId}`),
 };
 
 export const uploadApi = {

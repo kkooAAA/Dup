@@ -6,10 +6,11 @@ import { ErrorBoundary } from "./ErrorBoundary";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAppStore } from "@/store/useAppStore";
+import { teamApi, profileApi } from "@/services/api";
 
 export const DashboardLayout = ({ children }: { children: React.ReactNode }) => {
   const router = useRouter();
-  const { user, mobileSidebarOpen, setMobileSidebarOpen } = useAppStore();
+  const { user, team, profile, setTeam, setProfile, setProfiles, mobileSidebarOpen, setMobileSidebarOpen } = useAppStore();
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
@@ -17,8 +18,32 @@ export const DashboardLayout = ({ children }: { children: React.ReactNode }) => 
     const token = localStorage.getItem("token");
     if (!token && !user) {
       router.push("/login");
+      return;
     }
-  }, [user, router]);
+    const savedProfileId = localStorage.getItem("profileId");
+    if (!profile && !savedProfileId) {
+      router.push("/profiles");
+    }
+  }, [user, profile, router]);
+
+  useEffect(() => {
+    if (!team && localStorage.getItem("token")) {
+      teamApi.getTeam().then(res => setTeam(res.data)).catch(() => {});
+    }
+  }, [team, setTeam]);
+
+  useEffect(() => {
+    const token = localStorage.getItem("token");
+    if (!token) return;
+    profileApi.list().then(res => {
+      setProfiles(res.data);
+      const savedId = localStorage.getItem("profileId");
+      if (savedId && !profile) {
+        const found = res.data.find((p: any) => p.id === savedId);
+        if (found) setProfile(found);
+      }
+    }).catch(() => {});
+  }, []);
 
   if (!mounted) return null;
 
@@ -26,7 +51,6 @@ export const DashboardLayout = ({ children }: { children: React.ReactNode }) => 
     <div className="min-h-screen bg-gray-950 text-gray-100">
       <Navbar />
       <div className="flex relative">
-        {/* Mobile backdrop — sits between navbar and sidebar, closes drawer on tap */}
         {mobileSidebarOpen && (
           <div
             className="fixed inset-0 top-14 z-30 bg-black/60 backdrop-blur-sm md:hidden"

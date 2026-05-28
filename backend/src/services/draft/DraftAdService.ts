@@ -8,10 +8,10 @@ function throwNotFound(entity: string): never {
 }
 
 export class DraftAdService {
-  static async create(userId: string, adAccountId: string, draftAdSetId: string, name: string, data: any) {
+  static async create(profileId: string, adAccountId: string, draftAdSetId: string, name: string, data: any) {
     return prisma.draftAd.create({
       data: {
-        userId,
+        profileId,
         adAccountId,
         draftAdSetId,
         name,
@@ -21,10 +21,10 @@ export class DraftAdService {
     });
   }
 
-  static async getById(id: string, userId?: string) {
-    if (userId) {
+  static async getById(id: string, profileId?: string) {
+    if (profileId) {
       return prisma.draftAd.findFirst({
-        where: { id, userId },
+        where: { id, profileId },
         include: { adSet: { include: { campaign: true } } },
       });
     }
@@ -34,9 +34,9 @@ export class DraftAdService {
     });
   }
 
-  static async update(id: string, updateData: any, userId?: string) {
-    if (userId) {
-      const exists = await prisma.draftAd.findFirst({ where: { id, userId } });
+  static async update(id: string, updateData: any, profileId?: string) {
+    if (profileId) {
+      const exists = await prisma.draftAd.findFirst({ where: { id, profileId } });
       if (!exists) throwNotFound('Ad');
     }
 
@@ -54,9 +54,9 @@ export class DraftAdService {
     });
   }
 
-  static async delete(id: string, userId?: string) {
-    if (userId) {
-      const exists = await prisma.draftAd.findFirst({ where: { id, userId } });
+  static async delete(id: string, profileId?: string) {
+    if (profileId) {
+      const exists = await prisma.draftAd.findFirst({ where: { id, profileId } });
       if (!exists) throwNotFound('Ad');
     }
     return prisma.draftAd.delete({

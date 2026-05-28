@@ -48,7 +48,7 @@ export class WideCreationController {
         return res.status(400).json({ error: 'Validation failed', errors: validation.errors });
       }
 
-      const result = await WideCreationService.generateFromTemplate(template, req.userId!);
+      const result = await WideCreationService.generateFromTemplate(template, req.profileId!);
       res.json(result);
     } catch (error: any) {
       console.error(`[WideCreation] Error in generate:`, error);
@@ -73,7 +73,7 @@ export class WideCreationController {
       }
 
       const result = await WideCreationService.bulkApplyFields(
-        entityIds, entityType, fieldUpdates, cascadeToChildren, req.userId,
+        entityIds, entityType, fieldUpdates, cascadeToChildren, req.profileId,
       );
       res.json(result);
     } catch (error: any) {
@@ -90,7 +90,7 @@ export class WideCreationController {
         return res.status(400).json({ error: 'campaignIds must be a non-empty array' });
       }
 
-      const tree = await WideCreationService.getTreeStructure(campaignIds, req.userId);
+      const tree = await WideCreationService.getTreeStructure(campaignIds, req.profileId);
       res.json(tree);
     } catch (error: any) {
       console.error(`[WideCreation] Error in getTree:`, error);

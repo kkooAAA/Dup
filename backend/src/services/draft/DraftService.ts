@@ -7,7 +7,7 @@ import { sleep } from '../../utils/sleep';
 export class DraftService {
   static async duplicateCampaignToDraft(
     campaignId: string,
-    userId: string,
+    profileId: string,
     accessToken: string,
     options?: { iteration?: number }
   ) {
@@ -36,7 +36,7 @@ export class DraftService {
     // 2. Create Draft Campaign
     const draftCampaign = await prisma.draftCampaign.create({
       data: {
-        userId,
+        profileId,
         adAccountId,
         name: `${campaignData.name} - Internal Draft${suffix}`,
         objective: campaignData.objective,
@@ -53,7 +53,7 @@ export class DraftService {
       const adSet = adSets[i];
       const draftAdSet = await prisma.draftAdSet.create({
         data: {
-          userId,
+          profileId,
           adAccountId,
           draftCampaignId: draftCampaign.id,
           name: `${adSet.name} - Internal Draft${suffix}`,
@@ -67,7 +67,7 @@ export class DraftService {
       for (const ad of ads) {
         await prisma.draftAd.create({
           data: {
-            userId,
+            profileId,
             adAccountId,
             draftAdSetId: draftAdSet.id,
             name: `${ad.name} - Internal Draft${suffix}`,
@@ -85,7 +85,7 @@ export class DraftService {
     targetObjective: string,
     newName: string,
     adAccountId: string,
-    userId: string,
+    profileId: string,
     accessToken: string
   ) {
     const fbService = new FacebookService(accessToken);
@@ -111,7 +111,7 @@ export class DraftService {
     // 3. Save as Draft Campaign
     const draftCampaign = await prisma.draftCampaign.create({
       data: {
-        userId,
+        profileId,
         adAccountId: normalizedAccountId,
         name: newName,
         objective: targetObjective,
@@ -190,7 +190,7 @@ export class DraftService {
 
       const draftAdSet = await prisma.draftAdSet.create({
         data: {
-          userId,
+          profileId,
           adAccountId: normalizedAccountId,
           draftCampaignId: draftCampaign.id,
           name: transformedAdSet.name,
@@ -209,7 +209,7 @@ export class DraftService {
 
         await prisma.draftAd.create({
           data: {
-            userId,
+            profileId,
             adAccountId: normalizedAccountId,
             draftAdSetId: draftAdSet.id,
             name: transformedAd.name,

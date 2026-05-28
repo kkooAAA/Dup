@@ -25,10 +25,9 @@ export class DraftController {
 
     for (let i = 0; i < numCopies; i++) {
       try {
-        // iteration starts at 1 when there are multiple copies so names are distinct.
         const draft = await DraftService.duplicateCampaignToDraft(
           campaignId,
-          authReq.userId!,
+          authReq.profileId!,
           authReq.userAccessToken!,
           { iteration: numCopies > 1 ? i + 1 : 0 },
         );
@@ -74,17 +73,16 @@ export class DraftController {
       failed: failures.length,
       drafts,
       failures,
-      // Back-compat for older callers that read a single draft from the response.
       ...drafts[0],
     });
   }
 
   static async listCampaigns(req: Request, res: Response) {
     try {
-      const { userId } = req as AuthRequest;
+      const { profileId } = req as AuthRequest;
       const page = Math.max(1, parseInt(req.query.page as string) || 1);
       const pageSize = Math.min(100, Math.max(1, parseInt(req.query.pageSize as string) || 50));
-      const result = await DraftCampaignService.listByUser(userId!, page, pageSize);
+      const result = await DraftCampaignService.listByProfile(profileId!, page, pageSize);
       res.json(result);
     } catch (error: any) {
       console.error(`[DraftController] Error in listCampaigns:`, error);
@@ -95,8 +93,7 @@ export class DraftController {
   static async getCampaign(req: Request, res: Response) {
     try {
       const id = req.params.id as string;
-      const { userId } = req as AuthRequest;
-      const draft = await DraftCampaignService.getById(id, userId!);
+      const draft = await DraftCampaignService.getById(id);
       if (!draft) return res.status(404).json({ error: 'Draft not found' });
       res.json(draft);
     } catch (error: any) {
@@ -106,10 +103,9 @@ export class DraftController {
 
   static async updateCampaign(req: Request, res: Response) {
     const id = req.params.id as string;
-    const { userId } = req as AuthRequest;
     try {
       console.log(`[DraftController] Updating campaign: ${id}`, req.body);
-      const draft = await DraftCampaignService.update(id, req.body, userId!);
+      const draft = await DraftCampaignService.update(id, req.body);
       res.json(draft);
     } catch (error: any) {
       console.error(`[DraftController] Error updating campaign ${id}:`, error);
@@ -120,10 +116,9 @@ export class DraftController {
 
   static async updateAdSet(req: Request, res: Response) {
     const id = req.params.id as string;
-    const { userId } = req as AuthRequest;
     try {
       console.log(`[DraftController] Updating adset: ${id}`, req.body);
-      const draft = await DraftAdSetService.update(id, req.body, userId!);
+      const draft = await DraftAdSetService.update(id, req.body);
       res.json(draft);
     } catch (error: any) {
       console.error(`[DraftController] Error updating adset ${id}:`, error);
@@ -134,10 +129,9 @@ export class DraftController {
 
   static async updateAd(req: Request, res: Response) {
     const id = req.params.id as string;
-    const { userId } = req as AuthRequest;
     try {
       console.log(`[DraftController] Updating ad: ${id}`, req.body);
-      const draft = await DraftAdService.update(id, req.body, userId!);
+      const draft = await DraftAdService.update(id, req.body);
       res.json(draft);
     } catch (error: any) {
       console.error(`[DraftController] Error updating ad ${id}:`, error);
@@ -149,24 +143,22 @@ export class DraftController {
   static async validateDraft(req: Request, res: Response) {
     try {
       const id = req.params.id as string;
-      const { userId } = req as AuthRequest;
-      const draft = await DraftCampaignService.getById(id, userId!);
+      const draft = await DraftCampaignService.getById(id);
       if (!draft) return res.status(404).json({ error: 'Draft not found' });
 
       const validation = await DraftValidationEngine.validateFullDraft(draft);
 
-      // Save validation results back to DB (internal updates — userId passed for safety)
       await DraftCampaignService.update(id, {
         validationErrors: validation.campaignErrors,
         status: validation.isValid ? 'VALIDATED' : 'VALIDATION_FAILED'
-      }, userId!);
+      });
 
       for (const adSetId in validation.adSetErrors) {
-        await DraftAdSetService.update(adSetId, { validationErrors: validation.adSetErrors[adSetId] }, userId!);
+        await DraftAdSetService.update(adSetId, { validationErrors: validation.adSetErrors[adSetId] });
       }
 
       for (const adId in validation.adErrors) {
-        await DraftAdService.update(adId, { validationErrors: validation.adErrors[adId] }, userId!);
+        await DraftAdService.update(adId, { validationErrors: validation.adErrors[adId] });
       }
 
       res.json(validation);
@@ -179,7 +171,7 @@ export class DraftController {
     const id = req.params.id as string;
     const authReq = req as AuthRequest;
     try {
-      const owned = await prisma.draftCampaign.findFirst({ where: { id, userId: authReq.userId! } });
+      const owned = await prisma.draftCampaign.findFirst({ where: { id } });
       if (!owned) return res.status(404).json({ error: 'Draft not found' });
       const result = await DraftPublishService.publishCampaign(id, authReq.userAccessToken!);
       await prisma.duplicateJob.create({
@@ -264,8 +256,7 @@ export class DraftController {
   static async deleteCampaign(req: Request, res: Response) {
     try {
       const id = req.params.id as string;
-      const { userId } = req as AuthRequest;
-      await DraftCampaignService.delete(id, userId!);
+      await DraftCampaignService.delete(id);
       res.json({ success: true });
     } catch (error: any) {
       if (error.notFound) return res.status(404).json({ error: error.message });
@@ -279,7 +270,7 @@ export class DraftController {
         campaignIds: string[];
         updates: { objective?: string; data?: Record<string, any> };
       };
-      const { userId } = req as AuthRequest;
+      const { profileId } = req as AuthRequest;
 
       if (!Array.isArray(campaignIds) || campaignIds.length === 0) {
         return res.status(400).json({ error: 'campaignIds must be a non-empty array' });
@@ -288,7 +279,7 @@ export class DraftController {
       let updatedCount = 0;
       for (const id of campaignIds) {
         const current = await prisma.draftCampaign.findFirst({
-          where: { id, userId, status: { not: 'PUBLISHING' } },
+          where: { id, profileId, status: { not: 'PUBLISHING' } },
         });
         if (!current) continue;
 
@@ -316,7 +307,7 @@ export class DraftController {
       const id = req.params.id as string;
       const authReq = req as AuthRequest;
 
-      const owned = await prisma.draftCampaign.findFirst({ where: { id, userId: authReq.userId! } });
+      const owned = await prisma.draftCampaign.findFirst({ where: { id } });
       if (!owned) return res.status(404).json({ error: 'Draft not found' });
       const result = await DraftPublishService.cleanupOrphanedMetaObjects(id, authReq.userAccessToken!);
       res.json(result);
@@ -332,17 +323,16 @@ export class DraftController {
   static async bulkDeleteDrafts(req: Request, res: Response) {
     try {
       const { campaignIds } = req.body as { campaignIds: string[] };
-      const { userId } = req as AuthRequest;
+      const { profileId } = req as AuthRequest;
 
       if (!Array.isArray(campaignIds) || campaignIds.length === 0) {
         return res.status(400).json({ error: 'campaignIds must be a non-empty array' });
       }
 
-      // Only delete campaigns that belong to this user and are not currently PUBLISHING
       const deleted = await prisma.draftCampaign.deleteMany({
         where: {
           id: { in: campaignIds },
-          userId,
+          profileId,
           status: { not: 'PUBLISHING' },
         },
       });
@@ -357,7 +347,7 @@ export class DraftController {
   static async bulkEditSchema(req: Request, res: Response) {
     try {
       const { draftIds, level = 'campaign' } = req.body as { draftIds: string[]; level?: EntityLevel };
-      const { userId } = req as AuthRequest;
+      const { profileId } = req as AuthRequest;
 
       if (!Array.isArray(draftIds) || draftIds.length === 0) {
         return res.status(400).json({ error: 'draftIds must be a non-empty array' });
@@ -366,7 +356,7 @@ export class DraftController {
       let drafts: any[];
       if (level === 'campaign') {
         drafts = await prisma.draftCampaign.findMany({
-          where: { id: { in: draftIds }, userId },
+          where: { id: { in: draftIds }, profileId },
         });
       } else if (level === 'adSet') {
         drafts = await prisma.draftAdSet.findMany({
@@ -403,7 +393,7 @@ export class DraftController {
         fieldUpdates: Record<string, any>;
         level?: EntityLevel;
       };
-      const { userId } = req as AuthRequest;
+      const { profileId } = req as AuthRequest;
 
       if (!Array.isArray(draftIds) || draftIds.length === 0) {
         return res.status(400).json({ error: 'draftIds must be a non-empty array' });
@@ -412,7 +402,7 @@ export class DraftController {
       let drafts: any[];
       if (level === 'campaign') {
         drafts = await prisma.draftCampaign.findMany({
-          where: { id: { in: draftIds }, userId },
+          where: { id: { in: draftIds }, profileId },
         });
       } else if (level === 'adSet') {
         drafts = await prisma.draftAdSet.findMany({
@@ -439,7 +429,7 @@ export class DraftController {
         fieldUpdates: Record<string, any>;
         level?: EntityLevel;
       };
-      const { userId } = req as AuthRequest;
+      const { profileId } = req as AuthRequest;
 
       if (!Array.isArray(draftIds) || draftIds.length === 0) {
         return res.status(400).json({ error: 'draftIds must be a non-empty array' });
@@ -453,20 +443,20 @@ export class DraftController {
         let drafts: any[];
         if (level === 'campaign') {
           drafts = await tx.draftCampaign.findMany({
-            where: { id: { in: draftIds }, userId, status: { not: 'PUBLISHING' } },
+            where: { id: { in: draftIds }, profileId, status: { not: 'PUBLISHING' } },
           });
         } else if (level === 'adSet') {
           drafts = await tx.draftAdSet.findMany({
             where: { id: { in: draftIds } },
-            include: { campaign: { select: { objective: true, userId: true } } },
+            include: { campaign: { select: { objective: true, profileId: true } } },
           });
-          drafts = drafts.filter((d: any) => d.campaign?.userId === userId);
+          drafts = drafts.filter((d: any) => d.campaign?.profileId === profileId);
         } else {
           drafts = await tx.draftAd.findMany({
             where: { id: { in: draftIds } },
-            include: { adSet: { include: { campaign: { select: { userId: true } } } } },
+            include: { adSet: { include: { campaign: { select: { profileId: true } } } } },
           });
-          drafts = drafts.filter((d: any) => d.adSet?.campaign?.userId === userId);
+          drafts = drafts.filter((d: any) => d.adSet?.campaign?.profileId === profileId);
         }
 
         const validation = BulkEditCompatibilityEngine.validateBulkEdit(drafts, fieldUpdates, level);
@@ -525,10 +515,9 @@ export class DraftController {
   static async exportCampaign(req: Request, res: Response) {
     try {
       const id = req.params.id as string;
-      const { userId } = req as AuthRequest;
 
       const campaign = await prisma.draftCampaign.findFirst({
-        where: { id, userId },
+        where: { id },
         include: {
           adSets: {
             include: { ads: true },
@@ -565,7 +554,7 @@ export class DraftController {
 
   static async importCampaign(req: Request, res: Response) {
     try {
-      const { userId } = req as AuthRequest;
+      const { profileId } = req as AuthRequest;
       const { exported, adAccountId } = req.body as {
         exported: {
           version: number;
@@ -593,7 +582,7 @@ export class DraftController {
 
       const campaign = await prisma.draftCampaign.create({
         data: {
-          userId: userId!,
+          profileId: profileId!,
           adAccountId: targetAccountId,
           name: src.name,
           objective: src.objective || null,
@@ -606,7 +595,7 @@ export class DraftController {
         const adSet = await prisma.draftAdSet.create({
           data: {
             draftCampaignId: campaign.id,
-            userId: userId!,
+            profileId: profileId!,
             adAccountId: targetAccountId,
             name: srcAdSet.name,
             data: srcAdSet.data || {},
@@ -618,7 +607,7 @@ export class DraftController {
           await prisma.draftAd.create({
             data: {
               draftAdSetId: adSet.id,
-              userId: userId!,
+              profileId: profileId!,
               adAccountId: targetAccountId,
               name: srcAd.name,
               data: srcAd.data || {},

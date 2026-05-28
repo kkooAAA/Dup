@@ -4,7 +4,8 @@ import { useEffect, useState } from "react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { userApi } from "@/services/api";
+import { userApi, teamApi } from "@/services/api";
+import { Team, TeamMember } from "@/types";
 import { useAppStore } from "@/store/useAppStore";
 import { toast } from "sonner";
 import { cn, extractApiError } from "@/lib/utils";
@@ -22,6 +23,9 @@ import {
   Send,
   Copy,
   BarChart3,
+  Users,
+  ClipboardCopy,
+  UserMinus,
 } from "lucide-react";
 
 interface TokenStatus {
@@ -56,6 +60,10 @@ export default function SettingsPage() {
   const [loadingStats, setLoadingStats] = useState(true);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [team, setTeam] = useState<Team | null>(null);
+  const [loadingTeam, setLoadingTeam] = useState(true);
+  const [regenerating, setRegenerating] = useState(false);
+  const [removingMember, setRemovingMember] = useState<string | null>(null);
 
   const fetchProfile = async () => {
     setLoadingProfile(true);
@@ -93,10 +101,40 @@ export default function SettingsPage() {
     }
   };
 
+  const fetchTeam = async () => {
+    setLoadingTeam(true);
+    try {
+      const res = await teamApi.getTeam();
+      setTeam(res.data);
+    } catch { }
+    finally { setLoadingTeam(false); }
+  };
+
+  const handleRegenerateInvite = async () => {
+    setRegenerating(true);
+    try {
+      const res = await teamApi.regenerateInvite();
+      setTeam(prev => prev ? { ...prev, inviteCode: res.data.inviteCode } : prev);
+      toast.success("Invite code regenerated");
+    } catch (err: any) { toast.error(extractApiError(err, "Failed to regenerate invite code")); }
+    finally { setRegenerating(false); }
+  };
+
+  const handleRemoveMember = async (memberId: string) => {
+    setRemovingMember(memberId);
+    try {
+      await teamApi.removeMember(memberId);
+      setTeam(prev => prev ? { ...prev, members: prev.members.filter(m => m.id !== memberId), memberCount: prev.memberCount - 1 } : prev);
+      toast.success("Member removed");
+    } catch (err: any) { toast.error(extractApiError(err, "Failed to remove member")); }
+    finally { setRemovingMember(null); }
+  };
+
   useEffect(() => {
     fetchProfile();
     fetchTokenStatus();
     fetchStats();
+    fetchTeam();
   }, []);
 
   const user = profile || storeUser;
@@ -160,6 +198,100 @@ export default function SettingsPage() {
                   <p className="text-xs text-gray-600 mt-0.5">FB ID: {user?.facebookId || "—"}</p>
                 </div>
               </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Team */}
+        <Card className="border-gray-800/60 bg-gray-900/50">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-sm font-semibold text-gray-300 flex items-center gap-2">
+              <Users className="w-4 h-4 text-blue-400" />
+              Team
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {loadingTeam ? (
+              <div className="space-y-3">
+                <div className="h-5 w-40 bg-gray-800/60 rounded animate-pulse" />
+                <div className="h-4 w-28 bg-gray-800/40 rounded animate-pulse" />
+              </div>
+            ) : team ? (
+              <>
+                <div>
+                  <p className="text-sm font-medium text-gray-200">{team.name}</p>
+                  <p className="text-xs text-gray-500 mt-0.5">{team.memberCount} member{team.memberCount !== 1 ? "s" : ""}</p>
+                </div>
+
+                {team.inviteCode && (
+                  <div>
+                    <p className="text-xs text-gray-600 mb-1.5">Invite code (admin only)</p>
+                    <div className="flex items-center gap-2">
+                      <code className="text-sm font-mono text-blue-400 bg-gray-800/60 px-3 py-1.5 rounded-lg border border-gray-700/50">
+                        {team.inviteCode}
+                      </code>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-8 text-xs text-gray-500 gap-1"
+                        onClick={() => { navigator.clipboard.writeText(team.inviteCode!); toast.success("Copied!"); }}
+                      >
+                        <ClipboardCopy className="w-3 h-3" /> Copy
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-8 text-xs text-gray-500 gap-1"
+                        onClick={handleRegenerateInvite}
+                        disabled={regenerating}
+                      >
+                        <RefreshCw className={cn("w-3 h-3", regenerating && "animate-spin")} /> Regenerate
+                      </Button>
+                    </div>
+                  </div>
+                )}
+
+                {team.members.length > 0 && (
+                  <div>
+                    <p className="text-xs text-gray-600 mb-2">Members</p>
+                    <div className="space-y-1">
+                      {team.members.map(m => (
+                        <div key={m.id} className="flex items-center justify-between py-1.5 px-2 rounded-md hover:bg-gray-800/30 transition-colors">
+                          <div className="flex items-center gap-2 min-w-0">
+                            <div className="w-6 h-6 rounded-full bg-gray-800 flex items-center justify-center shrink-0">
+                              <User className="w-3 h-3 text-gray-500" />
+                            </div>
+                            <div className="min-w-0">
+                              <p className="text-xs text-gray-300 truncate">{m.name || "Unnamed"}</p>
+                              <p className="text-[10px] text-gray-600 truncate">{m.email}</p>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2 shrink-0">
+                            <span className={cn(
+                              "text-[10px] font-medium px-1.5 py-0.5 rounded",
+                              m.role === 'admin' ? "bg-blue-500/15 text-blue-400" : "bg-gray-800/50 text-gray-500"
+                            )}>
+                              {m.role}
+                            </span>
+                            {team.inviteCode && m.role !== 'admin' && (
+                              <button
+                                onClick={() => handleRemoveMember(m.id)}
+                                disabled={removingMember === m.id}
+                                className="p-1 text-gray-600 hover:text-red-400 transition-colors rounded"
+                                title="Remove member"
+                              >
+                                <UserMinus className="w-3 h-3" />
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </>
+            ) : (
+              <p className="text-sm text-gray-500">No team found</p>
             )}
           </CardContent>
         </Card>

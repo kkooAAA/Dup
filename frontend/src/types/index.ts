@@ -1,8 +1,26 @@
 export interface User {
   id: string;
-  facebookId: string;
+  facebookId?: string | null;
   name: string;
   email: string;
+  role?: string;
+  teamId?: string;
+}
+
+export interface Team {
+  id: string;
+  name: string;
+  inviteCode?: string;
+  ownerId: string;
+  members: TeamMember[];
+  memberCount: number;
+}
+
+export interface TeamMember {
+  id: string;
+  name: string | null;
+  email: string | null;
+  role: string;
 }
 
 export interface AdAccount {

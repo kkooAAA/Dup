@@ -343,7 +343,7 @@ export class WideCreationService {
 
   static async generateFromTemplate(
     template: WideCreationTemplate,
-    userId: string,
+    profileId: string,
   ): Promise<WideGenerationResult> {
     const campaignIds: string[] = [];
     const adSetIds: string[] = [];
@@ -399,7 +399,7 @@ export class WideCreationService {
       // Create draft campaign
       const draftCampaign = await prisma.draftCampaign.create({
         data: {
-          userId,
+          profileId,
           adAccountId,
           name: campaignName,
           objective,
@@ -478,7 +478,7 @@ export class WideCreationService {
         // Create draft adset
         const draftAdSet = await prisma.draftAdSet.create({
           data: {
-            userId,
+            profileId,
             adAccountId,
             draftCampaignId: draftCampaign.id,
             name: adSetName,
@@ -523,7 +523,7 @@ export class WideCreationService {
           // Create draft ad
           const draftAd = await prisma.draftAd.create({
             data: {
-              userId,
+              profileId,
               adAccountId,
               draftAdSetId: draftAdSet.id,
               name: adName,
@@ -563,7 +563,7 @@ export class WideCreationService {
     entityType: 'campaign' | 'adSet' | 'ad',
     fieldUpdates: Record<string, any>,
     cascadeToChildren: boolean = false,
-    userId?: string,
+    profileId?: string,
   ): Promise<{ updated: number; cascaded: number; warnings: string[] }> {
     let updated = 0;
     let cascaded = 0;
@@ -571,8 +571,8 @@ export class WideCreationService {
 
     for (const id of entityIds) {
       if (entityType === 'campaign') {
-        const existing = userId
-          ? await prisma.draftCampaign.findFirst({ where: { id, userId } })
+        const existing = profileId
+          ? await prisma.draftCampaign.findFirst({ where: { id, profileId } })
           : await prisma.draftCampaign.findUnique({ where: { id } });
         if (!existing) continue;
         const existingData = existing.data as Record<string, any>;
@@ -607,8 +607,8 @@ export class WideCreationService {
           }
         }
       } else if (entityType === 'adSet') {
-        const existing = userId
-          ? await prisma.draftAdSet.findFirst({ where: { id, campaign: { userId } } })
+        const existing = profileId
+          ? await prisma.draftAdSet.findFirst({ where: { id, campaign: { profileId } } })
           : await prisma.draftAdSet.findUnique({ where: { id } });
         if (!existing) continue;
         const existingData = existing.data as Record<string, any>;
@@ -622,8 +622,8 @@ export class WideCreationService {
         });
         updated++;
       } else {
-        const existing = userId
-          ? await prisma.draftAd.findFirst({ where: { id, adSet: { campaign: { userId } } } })
+        const existing = profileId
+          ? await prisma.draftAd.findFirst({ where: { id, adSet: { campaign: { profileId } } } })
           : await prisma.draftAd.findUnique({ where: { id } });
         if (!existing) continue;
         const existingData = existing.data as Record<string, any>;
@@ -644,9 +644,9 @@ export class WideCreationService {
 
   // ── Get tree structure of a generated set ──
 
-  static async getTreeStructure(campaignIds: string[], userId?: string): Promise<any[]> {
+  static async getTreeStructure(campaignIds: string[], profileId?: string): Promise<any[]> {
     return prisma.draftCampaign.findMany({
-      where: userId ? { id: { in: campaignIds }, userId } : { id: { in: campaignIds } },
+      where: profileId ? { id: { in: campaignIds }, profileId } : { id: { in: campaignIds } },
       include: {
         adSets: {
           include: {

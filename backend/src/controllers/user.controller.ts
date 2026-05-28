@@ -8,10 +8,13 @@ export const getProfile = async (req: AuthRequest, res: Response) => {
   try {
     const user = await prisma.user.findUnique({
       where: { id: req.userId },
-      select: { id: true, facebookId: true, name: true, email: true, createdAt: true },
+      select: {
+        id: true, facebookId: true, name: true, email: true, role: true, teamId: true, createdAt: true,
+        team: { select: { name: true } },
+      },
     });
     if (!user) return res.status(404).json({ error: 'User not found' });
-    res.json(user);
+    res.json({ ...user, teamName: user.team?.name || null });
   } catch (error) {
     res.status(500).json({ error: 'Failed to fetch profile' });
   }
@@ -19,16 +22,13 @@ export const getProfile = async (req: AuthRequest, res: Response) => {
 
 export const getTokenStatus = async (req: AuthRequest, res: Response) => {
   try {
-    const user = await prisma.user.findUnique({
-      where: { id: req.userId },
-      select: { accessToken: true },
-    });
-    if (!user?.accessToken) {
-      return res.json({ valid: false, message: 'No access token stored' });
+    const accessToken = req.userAccessToken;
+    if (!accessToken) {
+      return res.json({ valid: false, message: 'No access token. Ask your team admin to connect Facebook.' });
     }
 
     const fbRes = await axios.get(
-      `https://graph.facebook.com/debug_token?input_token=${user.accessToken}&access_token=${user.accessToken}`
+      `https://graph.facebook.com/debug_token?input_token=${accessToken}&access_token=${accessToken}`
     );
     const data = fbRes.data?.data;
     res.json({
@@ -42,10 +42,10 @@ export const getTokenStatus = async (req: AuthRequest, res: Response) => {
 };
 
 export const getStats = async (req: AuthRequest, res: Response) => {
-  // Each count is independent — one DB hiccup shouldn't blank the whole dashboard.
+  const profileId = req.profileId;
   const [draftRes, publishedRes, jobRes] = await Promise.allSettled([
-    prisma.draftCampaign.count({ where: { userId: req.userId, status: { not: 'PUBLISHED' } } }),
-    prisma.draftCampaign.count({ where: { userId: req.userId, status: 'PUBLISHED' } }),
+    profileId ? prisma.draftCampaign.count({ where: { profileId, status: { not: 'PUBLISHED' } } }) : Promise.resolve(0),
+    profileId ? prisma.draftCampaign.count({ where: { profileId, status: 'PUBLISHED' } }) : Promise.resolve(0),
     prisma.duplicateJob.count({ where: { userId: req.userId } }),
   ]);
 
@@ -75,15 +75,41 @@ export const getStats = async (req: AuthRequest, res: Response) => {
 
 export const deleteAccount = async (req: AuthRequest, res: Response) => {
   try {
-    await prisma.$transaction([
-      prisma.draftAd.deleteMany({ where: { userId: req.userId } }),
-      prisma.draftAdSet.deleteMany({ where: { userId: req.userId } }),
-      prisma.draftCampaign.deleteMany({ where: { userId: req.userId } }),
-      prisma.duplicateJob.deleteMany({ where: { userId: req.userId } }),
-      prisma.namingTemplate.deleteMany({ where: { userId: req.userId } }),
-      prisma.facebookAccount.deleteMany({ where: { userId: req.userId } }),
-      prisma.user.delete({ where: { id: req.userId } }),
-    ]);
+    const user = await prisma.user.findUnique({
+      where: { id: req.userId },
+      select: { role: true, teamId: true },
+    });
+
+    const profileIds = (await prisma.profile.findMany({
+      where: { teamId: user?.teamId! },
+      select: { id: true },
+    })).map(p => p.id);
+
+    if (user?.role === 'admin') {
+      const memberCount = await prisma.user.count({ where: { teamId: user.teamId!, id: { not: req.userId } } });
+      if (memberCount > 0) {
+        return res.status(400).json({ error: 'Cannot delete admin account while team has other members. Remove all members first.' });
+      }
+      await prisma.$transaction([
+        prisma.draftAd.deleteMany({ where: { profileId: { in: profileIds } } }),
+        prisma.draftAdSet.deleteMany({ where: { profileId: { in: profileIds } } }),
+        prisma.draftCampaign.deleteMany({ where: { profileId: { in: profileIds } } }),
+        prisma.profile.deleteMany({ where: { teamId: user.teamId! } }),
+        prisma.duplicateJob.deleteMany({ where: { userId: req.userId } }),
+        prisma.namingTemplate.deleteMany({ where: { userId: req.userId } }),
+        prisma.facebookAccount.deleteMany({ where: { userId: req.userId } }),
+        prisma.team.deleteMany({ where: { ownerId: req.userId } }),
+        prisma.user.delete({ where: { id: req.userId } }),
+      ]);
+    } else {
+      await prisma.$transaction([
+        prisma.duplicateJob.deleteMany({ where: { userId: req.userId } }),
+        prisma.namingTemplate.deleteMany({ where: { userId: req.userId } }),
+        prisma.facebookAccount.deleteMany({ where: { userId: req.userId } }),
+        prisma.user.delete({ where: { id: req.userId } }),
+      ]);
+    }
+
     res.json({ success: true });
   } catch (error) {
     res.status(500).json({ error: 'Failed to delete account' });

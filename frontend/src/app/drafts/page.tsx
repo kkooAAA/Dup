@@ -290,29 +290,29 @@ export default function DraftsPage() {
             <p className="text-gray-500 mt-1 text-sm">Manage and publish drafts to Meta.</p>
           </div>
           <div className="flex flex-wrap items-center gap-2 shrink-0">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleImport}
-              disabled={isImporting || isBusy}
-              className="gap-1.5 border-gray-800 text-gray-400 hover:text-gray-200 text-xs"
-            >
-              {isImporting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Upload className="w-3.5 h-3.5" />}
-              Import
-            </Button>
-            {publishableDrafts.length > 0 && (
               <Button
                 variant="outline"
                 size="sm"
-                onClick={toggleSelectAll}
-                disabled={isBusy}
-                className="border-gray-800 text-xs"
-                title={`Select all publishable drafts (excludes Publishing and Published)`}
+                onClick={handleImport}
+                disabled={isImporting || isBusy}
+                className="gap-1.5 border-gray-800 text-gray-400 hover:text-gray-200 text-xs"
               >
-                {allSelected ? "Deselect All" : `Select All (${publishableDrafts.length})`}
+                {isImporting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Upload className="w-3.5 h-3.5" />}
+                Import
               </Button>
-            )}
-          </div>
+              {publishableDrafts.length > 0 && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={toggleSelectAll}
+                  disabled={isBusy}
+                  className="border-gray-800 text-xs"
+                  title={`Select all publishable drafts (excludes Publishing and Published)`}
+                >
+                  {allSelected ? "Deselect All" : `Select All (${publishableDrafts.length})`}
+                </Button>
+              )}
+            </div>
         </div>
 
         {/* Bulk action toolbar — appears when items are selected */}
