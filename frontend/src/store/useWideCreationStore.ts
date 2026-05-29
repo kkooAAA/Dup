@@ -1,4 +1,6 @@
-import { create } from 'zustand';
+import { create, StateCreator } from 'zustand';
+import { persist, createJSONStorage } from 'zustand/middleware';
+import { useEffect, useState } from 'react';
 
 // ─── Types ───
 
@@ -178,7 +180,7 @@ const initialState = {
   activeCampaignIndex: 0,
 };
 
-export const useWideCreationStore = create<WideCreationState>((set, get) => ({
+const storeCreator: StateCreator<WideCreationState, [['zustand/persist', unknown]]> = (set, get) => ({
   ...initialState,
 
   // ── Step 1: Objective Selection ──
@@ -554,4 +556,43 @@ export const useWideCreationStore = create<WideCreationState>((set, get) => ({
   getObjectives: () => {
     return [...new Set(get().campaigns.map(c => c.objective))];
   },
-}));
+});
+
+export const useWideCreationStore = create<WideCreationState>()(
+  persist(storeCreator, {
+    name: 'adspawn-wide-creation',
+    storage: createJSONStorage(() => localStorage, {
+      replacer: (_key, value) => {
+        if (value instanceof Set) return { __type: 'Set', values: [...value] };
+        return value;
+      },
+      reviver: (_key, value) => {
+        if (value && typeof value === 'object' && (value as any).__type === 'Set') return new Set((value as any).values);
+        return value;
+      },
+    }),
+    partialize: (state) => ({
+      step: state.step,
+      templateName: state.templateName,
+      objectiveSelections: state.objectiveSelections,
+      adSetsPerCampaign: state.adSetsPerCampaign,
+      adsPerAdSet: state.adsPerAdSet,
+      campaigns: state.campaigns,
+      objectiveDefaults: state.objectiveDefaults,
+      nodeOverrides: state.nodeOverrides,
+      defaultCreative: state.defaultCreative,
+      namingPattern: state.namingPattern,
+      activeCampaignIndex: state.activeCampaignIndex,
+    }),
+    skipHydration: true,
+  })
+);
+
+export function useWideCreationHydration() {
+  const [hydrated, setHydrated] = useState(false);
+  useEffect(() => {
+    useWideCreationStore.persist.rehydrate();
+    setHydrated(true);
+  }, []);
+  return hydrated;
+}

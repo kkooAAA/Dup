@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useRef, use } from "react";
+import { useEffect, useState, useRef, useCallback, use } from "react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -193,9 +193,31 @@ export default function DraftEditorPage({ params: paramsPromise }: { params: Pro
   const [isCleaning, setIsCleaning] = useState(false);
   const [isAutoSaveEnabled, setIsAutoSaveEnabled] = useState(false);
   const [validationResults, setValidationResults] = useState<any>(null);
-  // In-memory edits keyed by `${type}:${id}`. Switching nodes preserves edits;
-  // they are only persisted when the user clicks Save.
-  const [editCache, setEditCache] = useState<Map<string, any>>(new Map());
+  const draftStorageKey = `adspawn-draft-edits:${params.id}`;
+  const [editCache, _setEditCache] = useState<Map<string, any>>(() => {
+    if (typeof window === 'undefined') return new Map();
+    try {
+      const raw = localStorage.getItem(draftStorageKey);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (parsed.cache) {
+          return new Map(Object.entries(parsed.cache));
+        }
+      }
+    } catch {}
+    return new Map();
+  });
+  const setEditCache = useCallback((updater: Map<string, any> | ((prev: Map<string, any>) => Map<string, any>)) => {
+    _setEditCache((prev) => {
+      const next = typeof updater === 'function' ? updater(prev) : updater;
+      if (next.size > 0) {
+        localStorage.setItem(draftStorageKey, JSON.stringify({ cache: Object.fromEntries(next) }));
+      } else {
+        localStorage.removeItem(draftStorageKey);
+      }
+      return next;
+    });
+  }, [draftStorageKey]);
   const editCacheRef = useRef(editCache);
   editCacheRef.current = editCache;
   const nodeKey = (type: string, id: string) => `${type}:${id}`;

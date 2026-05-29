@@ -5,7 +5,7 @@ import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { useWideCreationStore } from "@/store/useWideCreationStore";
+import { useWideCreationStore, useWideCreationHydration } from "@/store/useWideCreationStore";
 import { useAppStore } from "@/store/useAppStore";
 import { wideCreationApi } from "@/services/api";
 import { toast } from "sonner";
@@ -31,6 +31,7 @@ const STEP_LABELS = [
 ];
 
 export default function WideCreatePage() {
+  const hydrated = useWideCreationHydration();
   const store = useWideCreationStore();
   const { selectedAccount } = useAppStore();
   const [isGenerating, setIsGenerating] = useState(false);
@@ -117,6 +118,16 @@ export default function WideCreatePage() {
     setValidation(null);
     setGenerationResult(null);
   };
+
+  if (!hydrated) {
+    return (
+      <DashboardLayout>
+        <div className="flex items-center justify-center h-64">
+          <Loader2 className="w-6 h-6 animate-spin text-gray-500" />
+        </div>
+      </DashboardLayout>
+    );
+  }
 
   return (
     <DashboardLayout>
