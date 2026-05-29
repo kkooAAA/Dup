@@ -107,7 +107,7 @@ export const convertObjective = async (req: AuthRequest, res: Response) => {
         targetObjective,
         finalName,
         adAccountId,
-        req.userId!,
+        req.profileId!,
         req.userAccessToken!
       );
 

@@ -165,12 +165,15 @@ export const Navbar = () => {
               onClick={() => {
                 const store = useAppStore.getState();
                 store.setUser(null);
+                store.setTeam(null);
                 store.setProfile(null);
                 store.setProfiles([]);
                 store.setSelectedAccount(null);
                 store.setAdAccounts([]);
                 localStorage.removeItem("token");
                 localStorage.removeItem("profileId");
+                localStorage.removeItem("adspawn-app");
+                localStorage.removeItem("adspawn-wide-creation");
                 window.location.href = "/login";
               }}
               className="text-red-400 focus:text-red-400 focus:bg-red-500/10 cursor-pointer"

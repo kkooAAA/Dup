@@ -5,11 +5,12 @@ import { Sidebar } from "./Sidebar";
 import { ErrorBoundary } from "./ErrorBoundary";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { useAppStore } from "@/store/useAppStore";
+import { useAppStore, useAppHydration } from "@/store/useAppStore";
 import { teamApi, profileApi, adAccountApi } from "@/services/api";
 
 export const DashboardLayout = ({ children }: { children: React.ReactNode }) => {
   const router = useRouter();
+  const appHydrated = useAppHydration();
   const { user, team, profile, adAccounts, setTeam, setProfile, setProfiles, setAdAccounts, mobileSidebarOpen, setMobileSidebarOpen } = useAppStore();
   const [mounted, setMounted] = useState(false);
 
@@ -51,7 +52,7 @@ export const DashboardLayout = ({ children }: { children: React.ReactNode }) => 
     }).catch(() => {});
   }, []);
 
-  if (!mounted) return null;
+  if (!mounted || !appHydrated) return null;
 
   return (
     <div className="min-h-screen bg-gray-950 text-gray-100">
