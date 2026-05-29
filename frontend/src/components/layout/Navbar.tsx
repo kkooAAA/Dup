@@ -10,7 +10,6 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "../ui/dropdown-menu";
-import React from "react";
 
 const pageTitles: Record<string, string> = {
   "/dashboard": "Account",

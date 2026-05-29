@@ -6,11 +6,11 @@ import { ErrorBoundary } from "./ErrorBoundary";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAppStore } from "@/store/useAppStore";
-import { teamApi, profileApi } from "@/services/api";
+import { teamApi, profileApi, adAccountApi } from "@/services/api";
 
 export const DashboardLayout = ({ children }: { children: React.ReactNode }) => {
   const router = useRouter();
-  const { user, team, profile, setTeam, setProfile, setProfiles, mobileSidebarOpen, setMobileSidebarOpen } = useAppStore();
+  const { user, team, profile, adAccounts, setTeam, setProfile, setProfiles, setAdAccounts, mobileSidebarOpen, setMobileSidebarOpen } = useAppStore();
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
@@ -31,6 +31,12 @@ export const DashboardLayout = ({ children }: { children: React.ReactNode }) => 
       teamApi.getTeam().then(res => setTeam(res.data)).catch(() => {});
     }
   }, [team, setTeam]);
+
+  useEffect(() => {
+    if (adAccounts.length === 0 && localStorage.getItem("token")) {
+      adAccountApi.getAdAccounts().then(res => setAdAccounts(res.data)).catch(() => {});
+    }
+  }, [adAccounts.length, setAdAccounts]);
 
   useEffect(() => {
     const token = localStorage.getItem("token");
