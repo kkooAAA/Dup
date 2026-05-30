@@ -95,7 +95,8 @@ export class DraftController {
   static async getCampaign(req: Request, res: Response) {
     try {
       const id = req.params.id as string;
-      const draft = await DraftCampaignService.getById(id);
+      const { profileId } = req as AuthRequest;
+      const draft = await DraftCampaignService.getById(id, profileId);
       if (!draft) return res.status(404).json({ error: 'Draft not found' });
       res.json(draft);
     } catch (error: any) {
@@ -105,9 +106,10 @@ export class DraftController {
 
   static async updateCampaign(req: Request, res: Response) {
     const id = req.params.id as string;
+    const { profileId } = req as AuthRequest;
     try {
       console.log(`[DraftController] Updating campaign: ${id}`, req.body);
-      const draft = await DraftCampaignService.update(id, req.body);
+      const draft = await DraftCampaignService.update(id, req.body, profileId);
       res.json(draft);
     } catch (error: any) {
       console.error(`[DraftController] Error updating campaign ${id}:`, error);
@@ -118,9 +120,10 @@ export class DraftController {
 
   static async updateAdSet(req: Request, res: Response) {
     const id = req.params.id as string;
+    const { profileId } = req as AuthRequest;
     try {
       console.log(`[DraftController] Updating adset: ${id}`, req.body);
-      const draft = await DraftAdSetService.update(id, req.body);
+      const draft = await DraftAdSetService.update(id, req.body, profileId);
       res.json(draft);
     } catch (error: any) {
       console.error(`[DraftController] Error updating adset ${id}:`, error);
@@ -131,9 +134,10 @@ export class DraftController {
 
   static async updateAd(req: Request, res: Response) {
     const id = req.params.id as string;
+    const { profileId } = req as AuthRequest;
     try {
       console.log(`[DraftController] Updating ad: ${id}`, req.body);
-      const draft = await DraftAdService.update(id, req.body);
+      const draft = await DraftAdService.update(id, req.body, profileId);
       res.json(draft);
     } catch (error: any) {
       console.error(`[DraftController] Error updating ad ${id}:`, error);
@@ -145,7 +149,8 @@ export class DraftController {
   static async validateDraft(req: Request, res: Response) {
     try {
       const id = req.params.id as string;
-      const draft = await DraftCampaignService.getById(id);
+      const { profileId } = req as AuthRequest;
+      const draft = await DraftCampaignService.getById(id, profileId);
       if (!draft) return res.status(404).json({ error: 'Draft not found' });
 
       const validation = await DraftValidationEngine.validateFullDraft(draft);
@@ -153,14 +158,14 @@ export class DraftController {
       await DraftCampaignService.update(id, {
         validationErrors: validation.campaignErrors,
         status: validation.isValid ? 'VALIDATED' : 'VALIDATION_FAILED'
-      });
+      }, profileId);
 
       for (const adSetId in validation.adSetErrors) {
-        await DraftAdSetService.update(adSetId, { validationErrors: validation.adSetErrors[adSetId] });
+        await DraftAdSetService.update(adSetId, { validationErrors: validation.adSetErrors[adSetId] }, profileId);
       }
 
       for (const adId in validation.adErrors) {
-        await DraftAdService.update(adId, { validationErrors: validation.adErrors[adId] });
+        await DraftAdService.update(adId, { validationErrors: validation.adErrors[adId] }, profileId);
       }
 
       res.json(validation);
@@ -173,7 +178,7 @@ export class DraftController {
     const id = req.params.id as string;
     const authReq = req as AuthRequest;
     try {
-      const owned = await prisma.draftCampaign.findFirst({ where: { id } });
+      const owned = await prisma.draftCampaign.findFirst({ where: { id, profileId: authReq.profileId } });
       if (!owned) return res.status(404).json({ error: 'Draft not found' });
       const result = await DraftPublishService.publishCampaign(id, authReq.userAccessToken!);
       await prisma.duplicateJob.create({
@@ -217,8 +222,18 @@ export class DraftController {
         return res.status(400).json({ error: 'campaignIds must be a non-empty array' });
       }
 
+      const ownedCampaigns = await prisma.draftCampaign.findMany({
+        where: { id: { in: campaignIds }, profileId: authReq.profileId },
+        select: { id: true },
+      });
+      const ownedIds = new Set(ownedCampaigns.map(c => c.id));
+
       const results: { id: string; success: boolean; metaCampaignId?: string; error?: string; userMessage?: string }[] = [];
       for (const id of campaignIds) {
+        if (!ownedIds.has(id)) {
+          results.push({ id, success: false, error: 'Draft not found' });
+          continue;
+        }
         try {
           const result = await DraftPublishService.publishCampaign(id, authReq.userAccessToken!);
           results.push({ id, success: true, metaCampaignId: result.metaCampaignId });
@@ -262,7 +277,8 @@ export class DraftController {
   static async deleteCampaign(req: Request, res: Response) {
     try {
       const id = req.params.id as string;
-      await DraftCampaignService.delete(id);
+      const { profileId } = req as AuthRequest;
+      await DraftCampaignService.delete(id, profileId);
       res.json({ success: true });
     } catch (error: any) {
       if (error.notFound) return res.status(404).json({ error: error.message });
@@ -313,7 +329,7 @@ export class DraftController {
       const id = req.params.id as string;
       const authReq = req as AuthRequest;
 
-      const owned = await prisma.draftCampaign.findFirst({ where: { id } });
+      const owned = await prisma.draftCampaign.findFirst({ where: { id, profileId: authReq.profileId } });
       if (!owned) return res.status(404).json({ error: 'Draft not found' });
       const result = await DraftPublishService.cleanupOrphanedMetaObjects(id, authReq.userAccessToken!);
       res.json(result);
@@ -521,9 +537,10 @@ export class DraftController {
   static async exportCampaign(req: Request, res: Response) {
     try {
       const id = req.params.id as string;
+      const { profileId } = req as AuthRequest;
 
       const campaign = await prisma.draftCampaign.findFirst({
-        where: { id },
+        where: { id, profileId },
         include: {
           adSets: {
             include: { ads: true },
@@ -675,7 +692,7 @@ export class DraftController {
       if (!targetProfileId) return res.status(400).json({ error: 'profileId is required' });
       if (targetProfileId === authReq.profileId) return res.status(400).json({ error: 'Cannot share with yourself' });
 
-      const draft = await prisma.draftCampaign.findFirst({ where: { id } });
+      const draft = await prisma.draftCampaign.findFirst({ where: { id, profileId: authReq.profileId } });
       if (!draft) return res.status(404).json({ error: 'Draft not found' });
 
       const share = await prisma.draftShare.create({
@@ -697,18 +714,29 @@ export class DraftController {
   static async revokeDraftShare(req: Request, res: Response) {
     const id = req.params.id as string;
     const shareId = req.params.shareId as string;
+    const { profileId } = req as AuthRequest;
     try {
-      await prisma.draftShare.delete({ where: { id: shareId, draftCampaignId: id } });
+      const share = await prisma.draftShare.findFirst({
+        where: { id: shareId, draftCampaignId: id },
+        include: { draftCampaign: { select: { profileId: true } } },
+      });
+      if (!share || share.draftCampaign.profileId !== profileId) {
+        return res.status(404).json({ error: 'Share not found' });
+      }
+      await prisma.draftShare.delete({ where: { id: shareId } });
       res.json({ success: true });
     } catch (error: any) {
-      if (error.code === 'P2025') return res.status(404).json({ error: 'Share not found' });
       res.status(500).json({ error: error.message });
     }
   }
 
   static async getDraftShares(req: Request, res: Response) {
     const id = req.params.id as string;
+    const { profileId } = req as AuthRequest;
     try {
+      const campaign = await prisma.draftCampaign.findFirst({ where: { id, profileId } });
+      if (!campaign) return res.status(404).json({ error: 'Draft not found' });
+
       const shares = await prisma.draftShare.findMany({
         where: { draftCampaignId: id },
         include: {
@@ -730,6 +758,13 @@ export class DraftController {
       if (!Array.isArray(campaignIds) || campaignIds.length === 0) return res.status(400).json({ error: 'campaignIds is required' });
       if (!Array.isArray(profileIds) || profileIds.length === 0) return res.status(400).json({ error: 'profileIds is required' });
       if (profileIds.includes(authReq.profileId)) return res.status(400).json({ error: 'Cannot share with yourself' });
+
+      const ownedCount = await prisma.draftCampaign.count({
+        where: { id: { in: campaignIds }, profileId: authReq.profileId },
+      });
+      if (ownedCount !== campaignIds.length) {
+        return res.status(404).json({ error: 'One or more drafts not found' });
+      }
 
       const data = campaignIds.flatMap((cid: string) =>
         profileIds.map((pid: string) => ({

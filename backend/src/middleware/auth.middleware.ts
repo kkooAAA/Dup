@@ -1,12 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import { prisma } from '../prisma';
-
-// CSRF posture: JWTs are read from the `Authorization: Bearer …` header
-// (not from a cookie), so a cross-site form/script cannot attach the
-// credential automatically — traditional CSRF does not apply here.
-
-const JWT_SECRET = process.env.JWT_SECRET || 'supersecret';
+import { config } from '../config';
 
 export interface AuthRequest extends Request {
   userId?: string;
@@ -29,7 +24,7 @@ export const authMiddleware = async (req: AuthRequest, res: Response, next: Next
   }
 
   try {
-    const decoded = jwt.verify(token, JWT_SECRET) as { userId: string; teamId?: string };
+    const decoded = jwt.verify(token, config.jwtSecret) as { userId: string; teamId?: string };
     req.userId = decoded.userId;
 
     const user = await prisma.user.findUnique({
@@ -75,6 +70,12 @@ export const authMiddleware = async (req: AuthRequest, res: Response, next: Next
 
     const profileId = req.headers['x-profile-id'] as string | undefined;
     if (profileId) {
+      const profile = await prisma.profile.findFirst({
+        where: { id: profileId, teamId: req.teamId },
+      });
+      if (!profile) {
+        return res.status(403).json({ message: 'Profile does not belong to your team' });
+      }
       req.profileId = profileId;
     }
 
